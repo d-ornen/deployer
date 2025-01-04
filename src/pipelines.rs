@@ -591,6 +591,7 @@ pub(crate) fn execute_pipeline(
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
       Action::Observe(o_action) => o_action.execute(env)?,
+      Action::Patch(patch) => patch.execute(env)?,
       Action::ForceArtifactsEnplace => {
         enplace_artifacts(config, env, false)?;
         
@@ -606,7 +607,6 @@ pub(crate) fn execute_pipeline(
         inquire::Confirm::new(i18n::INTERRUPT).with_default(true).prompt()?;
         (true, vec![])
       },
-      
     };
     
     let status_str = match status {

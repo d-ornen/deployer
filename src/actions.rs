@@ -8,6 +8,7 @@ pub(crate) mod buildlike;
 pub(crate) mod packlike;
 pub(crate) mod deploylike;
 pub(crate) mod observe;
+pub(crate) mod patch;
 
 use crate::actions::{
   check::{CheckAction, specify_regex},
@@ -16,6 +17,7 @@ use crate::actions::{
   packlike::*,
   deploylike::*,
   observe::ObserveAction,
+  patch::PatchAction,
 };
 use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
@@ -86,6 +88,9 @@ pub(crate) enum Action {
   
   /// Действие наблюдения за состоянием
   Observe(ObserveAction),
+  
+  /// Действие применения патча
+  Patch(PatchAction),
 }
 
 impl DescribedAction {
@@ -119,6 +124,7 @@ impl DescribedAction {
       "Deploy",
       "Post-deploy",
       "Observe",
+      "Patch",
     ];
     
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
@@ -235,6 +241,7 @@ impl DescribedAction {
         
         Action::Observe(ObserveAction { tags, command })
       },
+      "Patch" => Action::Patch(PatchAction::new_from_prompt()?),
       _ => unreachable!(),
     };
     
@@ -380,7 +387,7 @@ impl DescribedAction {
       Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
       Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace => self.action.clone(),
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => self.action.clone(),
     };
     
     let mut described_action = self.clone();
@@ -404,6 +411,7 @@ impl DescribedAction {
       Action::ConfigureDeploy(_) | Action::Deploy(_) | Action::PostDeploy(_) => {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_DEPL_TOOLKIT]);
       },
+      Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); }
       Action::Interrupt | Action::ForceArtifactsEnplace => {},
     }
     actions.extend_from_slice(&[
@@ -448,7 +456,7 @@ impl DescribedAction {
             Action::Check(a) => a.edit_check_from_prompt()?,
             Action::Observe(a) => a.command.edit_command_from_prompt()?,
             Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace => {},
+            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => {},
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,
@@ -481,6 +489,7 @@ impl DescribedAction {
             _ => {},
           }
         },
+        i18n::EDIT_PATCH if let Action::Patch(patch) = &mut self.action => { patch.edit_from_prompt()?; },
         _ => {},
       }
     }
