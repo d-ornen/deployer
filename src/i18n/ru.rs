@@ -228,6 +228,7 @@ tr!(PIPELINE_REMOVE, "Удалить Пайплайн `{1}` - `{2}`");
 tr!(STARTING_PIPELINE, "Запуск Пайплайна `{}`...");
 tr!(STARTING_ACTION, "Действие");
 tr!(ARTIFACTS_ENPLACED, "Артефакты размещены успешно.");
+tr!(ARTIFACT_ENPLACE_FAIL, "Такого артефакта не существует");
 tr!(INTERRUPT, "Пайплайн прерван. Нажмите `Enter` для продолжения");
 
 tr!(BUILD_PATH, "Путь сборки");

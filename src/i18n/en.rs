@@ -228,6 +228,7 @@ tr!(PIPELINE_REMOVE, "Remove Pipeline `{1}` - `{2}`");
 tr!(STARTING_PIPELINE, "Starting the `{}` Pipeline...");
 tr!(STARTING_ACTION, "Action");
 tr!(ARTIFACTS_ENPLACED, "Artifacts are enplaced successfully.");
+tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
 tr!(BUILD_PATH, "Build path");

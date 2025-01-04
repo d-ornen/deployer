@@ -53,7 +53,7 @@ pub(crate) fn enplace_artifacts(
   for (from, to) in &config.inplace_artifacts_into_project_root {
     let artifact_path = env.build_dir.join(from);
     if !std::fs::exists(artifact_path.clone())? {
-      if panic_when_not_found { panic!("There is no `{:?}` artifact!", artifact_path); }
+      if panic_when_not_found { panic!("{}: {:?}!", i18n::ARTIFACT_ENPLACE_FAIL, artifact_path); }
     } else if artifact_path.as_path().is_dir() || artifact_path.as_path().is_file() {
       copy_all(artifact_path.as_path(), env.artifacts_dir.join(to).as_path(), &ignore)?;
     }
