@@ -174,6 +174,8 @@ tr!(EDIT_CACHE, "Edit cache files");
 tr!(EDIT_PROJECT_VARS, "Edit project variables");
 tr!(EDIT_ARTIFACTS, "Edit artifacts");
 tr!(EDIT_AF_INPLACE, "Edit artifact inplacements");
+tr!(EDIT_DEFAULT, "Select default Pipeline");
+tr!(EDIT_PATCH, "Edit patch");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -259,3 +261,10 @@ tr!(ADD_NEW_INPLACEMENT_FIRST, "Do you want to create artifact inplacement from 
 tr!(ADD_NEW_INPLACEMENT_SECOND, "Add one more artifact inplacement?");
 
 tr!(INIT_SUCC, "Setup is completed. Don't forget to assign at least one Pipeline to the project to build/deploy!");
+tr!(PROJECT_NO_PIPELINES, "Current project have no specified Pipelines to select the default one.");
+tr!(EDIT_DEFAULT_PROMPT, "Select the default project's Pipeline");
+
+// Patch
+tr!(PATCH_ERROR, "Patch application failed");
+tr!(PATCH_DONE, "The patch has been applied {} time(s).");
+tr!(PATCH_SPECIFY_PATH, "Specify patch location:");

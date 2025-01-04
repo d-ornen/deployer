@@ -1,6 +1,6 @@
 [package]
 name = "deployer"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 
 [dependencies]
@@ -15,6 +15,7 @@ mimalloc = "0.1.43"
 regex = "1.11"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+smart-patcher = { git = "https://github.com/impulse-sw/smart-patcher" }
 strip-ansi-escapes = "0.2"
 uuid = { version = "1.11", features = ["v4", "fast-rng"] }
 
