@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::actions::{DescribedAction, Action, buildlike::BuildAction};
 use crate::pipelines::DescribedPipeline;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::{ActionInfo, info2str_simple},
+  info::ActionInfo,
   targets::TargetDescription,
   programming_languages::ProgrammingLanguage,
   variables::Variable,
@@ -26,17 +27,17 @@ pub(crate) struct DeployerProjectOptions {
   pub(crate) deploy_toolkit: Option<String>,
   
   /// Метки кэша
-  pub(crate) cache_files: Vec<String>,
+  pub(crate) cache_files: Vec<PathBuf>,
   
   /// Пайплайны
   pub(crate) pipelines: Vec<DescribedPipeline>,
   
   /// Артефакты
-  pub(crate) artifacts: Vec<String>,
+  pub(crate) artifacts: Vec<PathBuf>,
   /// Переменные
   pub(crate) variables: Vec<Variable>,
   /// Правила размещения артефактов
-  pub(crate) inplace_artifacts_into_project_root: Vec<(String, String)>,
+  pub(crate) inplace_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 }
 
 /// Глобальная конфигурация Деплойера.
@@ -61,8 +62,8 @@ impl Default for DeployerGlobalConfig {
   fn default() -> Self {
     let mut actions_registry = hmap!();
     
-    let info = ActionInfo { short_name: "cargo-rel".into(), version: "0.1".into() };
-    actions_registry.insert(info2str_simple(&info), DescribedAction {
+    let info = ActionInfo::new("cargo-rel", "0.1").unwrap();
+    actions_registry.insert(info.to_str(), DescribedAction {
       title: "Cargo Build (Release)".into(),
       desc: "Build the Rust project with Cargo default settings in release mode".into(),
       info,

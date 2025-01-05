@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::process::exit;
 
 pub(crate) mod check;
@@ -23,7 +24,7 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::{CustomCommand, specify_bash_c},
-  info::{ActionInfo, info2str, str2info, info2str_simple},
+  info::{ActionInfo, ContentInfo, info2str, str2info},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
   targets::TargetDescription,
   traits::{Edit, EditExtended},
@@ -89,6 +90,11 @@ pub(crate) enum Action {
   /// Действие наблюдения за состоянием
   Observe(ObserveAction),
   
+  /// Действие добавления содержимого из хранилища.
+  /// Это могут быть любые файлы и папки, сохраняющие структуру расположения
+  #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
+  UseFromStorage(ContentInfo),
+  
   /// Действие применения патча
   Patch(PatchAction),
 }
@@ -100,7 +106,7 @@ impl DescribedAction {
     let short_name = Text::new(i18n::ACTION_SHORT_NAME).prompt()?;
     let version = Text::new(i18n::ACTION_VERSION).prompt()?;
     
-    let info = ActionInfo { short_name, version };
+    let info = ActionInfo::new(short_name, version)?;
     
     let name = Text::new(i18n::ACTION_FULL_NAME).prompt()?;
     let desc = Text::new(i18n::ACTION_DESC).prompt()?;
@@ -112,6 +118,8 @@ impl DescribedAction {
       "Custom",
       "Check",
       "Force artifacts enplace",
+      "Use content from storage",
+      "Patch",
       "Pre-build",
       "Build",
       "Post-build",
@@ -124,7 +132,6 @@ impl DescribedAction {
       "Deploy",
       "Post-deploy",
       "Observe",
-      "Patch",
     ];
     
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
@@ -242,6 +249,14 @@ impl DescribedAction {
         Action::Observe(ObserveAction { tags, command })
       },
       "Patch" => Action::Patch(PatchAction::new_from_prompt()?),
+      "Use content from storage" => {
+        let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
+        let version = Text::new(i18n::CONTENT_VER).prompt()?;
+        
+        let info = ContentInfo::new(short_name, version)?;
+        
+        Action::UseFromStorage(info)
+      },
       _ => unreachable!(),
     };
     
@@ -254,13 +269,13 @@ impl DescribedAction {
     };
     
     if
-      opts.actions_registry.contains_key(&info2str_simple(&described_action.info)) &&
-      !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &info2str_simple(&described_action.info))).prompt()?
+      opts.actions_registry.contains_key(&described_action.info.to_str()) &&
+      !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &described_action.info.to_str())).prompt()?
     {
       exit(0);
     }
     
-    opts.actions_registry.insert(info2str_simple(&described_action.info), described_action.clone());
+    opts.actions_registry.insert(described_action.info.to_str(), described_action.clone());
     
     Ok(described_action)
   }
@@ -270,14 +285,14 @@ impl DescribedAction {
     action: &BuildAction,
     langs: &Vec<ProgrammingLanguage>,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<BuildAction> {
     let mut action = action.clone();
     if 
       !langs.iter().any(|l| action.supported_langs.contains(l)) && 
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_PLS
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", &format!("{:?}", action.supported_langs))
           .replace("{3}", &format!("{:?}", langs))
       ).prompt()?
@@ -294,7 +309,7 @@ impl DescribedAction {
     &self,
     action: &ProjectCleanAction,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<ProjectCleanAction> {
     let mut action = action.clone();
     for cmd in &mut action.additional_commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
@@ -306,7 +321,7 @@ impl DescribedAction {
     action: &PackAction,
     targets: &[TargetDescription],
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<PackAction> {
     let mut action = action.clone();
     
@@ -314,7 +329,7 @@ impl DescribedAction {
       action.target.as_ref().is_some_and(|t| !targets.contains(t)) &&
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_TARGETS
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", &format!("{}", action.target.as_ref().unwrap()))
           .replace("{3}", &format!("{:?}", targets.iter().map(TargetDescription::to_string).collect::<Vec<_>>()))
       ).prompt()?
@@ -331,14 +346,14 @@ impl DescribedAction {
     action: &DeployAction,
     deploy_toolkit: &Option<String>,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<DeployAction> {
     let mut action = action.clone();
     if
       action.deploy_toolkit.as_ref().is_some_and(|l| deploy_toolkit.as_ref().is_some_and(|r| l.as_str() != r.as_str())) &&
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_DEPL_TOOLKIT
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", action.deploy_toolkit.as_ref().unwrap())
           .replace("{3}", deploy_toolkit.as_ref().unwrap())
       ).prompt()?
@@ -355,7 +370,7 @@ impl DescribedAction {
     &self,
     action: &ObserveAction,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<ObserveAction> {
     let mut action = action.clone();
     
@@ -370,7 +385,7 @@ impl DescribedAction {
     deploy_toolkit: &Option<String>,
     targets: &[TargetDescription],
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<Self> {
     let action = match &self.action {
       Action::Custom(cmd) => Action::Custom(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
@@ -387,7 +402,7 @@ impl DescribedAction {
       Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
       Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => self.action.clone(),
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) => self.action.clone(),
     };
     
     let mut described_action = self.clone();
@@ -412,7 +427,7 @@ impl DescribedAction {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_DEPL_TOOLKIT]);
       },
       Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); }
-      Action::Interrupt | Action::ForceArtifactsEnplace => {},
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
@@ -456,7 +471,7 @@ impl DescribedAction {
             Action::Check(a) => a.edit_check_from_prompt()?,
             Action::Observe(a) => a.command.edit_command_from_prompt()?,
             Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => {},
+            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) => {},
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,
@@ -505,7 +520,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
       let mut cs = vec![];
       
       self.iter_mut().for_each(|c| {
-        let s = i18n::ACTION_EDIT.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+        let s = i18n::ACTION_EDIT.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
         
         cmap.insert(s.clone(), c);
         cs.push(s);
@@ -534,7 +549,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut k = vec![];
     
     for selected in self.iter() {
-      let key = i18n::ACTION.replace("{1}", &selected.title).replace("{2}", &info2str_simple(&selected.info));
+      let key = i18n::ACTION.replace("{1}", &selected.title).replace("{2}", &selected.info.to_str());
       k.push(key.clone());
       h.insert(key, selected);
     }
@@ -560,7 +575,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut k = vec![];
     
     for action in opts.actions_registry.values() {
-      let key = i18n::ACTION.replace("{1}", &action.title).replace("{2}", &info2str_simple(&action.info));
+      let key = i18n::ACTION.replace("{1}", &action.title).replace("{2}", &action.info.to_str());
       k.push(key.clone());
       h.insert(key, action);
     }
@@ -584,7 +599,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut cs = vec![];
     
     self.iter().for_each(|c| {
-      let s = i18n::ACTION_REMOVE.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+      let s = i18n::ACTION_REMOVE.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
       
       cmap.insert(s.clone(), c);
       cs.push(s);
@@ -611,10 +626,10 @@ pub(crate) fn list_actions(
   println!("{}", i18n::ACTIONS_AVAILABLE);
   
   let mut actions = globals.actions_registry.values().collect::<Vec<_>>();
-  actions.sort_by_key(|a| info2str_simple(&a.info));
+  actions.sort_by_key(|a| a.info.to_str());
   
   for action in actions {
-    let action_info = format!("{}@{}", action.info.short_name, action.info.version);
+    let action_info = action.info.to_str();
     let action_title = format!("[{}]", action.title);
     let tags = if action.tags.is_empty() { String::new() } else { format!(" ({}: {})", i18n::TAGS, action.tags.join(", ").as_str().blue().italic()) };
     println!("• {} {}{}", action_info.blue().bold(), action_title.green().bold(), tags);
@@ -634,7 +649,7 @@ pub(crate) fn remove_action(
   }
   
   let mut actions = globals.actions_registry.values().collect::<Vec<_>>();
-  actions.sort_by_key(|a| info2str_simple(&a.info));
+  actions.sort_by_key(|a| a.info.to_str());
   
   let (actions, keys) = {
     let mut h = hmap!();
@@ -642,7 +657,7 @@ pub(crate) fn remove_action(
     
     for key in globals.actions_registry.keys() {
       let action = globals.actions_registry.get(key).unwrap();
-      let new_key = format!("{} - {}", info2str_simple(&action.info), action.title);
+      let new_key = format!("{} - {}", action.info.to_str(), action.title);
       h.insert(new_key.clone(), action);
       k.push(new_key);
     }
@@ -657,7 +672,7 @@ pub(crate) fn remove_action(
   
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
-  globals.actions_registry.remove(&info2str_simple(&action.info));
+  globals.actions_registry.remove(&action.info.to_str());
   
   Ok(())
 }
@@ -674,7 +689,7 @@ pub(crate) fn new_action(
     let action = read_checked::<DescribedAction>(from_file).map_err(|e| {
       panic!("Can't read provided Action file due to: {}", e);
     }).unwrap();
-    actions.insert(info2str_simple(&action.info), action.clone());
+    actions.insert(action.info.to_str(), action.clone());
     return Ok(action)
   }
   

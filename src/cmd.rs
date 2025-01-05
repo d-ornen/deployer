@@ -19,7 +19,7 @@ pub(crate) struct Cli {
   pub(crate) config_folder: Option<String>,
   /// Specify data folder
   #[arg(long)]
-  pub(crate) data_folder: Option<String>,
+  pub(crate) storage_folder: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -59,6 +59,8 @@ pub(crate) enum ListType {
   Actions,
   /// List available Pipelines
   Pipelines,
+  /// List available content in Deployer's storage
+  Content,
 }
 
 #[derive(Subcommand, Debug)]
@@ -105,6 +107,8 @@ pub(crate) enum NewType {
   Action(NewActionArgs),
   /// Add new Pipeline to Deployer's registry
   Pipeline(NewPipelineArgs),
+  /// Add new Content to Deployer's storage
+  Content,
 }
 
 #[derive(Args, Debug)]

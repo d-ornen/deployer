@@ -228,6 +228,7 @@ tr!(PIPELINE_REMOVE, "Remove Pipeline `{1}` - `{2}`");
 tr!(STARTING_PIPELINE, "Starting the `{}` Pipeline...");
 tr!(STARTING_ACTION, "Action");
 tr!(ARTIFACTS_ENPLACED, "Artifacts are enplaced successfully.");
+tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
 tr!(BUILD_PATH, "Build path");
@@ -241,7 +242,6 @@ tr!(PROJECT_SPECIFY_PLS, "Please, specify the project's programming languages to
 tr!(PROJECT_DEPL_TOOLKIT, "Specify your deploy toolkit (`docker`, `docker-compose`, `podman`, `k8s`, etc.)");
 
 tr!(ENTITY, "Entity");
-tr!(NEW_VALUE, "Input new value:");
 tr!(VALUE_TO_REMOVE, "Select a value to remove:");
 tr!(INPLACEMENT, "Inplacement");
 
@@ -254,7 +254,6 @@ tr!(SELECT_TARGET_TO_CHANGE, "Select a concrete target to change");
 tr!(SELECT_TARGET_TO_REMOVE, "Select a target to remove:");
 tr!(ADD_NEW_TARGET, "Add new build target?");
 
-tr!(AF_RELATIVE_PATH, "Enter the artifact's relative path:");
 tr!(ADD_NEW_AF, "Add new build/deploy artifact?");
 tr!(ADD_NEW_VAR, "Add new project-related variable or secret?");
 tr!(ADD_NEW_INPLACEMENT_FIRST, "Do you want to create artifact inplacement from build directory to your project's location (inside `artifacts` subfolder)?");
@@ -267,4 +266,26 @@ tr!(EDIT_DEFAULT_PROMPT, "Select the default project's Pipeline");
 // Patch
 tr!(PATCH_ERROR, "Patch application failed");
 tr!(PATCH_DONE, "The patch has been applied {} time(s).");
+tr!(PATCH_DONE_ZERO_TIMES, "The patch wasn't applied! The contents of the patch are probably incorrect, or the project files have changed.");
 tr!(PATCH_SPECIFY_PATH, "Specify patch location:");
+
+// Content & Storage
+tr!(NO_SUCH_CONTENT, "There is no such content");
+tr!(CONTENT_CONSIDER_ADD, "Consider to add this content via `deployer add content`.");
+tr!(CONTENT_INFO, "Write the content's short name:");
+tr!(CONTENT_VER, "Specify the content's version:");
+tr!(CONTENT_AVAILABLE, "Available content in Deployer's storage:");
+tr!(CONTENT_GUIDE_1, "To add content, you need to specify the path to the content folder.");
+tr!(CONTENT_GUIDE_2, "The content in it must be located in such a way that the paths to the required files are relative to the assembly folder.");
+tr!(CONTENT_GUIDE_3, "For example, if you need to place a Dockerfile at the root of the build folder, you place the file at the root of the content folder; if you need the file to be located in a subfolder, you place it in a subfolder with the same name inside the content folder.");
+tr!(CONTENT_GUIDE_4, "Now you need to specify the short name and version of the content (for example, `dockerfile` content with version `0.1.0`).");
+tr!(CONTENT_GUIDE_5, "You will need this information to add a `UseFromStorage` Action.");
+
+tr!(CONTENT_SPECIFY_PATH, "Specify content folder's path:");
+tr!(CONTENT_ADDED_SUCC, "Content `{1}` added to Deployer's storage successfully (path: {2})");
+tr!(PATH, "path");
+
+// Paths and resolver
+tr!(RELATIVE_PATH, "Enter the relative path:");
+tr!(INCORRECT_PATH, "Incorrect path! Entity must be placed inside build folder!");
+tr!(INCORRECT_AF_INPL_PATH, "Incorrect artifact's inplacement path! Artifact must be inplaced inside `artifacts` folder!");

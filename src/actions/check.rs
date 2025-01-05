@@ -1,6 +1,7 @@
 use colored::Colorize;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::entities::{
   environment::BuildEnvironment,
@@ -77,7 +78,7 @@ impl CheckAction {
     &self,
     info: &ActionInfo,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<Self> {
     let mut r = self.clone();
     r.command = r.command.prompt_setup_for_project(info, variables, artifacts)?;
