@@ -266,6 +266,7 @@ tr!(EDIT_DEFAULT_PROMPT, "Select the default project's Pipeline");
 // Patch
 tr!(PATCH_ERROR, "Patch application failed");
 tr!(PATCH_DONE, "The patch has been applied {} time(s).");
+tr!(PATCH_DONE_ZERO_TIMES, "The patch wasn't applied! The contents of the patch are probably incorrect, or the project files have changed.");
 tr!(PATCH_SPECIFY_PATH, "Specify patch location:");
 
 // Content & Storage
