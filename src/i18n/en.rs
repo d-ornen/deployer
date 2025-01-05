@@ -273,6 +273,16 @@ tr!(NO_SUCH_CONTENT, "There is no such content");
 tr!(CONTENT_CONSIDER_ADD, "Consider to add this content via `deployer add content`.");
 tr!(CONTENT_INFO, "Write the content's short name:");
 tr!(CONTENT_VER, "Specify the content's version:");
+tr!(CONTENT_AVAILABLE, "Available content in Deployer's storage:");
+tr!(CONTENT_GUIDE_1, "To add content, you need to specify the path to the content folder.");
+tr!(CONTENT_GUIDE_2, "The content in it must be located in such a way that the paths to the required files are relative to the assembly folder.");
+tr!(CONTENT_GUIDE_3, "For example, if you need to place a Dockerfile at the root of the build folder, you place the file at the root of the content folder; if you need the file to be located in a subfolder, you place it in a subfolder with the same name inside the content folder.");
+tr!(CONTENT_GUIDE_4, "Now you need to specify the short name and version of the content (for example, `dockerfile` content with version `0.1.0`).");
+tr!(CONTENT_GUIDE_5, "You will need this information to add a `UseFromStorage` Action.");
+
+tr!(CONTENT_SPECIFY_PATH, "Specify content folder's path:");
+tr!(CONTENT_ADDED_SUCC, "Content `{1}` added to Deployer's storage successfully (path: {2})");
+tr!(PATH, "path");
 
 // Paths and resolver
 tr!(RELATIVE_PATH, "Enter the relative path:");

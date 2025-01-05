@@ -34,6 +34,15 @@ impl Info {
   pub(crate) fn to_str(&self) -> String {
     format!("{}@{}", self.short_name, self.version)
   }
+  
+  pub(crate) fn from_str(short_name_and_ver: &str) -> anyhow::Result<Self> {
+    let vals = short_name_and_ver.split('@').collect::<Vec<_>>();
+    if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
+      Info::new(short_name, version)
+    } else {
+      bail!("Short name and version must be divided by `@` character!")
+    }
+  }
 }
 
 pub(crate) type ActionInfo = Info;
@@ -46,14 +55,9 @@ where
 {
   use serde::de::Error;
   String::deserialize(deserializer).and_then(|string| {
-    let vals = string.split('@').collect::<Vec<_>>();
-    if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
-      match Info::new(short_name, version) {
-        Ok(v) => Ok(v),
-        Err(e) => Err(Error::custom(&e)),
-      }
-    } else {
-      Err(Error::custom("Can't deserialize information!"))
+    match Info::from_str(string.as_str()) {
+      Ok(v) => Ok(v),
+      Err(e) => Err(Error::custom(&e))
     }
   })
 }

@@ -609,8 +609,10 @@ pub(crate) fn execute_pipeline(
         (true, vec![])
       },
       Action::UseFromStorage(content_info) => {
-        use_from_storage(env.storage_dir, env.build_dir, content_info)?;
-        (true, vec![])
+        match use_from_storage(env.storage_dir, env.build_dir, content_info) {
+          Ok(_) => (true, vec![]),
+          Err(e) => (false, vec![e.to_string()]),
+        }
       },
     };
     

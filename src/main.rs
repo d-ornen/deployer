@@ -30,6 +30,7 @@ use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::pipelines::{list_pipelines, new_pipeline, remove_pipeline, cat_pipeline, cat_project_pipelines, assign_pipeline_to_project, edit_pipeline};
 use crate::project::edit_project;
 use crate::rw::{read, write, VERBOSE};
+use crate::storage::{list_content, new_content};
 use crate::utils::get_current_working_dir;
 
 #[cfg(feature = "tests")]
@@ -153,6 +154,9 @@ fn main() {
       remove_pipeline(&mut globals).unwrap();
       write(&config_folder, GLOBAL_CONF, &globals);
     },
+    
+    DeployerExecType::Ls(ListType::Content) => list_content(&storage_folder).unwrap(),
+    DeployerExecType::New(NewType::Content) => new_content(&storage_folder).unwrap(),
     
     DeployerExecType::Init(args) => {
       init(&mut globals, &mut config, &args).unwrap();
