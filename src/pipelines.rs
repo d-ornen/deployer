@@ -14,6 +14,7 @@ use crate::entities::{
 use crate::hmap;
 use crate::i18n;
 use crate::rw::{read_checked, generate_build_log_filepath, build_log};
+use crate::storage::use_from_storage;
 use crate::utils::tags_custom_type;
 use crate::ARTIFACTS_DIR;
 
@@ -605,6 +606,10 @@ pub(crate) fn execute_pipeline(
       Action::Interrupt => {
         println!();
         inquire::Confirm::new(i18n::INTERRUPT).with_default(true).prompt()?;
+        (true, vec![])
+      },
+      Action::UseFromStorage(content_info) => {
+        use_from_storage(env.storage_dir, env.build_dir, content_info)?;
         (true, vec![])
       },
     };

@@ -47,8 +47,8 @@ pub(crate) fn enplace_artifacts(
   env: BuildEnvironment,
   panic_when_not_found: bool,
 ) -> anyhow::Result<()> {
-  let mut ignore = vec![ARTIFACTS_DIR];
-  ignore.extend_from_slice(&(config.cache_files.iter().map(|c| c.as_str()).collect::<Vec<_>>()));
+  let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
+  ignore.extend_from_slice(&config.cache_files);
   
   for (from, to) in &config.inplace_artifacts_into_project_root {
     let artifact_path = env.build_dir.join(from);
@@ -116,27 +116,27 @@ fn prepare_build_folder(
   let fresh = !build_path.exists() || args.fresh;
   std::fs::create_dir_all(build_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", build_path));
   
-  let mut ignore = vec![ARTIFACTS_DIR, build_path.file_name().unwrap().to_str().unwrap()];
-  ignore.extend_from_slice(&config.cache_files.iter().map(|v| v.as_str()).collect::<Vec<_>>());
+  let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR), PathBuf::from(build_path.file_name().unwrap())];
+  ignore.extend_from_slice(&config.cache_files);
   
   copy_all(get_current_working_dir().unwrap(), build_path.as_path(), &ignore)?;
   write(cache_dir, BUILD_CACHE_LIST, &builds);
   
   if args.link_cache {
     for cache_item in &config.cache_files {
-      symlink(current_dir.join(cache_item.as_str()), build_path.join(cache_item.as_str()));
-      log(format!("-> {}", cache_item.as_str()));
+      symlink(current_dir.join(cache_item), build_path.join(cache_item));
+      log(format!("-> {:?}", cache_item));
     }
   }
   
   if args.copy_cache {
     for cache_item in &config.cache_files {
       copy_all(
-        current_dir.join(cache_item.as_str()),
-        build_path.join(cache_item.as_str()),
-        &[]
+        current_dir.join(cache_item),
+        build_path.join(cache_item),
+        &[""]
       )?;
-      log(format!("-> {}", cache_item.as_str()));
+      log(format!("-> {:?}", cache_item));
     }
   }
   
@@ -147,6 +147,7 @@ pub(crate) fn build(
   config: &mut DeployerProjectOptions,
   builds: &mut Builds,
   cache_dir: &Path,
+  storage_dir: &Path,
   args: &BuildArgs,
 ) -> anyhow::Result<()> {
   if *config == Default::default() { panic!("{}", i18n::CFG_INVALID); }
@@ -188,6 +189,7 @@ pub(crate) fn build(
       let env = BuildEnvironment {
         build_dir: &build_path,
         cache_dir,
+        storage_dir,
         artifacts_dir: &artifacts_dir,
         new_build,
         silent_build: args.silent,
@@ -210,6 +212,7 @@ pub(crate) fn build(
         let env = BuildEnvironment {
           build_dir: &build_path,
           cache_dir,
+          storage_dir,
           artifacts_dir: &artifacts_dir,
           new_build,
           silent_build: args.silent,

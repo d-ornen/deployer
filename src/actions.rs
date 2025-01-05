@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::process::exit;
 
 pub(crate) mod check;
@@ -23,7 +24,7 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::{CustomCommand, specify_bash_c},
-  info::{ActionInfo, info2str, str2info},
+  info::{ActionInfo, ContentInfo, info2str, str2info},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
   targets::TargetDescription,
   traits::{Edit, EditExtended},
@@ -89,6 +90,11 @@ pub(crate) enum Action {
   /// Действие наблюдения за состоянием
   Observe(ObserveAction),
   
+  /// Действие добавления содержимого из хранилища.
+  /// Это могут быть любые файлы и папки, сохраняющие структуру расположения
+  #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
+  UseFromStorage(ContentInfo),
+  
   /// Действие применения патча
   Patch(PatchAction),
 }
@@ -100,7 +106,7 @@ impl DescribedAction {
     let short_name = Text::new(i18n::ACTION_SHORT_NAME).prompt()?;
     let version = Text::new(i18n::ACTION_VERSION).prompt()?;
     
-    let info = ActionInfo { short_name, version };
+    let info = ActionInfo::new(short_name, version)?;
     
     let name = Text::new(i18n::ACTION_FULL_NAME).prompt()?;
     let desc = Text::new(i18n::ACTION_DESC).prompt()?;
@@ -112,6 +118,8 @@ impl DescribedAction {
       "Custom",
       "Check",
       "Force artifacts enplace",
+      "Use content from storage",
+      "Patch",
       "Pre-build",
       "Build",
       "Post-build",
@@ -124,7 +132,6 @@ impl DescribedAction {
       "Deploy",
       "Post-deploy",
       "Observe",
-      "Patch",
     ];
     
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
@@ -242,6 +249,14 @@ impl DescribedAction {
         Action::Observe(ObserveAction { tags, command })
       },
       "Patch" => Action::Patch(PatchAction::new_from_prompt()?),
+      "Use content from storage" => {
+        let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
+        let version = Text::new(i18n::CONTENT_VER).prompt()?;
+        
+        let info = ContentInfo::new(short_name, version)?;
+        
+        Action::UseFromStorage(info)
+      },
       _ => unreachable!(),
     };
     
@@ -270,7 +285,7 @@ impl DescribedAction {
     action: &BuildAction,
     langs: &Vec<ProgrammingLanguage>,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<BuildAction> {
     let mut action = action.clone();
     if 
@@ -294,7 +309,7 @@ impl DescribedAction {
     &self,
     action: &ProjectCleanAction,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<ProjectCleanAction> {
     let mut action = action.clone();
     for cmd in &mut action.additional_commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
@@ -306,7 +321,7 @@ impl DescribedAction {
     action: &PackAction,
     targets: &[TargetDescription],
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<PackAction> {
     let mut action = action.clone();
     
@@ -331,7 +346,7 @@ impl DescribedAction {
     action: &DeployAction,
     deploy_toolkit: &Option<String>,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<DeployAction> {
     let mut action = action.clone();
     if
@@ -355,7 +370,7 @@ impl DescribedAction {
     &self,
     action: &ObserveAction,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<ObserveAction> {
     let mut action = action.clone();
     
@@ -370,7 +385,7 @@ impl DescribedAction {
     deploy_toolkit: &Option<String>,
     targets: &[TargetDescription],
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<Self> {
     let action = match &self.action {
       Action::Custom(cmd) => Action::Custom(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
@@ -387,7 +402,7 @@ impl DescribedAction {
       Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
       Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => self.action.clone(),
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) => self.action.clone(),
     };
     
     let mut described_action = self.clone();
@@ -412,7 +427,7 @@ impl DescribedAction {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_DEPL_TOOLKIT]);
       },
       Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); }
-      Action::Interrupt | Action::ForceArtifactsEnplace => {},
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
@@ -456,7 +471,7 @@ impl DescribedAction {
             Action::Check(a) => a.edit_check_from_prompt()?,
             Action::Observe(a) => a.command.edit_command_from_prompt()?,
             Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) => {},
+            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) => {},
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,

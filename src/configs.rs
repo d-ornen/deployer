@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::actions::{DescribedAction, Action, buildlike::BuildAction};
 use crate::pipelines::DescribedPipeline;
@@ -26,17 +27,17 @@ pub(crate) struct DeployerProjectOptions {
   pub(crate) deploy_toolkit: Option<String>,
   
   /// Метки кэша
-  pub(crate) cache_files: Vec<String>,
+  pub(crate) cache_files: Vec<PathBuf>,
   
   /// Пайплайны
   pub(crate) pipelines: Vec<DescribedPipeline>,
   
   /// Артефакты
-  pub(crate) artifacts: Vec<String>,
+  pub(crate) artifacts: Vec<PathBuf>,
   /// Переменные
   pub(crate) variables: Vec<Variable>,
   /// Правила размещения артефактов
-  pub(crate) inplace_artifacts_into_project_root: Vec<(String, String)>,
+  pub(crate) inplace_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 }
 
 /// Глобальная конфигурация Деплойера.

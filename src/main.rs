@@ -1,6 +1,5 @@
 #![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned)]
-#![warn(clippy::todo, clippy::unimplemented)]
-#![deny(warnings)]
+#![deny(warnings, clippy::todo, clippy::unimplemented)]
 
 #[cfg(feature = "tests")]
 mod tests;
@@ -12,6 +11,8 @@ mod utils;
 
 mod init;
 mod build;
+
+mod storage;
 
 mod actions;
 mod pipelines;
@@ -169,7 +170,7 @@ fn main() {
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     },
     DeployerExecType::Build(args) => {
-      build(&mut config, &mut builds, &cache_folder, &args).unwrap();
+      build(&mut config, &mut builds, &cache_folder, &storage_folder, &args).unwrap();
       write(&cache_folder, BUILD_CACHE_LIST, &builds);
     },
     DeployerExecType::Clean(args) => {

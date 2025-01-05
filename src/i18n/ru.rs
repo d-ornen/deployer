@@ -242,7 +242,6 @@ tr!(PROJECT_SPECIFY_PLS, "Пожалуйста, укажите языки про
 tr!(PROJECT_DEPL_TOOLKIT, "Укажите инструментарий развёртывания проекта (`docker`, `docker-compose`, `podman`, `k8s` и т.п.)");
 
 tr!(ENTITY, "Сущность");
-tr!(NEW_VALUE, "Введите новое значение:");
 tr!(VALUE_TO_REMOVE, "Выберите значение для удаления:");
 tr!(INPLACEMENT, "Размещение");
 
@@ -255,7 +254,6 @@ tr!(SELECT_TARGET_TO_CHANGE, "Выберите цель для редактир�
 tr!(SELECT_TARGET_TO_REMOVE, "Выберите цель для удаления:");
 tr!(ADD_NEW_TARGET, "Добавить новую цель?");
 
-tr!(AF_RELATIVE_PATH, "Введите относительный путь до артефакта:");
 tr!(ADD_NEW_AF, "Добавить новый артефакт сборки/развёртывания?");
 tr!(ADD_NEW_VAR, "Добавить новую переменную/секрет проекта?");
 tr!(ADD_NEW_INPLACEMENT_FIRST, "Хотите ли вы создать размещение артефакта из папки сборки в папку проекта (внутри подпапки `artifacts`)?");
@@ -269,3 +267,14 @@ tr!(EDIT_DEFAULT_PROMPT, "Выберите для проекта Пайплай�
 tr!(PATCH_ERROR, "Применение патча завершилось неудачей");
 tr!(PATCH_DONE, "Патч был применён {} раз(а).");
 tr!(PATCH_SPECIFY_PATH, "Укажите расположение патча:");
+
+// Content & Storage
+tr!(NO_SUCH_CONTENT, "Такого контента не существует");
+tr!(CONTENT_CONSIDER_ADD, "Добавьте нужный контент через команду `deployer add content`.");
+tr!(CONTENT_INFO, "Укажите короткое название контента:");
+tr!(CONTENT_VER, "Укажите версию контента:");
+
+// Paths and resolver
+tr!(RELATIVE_PATH, "Введите относительный путь:");
+tr!(INCORRECT_PATH, "Некорректный путь! Сущность должна располагаться в папке сборки!");
+tr!(INCORRECT_AF_INPL_PATH, "Некорректный путь размещения артефакта! Артефакт сборки должен быть размещён внутри папки `artifacts`!");

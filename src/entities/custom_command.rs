@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::hmap;
 use crate::i18n;
@@ -80,7 +81,7 @@ impl CustomCommand {
     &self,
     info: &ActionInfo,
     variables: &[Variable],
-    artifacts: &[String],
+    artifacts: &[PathBuf],
   ) -> anyhow::Result<Self> {
     use inquire::{Confirm, Select, Text};
     
@@ -91,7 +92,8 @@ impl CustomCommand {
     println!("{}", i18n::CMD_SPECIFY_VARS.replace("{}", &info.to_str().blue()));
     
     let mut all_variables = variables.titles();
-    all_variables.extend_from_slice(artifacts);
+    let afs = artifacts.iter().map(|v| v.to_str().unwrap().to_owned()).collect::<Vec<_>>();
+    all_variables.extend_from_slice(&afs);
     all_variables.push(USE_ANOTHER.to_string());
     
     let mut replacements = vec![];

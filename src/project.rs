@@ -1,4 +1,3 @@
-use anyhow::bail;
 use colored::Colorize;
 use safe_path::scoped_join;
 use std::path::PathBuf;
@@ -26,15 +25,15 @@ impl DeployerProjectOptions {
     };
     self.project_name = Text::new(i18n::PROJECT_NAME).with_initial_value(project_name_proposal.as_str()).prompt()?;
     
-    self.cache_files.push(".git".to_string());
+    self.cache_files.push(PathBuf::from(".git"));
     println!("{}", i18n::PROJECT_SPECIFY_PLS);
     self.langs = specify_programming_languages()?;
     for lang in &self.langs {
       match lang {
-        ProgrammingLanguage::Rust => self.cache_files.extend_from_slice(&["Cargo.lock".to_string(), "target".to_string()]),
-        ProgrammingLanguage::Go => self.cache_files.extend_from_slice(&["go.sum".to_string(), "vendor".to_string()]),
-        ProgrammingLanguage::Python => self.cache_files.extend_from_slice(&["__pycache__".to_string(), "dist".to_string()]),
-        ProgrammingLanguage::C | ProgrammingLanguage::Cpp => self.cache_files.extend_from_slice(&["CMakeFiles".to_string(), "CMakeCache.txt".to_string()]),
+        ProgrammingLanguage::Rust => self.cache_files.extend_from_slice(&[PathBuf::from("Cargo.lock"), PathBuf::from("target")]),
+        ProgrammingLanguage::Go => self.cache_files.extend_from_slice(&[PathBuf::from("go.sum"), PathBuf::from("vendor")]),
+        ProgrammingLanguage::Python => self.cache_files.extend_from_slice(&[PathBuf::from("__pycache__"), PathBuf::from("dist")]),
+        ProgrammingLanguage::C | ProgrammingLanguage::Cpp => self.cache_files.extend_from_slice(&[PathBuf::from("CMakeFiles"), PathBuf::from("CMakeCache.txt")]),
         _ => {},
       }
     }
@@ -125,14 +124,14 @@ impl DeployerProjectOptions {
   }
 }
 
-impl Edit for Vec<String> {
+impl Edit for Vec<PathBuf> {
   fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
     loop {
       let mut cmap = hmap!();
       let mut cs = vec![];
       
       self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}`", i18n::ENTITY, c.as_str());
+        let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
         
         cmap.insert(s.clone(), c);
         cs.push(s);
@@ -155,7 +154,7 @@ impl Edit for Vec<String> {
   fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
   
   fn add_item(&mut self) -> anyhow::Result<()> {
-    self.push(inquire::Text::new(i18n::NEW_VALUE).prompt()?);
+    self.push(collect_artifact()?);
     Ok(())
   }
   
@@ -164,7 +163,7 @@ impl Edit for Vec<String> {
     let mut cs = vec![];
     
     self.iter().for_each(|c| {
-      let s = format!("{} `{}`", i18n::ENTITY, c.as_str());
+      let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
       
       cmap.insert(s.clone(), c);
       cs.push(s);
@@ -183,14 +182,14 @@ impl Edit for Vec<String> {
   }
 }
 
-impl EditExtended<Vec<String>> for Vec<(String, String)> {
-  fn edit_from_prompt(&mut self, opts: &mut Vec<String>) -> anyhow::Result<()> {
+impl EditExtended<Vec<PathBuf>> for Vec<(PathBuf, PathBuf)> {
+  fn edit_from_prompt(&mut self, opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     loop {
       let mut cmap = hmap!();
       let mut cs = vec![];
       
       self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0, c.1);
+        let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0.to_string_lossy(), c.1.to_string_lossy());
         
         cmap.insert(s.clone(), c);
         cs.push(s);
@@ -210,24 +209,20 @@ impl EditExtended<Vec<String>> for Vec<(String, String)> {
     Ok(())
   }
   
-  fn reorder(&mut self, _opts: &mut Vec<String>) -> anyhow::Result<()> { Ok(()) }
+  fn reorder(&mut self, _opts: &mut Vec<PathBuf>) -> anyhow::Result<()> { Ok(()) }
   
-  fn add_item(&mut self, opts: &mut Vec<String>) -> anyhow::Result<()> {
-    self.push({
-      let from = inquire::Select::new(i18n::SELECT_PROJECT_AF, opts.to_owned()).prompt()?;
-      let to = inquire::Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?;
-      
-      (from, to)
-    });
+  fn add_item(&mut self, opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
+    let v = opts.iter().map(|v| v.to_string_lossy()).collect::<Vec<_>>();
+    self.push(collect_af_inplacement(&v)?);
     Ok(())
   }
   
-  fn remove_item(&mut self, _opts: &mut Vec<String>) -> anyhow::Result<()> {
+  fn remove_item(&mut self, _opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     let mut cmap = hmap!();
     let mut cs = vec![];
     
     self.iter().for_each(|c| {
-      let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0, c.1);
+      let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0.to_string_lossy(), c.1.to_string_lossy());
       
       cmap.insert(s.clone(), c);
       cs.push(s);
@@ -324,9 +319,9 @@ fn collect_artifact() -> anyhow::Result<PathBuf> {
   let assume_root = PathBuf::from("/");
   
   loop {
-    let af_path = PathBuf::from(inquire::Text::new(i18n::AF_RELATIVE_PATH).prompt()?);
-    if scoped_join(assume_root, af_path).is_ok() { return Ok(af_path) }
-    else { println!("{}", i18n::INCORRECT_AF_PATH) }
+    let path = PathBuf::from(inquire::Text::new(i18n::RELATIVE_PATH).prompt()?);
+    if scoped_join(&assume_root, &path).is_ok() { return Ok(path) }
+    else { println!("{}", i18n::INCORRECT_PATH) }
   }
 }
 
@@ -354,8 +349,24 @@ fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   Ok(v)
 }
 
-fn collect_af_inplacements(artifacts: &[String]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
-  use inquire::{Confirm, Select, Text};
+fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(PathBuf, PathBuf)> {
+  use inquire::{Select, Text};
+  
+  let assume_root = PathBuf::from("/");
+  let artifacts = artifacts.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
+  
+  loop {
+    let from = PathBuf::from(Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?);
+    let to = PathBuf::from(Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?);
+    if scoped_join(&assume_root, &to).is_ok() { return Ok((from, to)) }
+    else { println!("{}", i18n::INCORRECT_AF_INPL_PATH) }
+  }
+}
+
+fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
+  use inquire::Confirm;
+  
+  let artifacts = artifacts.iter().map(|v| v.to_str().unwrap()).collect::<Vec<_>>();
   
   const FIRST_PROMPT: &str = i18n::ADD_NEW_INPLACEMENT_FIRST;
   const ANOTHER_PROMPT: &str = i18n::ADD_NEW_INPLACEMENT_SECOND;
@@ -366,17 +377,9 @@ fn collect_af_inplacements(artifacts: &[String]) -> anyhow::Result<Vec<(PathBuf,
   
   if artifacts.is_empty() { first = false; }
   
+  
   while Confirm::new(prompt).with_default(first).prompt()? {
-    let from = PathBuf::from(Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?);
-    let to = PathBuf::from(Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?);
-    
-    let assume_root = PathBuf::from("/");
-    if scoped_join(assume_root, to).is_err() {
-      println!("{}", i18n::INCORRECT_AF_INPL_PATH);
-      continue
-    }
-    
-    v.push((from, to));
+    v.push(collect_af_inplacement(&artifacts)?);
     prompt = ANOTHER_PROMPT;
     first = false;
   }

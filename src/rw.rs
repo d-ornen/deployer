@@ -71,7 +71,7 @@ pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Pat
 /// Если `src` - это файл, то до `dst` создаются все подпапки, а потом файл копируется с перезаписью.
 /// 
 /// Ранее имеющиеся папки и файлы, - если не перезаписываются, - не изменяются и сохраняются на своих местах.
-pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[&str]) -> anyhow::Result<()> {
+pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
       std::fs::create_dir_all(parent)?;
@@ -84,18 +84,17 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[&
   for entry in std::fs::read_dir(src)? {
     let entry = entry?;
     let name = entry.file_name();
-    let name = name.to_str().unwrap_or("");
     
-    if ignore.contains(&name) { continue }
+    if ignore.iter().any(|v| v.as_ref().as_os_str().eq(name.as_os_str())) { continue }
     
-    log(format!("-> {}", name));
+    log(format!("-> {:?}", name));
     
     let ty = entry.file_type()?;
     let d = dst.as_ref().join(entry.file_name());
     if ty.is_dir() {
       copy_all(entry.path(), d, ignore)?;
     } else if name == PROJECT_CONF {
-      log(format!("Symlinking `{}` from {:?} to {:?}", name, entry.path(), d));
+      log(format!("Symlinking `{:?}` from {:?} to {:?}", name, entry.path(), d));
       symlink(std::fs::canonicalize(entry.path())?, d);
     } else if ty.is_file() {
       std::fs::copy(entry.path(), d)?;

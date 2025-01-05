@@ -242,7 +242,6 @@ tr!(PROJECT_SPECIFY_PLS, "Please, specify the project's programming languages to
 tr!(PROJECT_DEPL_TOOLKIT, "Specify your deploy toolkit (`docker`, `docker-compose`, `podman`, `k8s`, etc.)");
 
 tr!(ENTITY, "Entity");
-tr!(NEW_VALUE, "Input new value:");
 tr!(VALUE_TO_REMOVE, "Select a value to remove:");
 tr!(INPLACEMENT, "Inplacement");
 
@@ -255,7 +254,6 @@ tr!(SELECT_TARGET_TO_CHANGE, "Select a concrete target to change");
 tr!(SELECT_TARGET_TO_REMOVE, "Select a target to remove:");
 tr!(ADD_NEW_TARGET, "Add new build target?");
 
-tr!(AF_RELATIVE_PATH, "Enter the artifact's relative path:");
 tr!(ADD_NEW_AF, "Add new build/deploy artifact?");
 tr!(ADD_NEW_VAR, "Add new project-related variable or secret?");
 tr!(ADD_NEW_INPLACEMENT_FIRST, "Do you want to create artifact inplacement from build directory to your project's location (inside `artifacts` subfolder)?");
@@ -269,3 +267,14 @@ tr!(EDIT_DEFAULT_PROMPT, "Select the default project's Pipeline");
 tr!(PATCH_ERROR, "Patch application failed");
 tr!(PATCH_DONE, "The patch has been applied {} time(s).");
 tr!(PATCH_SPECIFY_PATH, "Specify patch location:");
+
+// Content & Storage
+tr!(NO_SUCH_CONTENT, "There is no such content");
+tr!(CONTENT_CONSIDER_ADD, "Consider to add this content via `deployer add content`.");
+tr!(CONTENT_INFO, "Write the content's short name:");
+tr!(CONTENT_VER, "Specify the content's version:");
+
+// Paths and resolver
+tr!(RELATIVE_PATH, "Enter the relative path:");
+tr!(INCORRECT_PATH, "Incorrect path! Entity must be placed inside build folder!");
+tr!(INCORRECT_AF_INPL_PATH, "Incorrect artifact's inplacement path! Artifact must be inplaced inside `artifacts` folder!");
