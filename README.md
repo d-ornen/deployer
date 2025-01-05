@@ -7,6 +7,7 @@ Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allow
 - configure actions for specific project
 - check compatibility over actions and projects
 - run pipelines with different cache requirements in different build folders
+- store common content in Deployer's storage, add and patch additional files for build on the fly
 - and share your project build/deploy settings very quickly and without any dependencies.
 
 ## Build
