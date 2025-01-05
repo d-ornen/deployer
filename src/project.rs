@@ -1,4 +1,7 @@
+use anyhow::bail;
 use colored::Colorize;
+use safe_path::scoped_join;
+use std::path::PathBuf;
 
 use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
 use crate::configs::{DeployerProjectOptions, DeployerGlobalConfig};
@@ -317,11 +320,17 @@ fn collect_targets() -> anyhow::Result<Vec<TargetDescription>> {
   Ok(v)
 }
 
-fn collect_artifact() -> anyhow::Result<String> {
-  Ok(inquire::Text::new(i18n::AF_RELATIVE_PATH).prompt()?)
+fn collect_artifact() -> anyhow::Result<PathBuf> {
+  let assume_root = PathBuf::from("/");
+  
+  loop {
+    let af_path = PathBuf::from(inquire::Text::new(i18n::AF_RELATIVE_PATH).prompt()?);
+    if scoped_join(assume_root, af_path).is_ok() { return Ok(af_path) }
+    else { println!("{}", i18n::INCORRECT_AF_PATH) }
+  }
 }
 
-fn collect_artifacts() -> anyhow::Result<Vec<String>> {
+fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
   let mut v = vec![];
   let mut first = true;
   
@@ -345,7 +354,7 @@ fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   Ok(v)
 }
 
-fn collect_af_inplacements(artifacts: &[String]) -> anyhow::Result<Vec<(String, String)>> {
+fn collect_af_inplacements(artifacts: &[String]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
   use inquire::{Confirm, Select, Text};
   
   const FIRST_PROMPT: &str = i18n::ADD_NEW_INPLACEMENT_FIRST;
@@ -358,8 +367,15 @@ fn collect_af_inplacements(artifacts: &[String]) -> anyhow::Result<Vec<(String, 
   if artifacts.is_empty() { first = false; }
   
   while Confirm::new(prompt).with_default(first).prompt()? {
-    let from = Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?;
-    let to = Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?;
+    let from = PathBuf::from(Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?);
+    let to = PathBuf::from(Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?);
+    
+    let assume_root = PathBuf::from("/");
+    if scoped_join(assume_root, to).is_err() {
+      println!("{}", i18n::INCORRECT_AF_INPL_PATH);
+      continue
+    }
+    
     v.push((from, to));
     prompt = ANOTHER_PROMPT;
     first = false;
