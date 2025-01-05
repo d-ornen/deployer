@@ -19,7 +19,7 @@ pub(crate) struct Cli {
   pub(crate) config_folder: Option<String>,
   /// Specify data folder
   #[arg(long)]
-  pub(crate) data_folder: Option<String>,
+  pub(crate) storage_folder: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]

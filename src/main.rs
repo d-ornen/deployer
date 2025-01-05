@@ -20,6 +20,8 @@ mod project;
 
 mod i18n;
 
+use std::path::PathBuf;
+
 use crate::actions::{list_actions, new_action, remove_action, cat_action, edit_action};
 use crate::build::Builds;
 use crate::cmd::{Cli, DeployerExecType, ListType, NewType, RemoveType, CatType, EditType};
@@ -36,7 +38,7 @@ use crate::init::init;
 use crate::build::{build, clean_builds};
 
 use clap::Parser;
-use dirs::{config_dir, cache_dir};
+use dirs::{config_dir, cache_dir, data_local_dir};
 use mimalloc::MiMalloc;
 
 #[global_allocator]
@@ -48,6 +50,7 @@ static BUILD_CACHE_LIST: &str = "deploy-builds.json";
 
 pub(crate) static CACHE_DIR: &str = "deploy-cache";
 pub(crate) static LOGS_DIR: &str = "logs";
+pub(crate) static STORAGE_DIR: &str = "deployer";
 
 pub(crate) static ARTIFACTS_DIR: &str = "artifacts";
 
@@ -80,17 +83,38 @@ fn main() {
   }
   
   // Определение рабочих директорий
-  let cache_folder = if args.cache_folder.is_none() {
+  let cache_folder = if let Some(cache_folder) = &args.cache_folder {
+    let cf = PathBuf::from(cache_folder);
+    if cf.is_absolute() {
+      cf
+    } else {
+      let path = PathBuf::new();
+      path.join(cf)
+    }
+  } else {
     cache_dir().expect("Can't get `cache` directory's location automatically, please specify one.")
-  } else {
-    let path = std::path::PathBuf::new();
-    path.join(args.cache_folder.as_ref().unwrap())
   };
-  let config_folder = if args.config_folder.is_none() {
-    config_dir().expect("Can't get `config` directory's location automatically, please specify one.")
+  let config_folder = if let Some(config_folder) = &args.config_folder {
+    let cf = PathBuf::from(config_folder);
+    if cf.is_absolute() {
+      cf
+    } else {
+      let path = PathBuf::new();
+      path.join(cf)
+    }
   } else {
-    let path = std::path::PathBuf::new();
-    path.join(args.config_folder.as_ref().unwrap())
+    config_dir().expect("Can't get `config` directory's location automatically, please specify one.")
+  };
+  let storage_folder = if let Some(storage_folder) = &args.storage_folder {
+    let sf = PathBuf::from(storage_folder);
+    if sf.is_absolute() {
+      sf
+    } else {
+      let path = PathBuf::new();
+      path.join(sf)
+    }
+  } else {
+    data_local_dir().expect("Can't get `storage` directory's location automatically, please specify one.")
   };
   
   // Чтение конфигов
