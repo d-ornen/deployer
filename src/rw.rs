@@ -8,6 +8,10 @@ use crate::{CACHE_DIR, LOGS_DIR, PROJECT_CONF};
 pub(crate) static VERBOSE: OnceLock<bool> = OnceLock::new();
 const LOG_FILE_DELIMETER: &str = "================================================================";
 
+/// Считывает содержимое файла или предоставляет `Default::default()`, если не может.
+/// 
+/// Например, если файла не существует, или его содержимое не является валидным JSON'ом, то будет
+/// возвращён `Default::default()`.
 pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file: impl AsRef<Path>) -> T {
   let mut path = PathBuf::new();
   path.push(folder);
@@ -22,6 +26,7 @@ pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file
   }
 }
 
+/// Считывает содержимое файла как тип `T`.
 pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
   let file = File::open(filepath.as_ref())?;
   let reader = BufReader::new(file);
@@ -32,6 +37,9 @@ pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> a
   }
 }
 
+/// Записывает `T` в файл, игнорируя ошибки записи и сериализации.
+/// 
+/// Все ошибки записываются только в лог, который можно увидеть с флагом `-V`.
 pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, config: &T) {
   let mut path = PathBuf::new();
   path.push(folder);
@@ -54,6 +62,15 @@ pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Pat
   }
 }
 
+/// Функция рекурсивного копирования содержимого.
+/// 
+/// Если `src` - это папка, то:
+/// - сначала создаются все отсутствующие подпапки для `dst` и сама папка `dst`, если их нет;
+/// - затем файлы копируются с перезаписью, симлинки - создаются, папки - копируются через вызов этой же функции.
+/// 
+/// Если `src` - это файл, то до `dst` создаются все подпапки, а потом файл копируется с перезаписью.
+/// 
+/// Ранее имеющиеся папки и файлы, - если не перезаписываются, - не изменяются и сохраняются на своих местах.
 pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[&str]) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
@@ -90,6 +107,7 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[&
   Ok(())
 }
 
+/// Удаляет все папки и файлы по пути `path`, включая папку `path`.
 pub(crate) fn remove_all(path: impl AsRef<Path>) -> anyhow::Result<()> {
   if path.as_ref().is_file() {
     std::fs::remove_file(path)?;
@@ -100,6 +118,7 @@ pub(crate) fn remove_all(path: impl AsRef<Path>) -> anyhow::Result<()> {
   Ok(())
 }
 
+/// Создаёт ссылку UNIX.
 pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   use std::os::unix::fs::symlink as os_symlink;
   
@@ -111,12 +130,14 @@ pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   }
 }
 
+/// Используется для логгирования ошибок.
 pub(crate) fn log(s: impl AsRef<str>) {
   if *VERBOSE.wait() {
     println!("{}", s.as_ref());
   }
 }
 
+/// Генерирует путь до лога сборки в зависимости от проекта и пайплайна.
 pub(crate) fn generate_build_log_filepath(
   project_name: &str,
   pipeline_short_name: &str,
@@ -138,6 +159,7 @@ pub(crate) fn generate_build_log_filepath(
   log_path
 }
 
+/// Записывает лог сборки в файл.
 pub(crate) fn build_log(
   path: &Path,
   output: &[String],
