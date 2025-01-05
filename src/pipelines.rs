@@ -8,7 +8,7 @@ use crate::cmd::{NewActionArgs, NewPipelineArgs, CatPipelineArgs, WithPipelineAr
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
   environment::BuildEnvironment,
-  info::{PipelineInfo, info2str_simple, info2str, str2info},
+  info::{PipelineInfo, info2str, str2info},
   traits::{EditExtended, Execute},
 };
 use crate::hmap;
@@ -48,7 +48,7 @@ impl DescribedPipeline {
     let short_name = Text::new(i18n::PIPELINE_SHORT_NAME).prompt()?;
     let version = Text::new(i18n::PIPELINE_VERSION).prompt()?;
     
-    let info = PipelineInfo { short_name, version };
+    let info = PipelineInfo::new(short_name, version)?;
     
     let name = Text::new(i18n::PIPELINE_FULL_NAME).prompt()?;
     let desc = Text::new(i18n::PIPELINE_DESC).prompt()?;
@@ -116,10 +116,10 @@ pub(crate) fn list_pipelines(
   println!("{}", i18n::PIPELINES_AVAILABLE);
   
   let mut pipelines = globals.pipelines_registry.values().collect::<Vec<_>>();
-  pipelines.sort_by_key(|a| info2str_simple(&a.info));
+  pipelines.sort_by_key(|a| a.info.to_str());
   
   for pipeline in pipelines {
-    let pipeline_info = format!("{}@{}", pipeline.info.short_name, pipeline.info.version);
+    let pipeline_info = pipeline.info.to_str();
     let pipeline_title = format!("[{}]", pipeline.title);
     let tags = if pipeline.tags.is_empty() { String::new() } else { format!(" ({}: {})", i18n::TAGS, pipeline.tags.join(", ").as_str().blue().italic()) };
     println!("• {} {}{}", pipeline_info.blue().bold(), pipeline_title.green().bold(), tags);
@@ -138,20 +138,20 @@ pub(crate) fn new_pipeline(
     let pipeline = read_checked::<DescribedPipeline>(from_file).map_err(|e| {
       panic!("Can't read provided Pipeline file due to: {}", e);
     }).unwrap();
-    globals.pipelines_registry.insert(info2str_simple(&pipeline.info), pipeline);
+    globals.pipelines_registry.insert(pipeline.info.to_str(), pipeline);
     return Ok(())
   }
   
   let described_pipeline = DescribedPipeline::new_from_prompt(globals)?;
   
   if
-    globals.pipelines_registry.contains_key(&info2str_simple(&described_pipeline.info)) &&
-    !inquire::Confirm::new(&i18n::PIPELINE_REG_ALREADY_HAVE.replace("{}", &info2str_simple(&described_pipeline.info))).prompt()?
+    globals.pipelines_registry.contains_key(&described_pipeline.info.to_str()) &&
+    !inquire::Confirm::new(&i18n::PIPELINE_REG_ALREADY_HAVE.replace("{}", &described_pipeline.info.to_str())).prompt()?
   {
     return Ok(())
   }
   
-  globals.pipelines_registry.insert(info2str_simple(&described_pipeline.info), described_pipeline);
+  globals.pipelines_registry.insert(described_pipeline.info.to_str(), described_pipeline);
   
   Ok(())
 }
@@ -165,7 +165,7 @@ fn reorder_actions(
   let mut k = vec![];
   
   for selected_action in selected_actions_unordered {
-    let key = format!("{} - {}", info2str_simple(&selected_action.info), selected_action.title);
+    let key = format!("{} - {}", selected_action.info.to_str(), selected_action.title);
     k.push(key.clone());
     h.insert(key, selected_action);
   }
@@ -193,7 +193,7 @@ fn select_action(
     
     for key in globals.actions_registry.keys() {
       let action = globals.actions_registry.get(key).unwrap();
-      let new_key = format!("{} - {}", info2str_simple(&action.info), action.title);
+      let new_key = format!("{} - {}", action.info.to_str(), action.title);
       h.insert(new_key.clone(), action);
       k.push(new_key);
     }
@@ -256,7 +256,7 @@ pub(crate) fn remove_pipeline(
     
     for key in globals.pipelines_registry.keys() {
       let pipeline = globals.pipelines_registry.get(key).unwrap();
-      let new_key = format!("{} - {}", info2str_simple(&pipeline.info), pipeline.title);
+      let new_key = format!("{} - {}", pipeline.info.to_str(), pipeline.title);
       h.insert(new_key.clone(), pipeline);
       k.push(new_key);
     }
@@ -271,7 +271,7 @@ pub(crate) fn remove_pipeline(
   
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
-  globals.pipelines_registry.remove(&info2str_simple(&pipeline.info));
+  globals.pipelines_registry.remove(&pipeline.info.to_str());
   
   Ok(())
 }
@@ -311,7 +311,7 @@ fn reorder_pipelines_in_project(
   let mut k = vec![];
   
   for pipeline in pipelines_unordered {
-    let key = format!("{} - {}", info2str_simple(&pipeline.info), pipeline.title);
+    let key = format!("{} - {}", pipeline.info.to_str(), pipeline.title);
     k.push(key.clone());
     h.insert(key, pipeline);
   }
@@ -441,7 +441,7 @@ pub(crate) fn edit_pipeline(
   };
   
   pipeline.edit_pipeline_from_prompt(globals)?;
-  globals.pipelines_registry.insert(info2str_simple(&pipeline.info), pipeline);
+  globals.pipelines_registry.insert(pipeline.info.to_str(), pipeline);
   
   Ok(())
 }
@@ -453,7 +453,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
       let mut cs = vec![];
       
       self.iter_mut().for_each(|c| {
-        let s = i18n::PIPELINE_EDIT.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+        let s = i18n::PIPELINE_EDIT.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
         
         cmap.insert(s.clone(), c);
         cs.push(s);
@@ -482,7 +482,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
     let mut k = vec![];
     
     for selected in self.iter() {
-      let key = i18n::PIPELINE.replace("{1}", &selected.title).replace("{2}", &info2str_simple(&selected.info));
+      let key = i18n::PIPELINE.replace("{1}", &selected.title).replace("{2}", &selected.info.to_str());
       k.push(key.clone());
       h.insert(key, selected);
     }
@@ -508,7 +508,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
     let mut k = vec![];
     
     for pipeline in opts.pipelines_registry.values() {
-      let key = i18n::PIPELINE.replace("{1}", &pipeline.title).replace("{2}", &info2str_simple(&pipeline.info));
+      let key = i18n::PIPELINE.replace("{1}", &pipeline.title).replace("{2}", &pipeline.info.to_str());
       k.push(key.clone());
       h.insert(key, pipeline);
     }
@@ -532,7 +532,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
     let mut cs = vec![];
     
     self.iter().for_each(|c| {
-      let s = i18n::PIPELINE_REMOVE.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+      let s = i18n::PIPELINE_REMOVE.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
       
       cmap.insert(s.clone(), c);
       cs.push(s);

@@ -23,7 +23,7 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::{CustomCommand, specify_bash_c},
-  info::{ActionInfo, info2str, str2info, info2str_simple},
+  info::{ActionInfo, info2str, str2info},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
   targets::TargetDescription,
   traits::{Edit, EditExtended},
@@ -254,13 +254,13 @@ impl DescribedAction {
     };
     
     if
-      opts.actions_registry.contains_key(&info2str_simple(&described_action.info)) &&
-      !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &info2str_simple(&described_action.info))).prompt()?
+      opts.actions_registry.contains_key(&described_action.info.to_str()) &&
+      !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &described_action.info.to_str())).prompt()?
     {
       exit(0);
     }
     
-    opts.actions_registry.insert(info2str_simple(&described_action.info), described_action.clone());
+    opts.actions_registry.insert(described_action.info.to_str(), described_action.clone());
     
     Ok(described_action)
   }
@@ -277,7 +277,7 @@ impl DescribedAction {
       !langs.iter().any(|l| action.supported_langs.contains(l)) && 
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_PLS
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", &format!("{:?}", action.supported_langs))
           .replace("{3}", &format!("{:?}", langs))
       ).prompt()?
@@ -314,7 +314,7 @@ impl DescribedAction {
       action.target.as_ref().is_some_and(|t| !targets.contains(t)) &&
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_TARGETS
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", &format!("{}", action.target.as_ref().unwrap()))
           .replace("{3}", &format!("{:?}", targets.iter().map(TargetDescription::to_string).collect::<Vec<_>>()))
       ).prompt()?
@@ -338,7 +338,7 @@ impl DescribedAction {
       action.deploy_toolkit.as_ref().is_some_and(|l| deploy_toolkit.as_ref().is_some_and(|r| l.as_str() != r.as_str())) &&
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_DEPL_TOOLKIT
-          .replace("{1}", &info2str_simple(&self.info))
+          .replace("{1}", &self.info.to_str())
           .replace("{2}", action.deploy_toolkit.as_ref().unwrap())
           .replace("{3}", deploy_toolkit.as_ref().unwrap())
       ).prompt()?
@@ -505,7 +505,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
       let mut cs = vec![];
       
       self.iter_mut().for_each(|c| {
-        let s = i18n::ACTION_EDIT.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+        let s = i18n::ACTION_EDIT.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
         
         cmap.insert(s.clone(), c);
         cs.push(s);
@@ -534,7 +534,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut k = vec![];
     
     for selected in self.iter() {
-      let key = i18n::ACTION.replace("{1}", &selected.title).replace("{2}", &info2str_simple(&selected.info));
+      let key = i18n::ACTION.replace("{1}", &selected.title).replace("{2}", &selected.info.to_str());
       k.push(key.clone());
       h.insert(key, selected);
     }
@@ -560,7 +560,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut k = vec![];
     
     for action in opts.actions_registry.values() {
-      let key = i18n::ACTION.replace("{1}", &action.title).replace("{2}", &info2str_simple(&action.info));
+      let key = i18n::ACTION.replace("{1}", &action.title).replace("{2}", &action.info.to_str());
       k.push(key.clone());
       h.insert(key, action);
     }
@@ -584,7 +584,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
     let mut cs = vec![];
     
     self.iter().for_each(|c| {
-      let s = i18n::ACTION_REMOVE.replace("{1}", &c.title).replace("{2}", &info2str_simple(&c.info));
+      let s = i18n::ACTION_REMOVE.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
       
       cmap.insert(s.clone(), c);
       cs.push(s);
@@ -611,10 +611,10 @@ pub(crate) fn list_actions(
   println!("{}", i18n::ACTIONS_AVAILABLE);
   
   let mut actions = globals.actions_registry.values().collect::<Vec<_>>();
-  actions.sort_by_key(|a| info2str_simple(&a.info));
+  actions.sort_by_key(|a| a.info.to_str());
   
   for action in actions {
-    let action_info = format!("{}@{}", action.info.short_name, action.info.version);
+    let action_info = action.info.to_str();
     let action_title = format!("[{}]", action.title);
     let tags = if action.tags.is_empty() { String::new() } else { format!(" ({}: {})", i18n::TAGS, action.tags.join(", ").as_str().blue().italic()) };
     println!("• {} {}{}", action_info.blue().bold(), action_title.green().bold(), tags);
@@ -634,7 +634,7 @@ pub(crate) fn remove_action(
   }
   
   let mut actions = globals.actions_registry.values().collect::<Vec<_>>();
-  actions.sort_by_key(|a| info2str_simple(&a.info));
+  actions.sort_by_key(|a| a.info.to_str());
   
   let (actions, keys) = {
     let mut h = hmap!();
@@ -642,7 +642,7 @@ pub(crate) fn remove_action(
     
     for key in globals.actions_registry.keys() {
       let action = globals.actions_registry.get(key).unwrap();
-      let new_key = format!("{} - {}", info2str_simple(&action.info), action.title);
+      let new_key = format!("{} - {}", action.info.to_str(), action.title);
       h.insert(new_key.clone(), action);
       k.push(new_key);
     }
@@ -657,7 +657,7 @@ pub(crate) fn remove_action(
   
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
-  globals.actions_registry.remove(&info2str_simple(&action.info));
+  globals.actions_registry.remove(&action.info.to_str());
   
   Ok(())
 }
@@ -674,7 +674,7 @@ pub(crate) fn new_action(
     let action = read_checked::<DescribedAction>(from_file).map_err(|e| {
       panic!("Can't read provided Action file due to: {}", e);
     }).unwrap();
-    actions.insert(info2str_simple(&action.info), action.clone());
+    actions.insert(action.info.to_str(), action.clone());
     return Ok(action)
   }
   

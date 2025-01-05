@@ -5,7 +5,7 @@ use crate::hmap;
 use crate::i18n;
 use crate::entities::environment::BuildEnvironment;
 use crate::entities::variables::{Variable, VarTraits};
-use crate::entities::info::{ActionInfo, info2str_simple};
+use crate::entities::info::ActionInfo;
 use crate::entities::traits::{Edit, Execute};
 use crate::utils::tags_custom_type;
 
@@ -88,7 +88,7 @@ impl CustomCommand {
     
     if self.placeholders.as_ref().is_none_or(|ps| ps.is_empty()) { return Ok(self.clone()) }
     
-    println!("{}", i18n::CMD_SPECIFY_VARS.replace("{}", &info2str_simple(info).blue()));
+    println!("{}", i18n::CMD_SPECIFY_VARS.replace("{}", &info.to_str().blue()));
     
     let mut all_variables = variables.titles();
     all_variables.extend_from_slice(artifacts);
