@@ -47,6 +47,7 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 static PROJECT_CONF: &str = "deploy-config.json";
+static HIDDEN_PROJECT_CONF: &str = ".deploy-config.json";
 static GLOBAL_CONF: &str = "deploy-global.json";
 static BUILD_CACHE_LIST: &str = "deploy-builds.json";
 
@@ -122,6 +123,7 @@ fn main() {
   // Чтение конфигов
   let mut globals = read::<DeployerGlobalConfig>(&config_folder, GLOBAL_CONF);
   let mut config = read::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), PROJECT_CONF);
+  if config == Default::default() { config = read::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), HIDDEN_PROJECT_CONF); }
   let mut builds = read::<Builds>(&cache_folder, BUILD_CACHE_LIST);
   
   match args.r#type {
