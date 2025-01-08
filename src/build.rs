@@ -1,4 +1,5 @@
 use colored::Colorize;
+use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -245,8 +246,11 @@ pub(crate) fn clean_builds(
   path.push(cache_dir);
   path.push(CACHE_DIR);
   
+  let mut total: u64 = 0;
+  
   if let Some(project_builds) = builds.projects.iter_mut().find(|p| p.name.as_str().eq(config.project_name.as_str())) {
     for folder in project_builds.builds.iter().map(|b| b.folder.clone()) {
+      total += get_size(&folder)?;
       let _ = std::fs::remove_dir_all(folder);
     }
     project_builds.builds.clear();
@@ -256,9 +260,26 @@ pub(crate) fn clean_builds(
     let curr_dir = std::env::current_dir()?;
     let artifacts_dir = curr_dir.join(ARTIFACTS_DIR);
     if artifacts_dir.as_path().exists() {
+      total += get_size(&artifacts_dir)?;
       let _ = std::fs::remove_dir_all(artifacts_dir);
     }
   }
   
+  println!("{}: {}", i18n::CLEANED, format_size(total));
+  
   Ok(())
+}
+
+fn format_size(size: u64) -> String {
+  const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let mut size = size as f64;
+  let mut unit_index = 0;
+
+  while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+    size /= 1024.0;
+    unit_index += 1;
+  }
+
+  if unit_index == 0 { format!("{} {}", size as u64, UNITS[unit_index]) }
+  else { format!("{:.1} {}", size, UNITS[unit_index]) }
 }

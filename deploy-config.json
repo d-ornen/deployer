@@ -44,7 +44,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo clippy --no-default-features",
+                  "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": true,
                   "show_bash_c": true,
@@ -69,7 +69,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo build --release --no-default-features",
+                  "bash_c": "cargo build --release --no-default-features --features=python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": false,
                   "show_bash_c": true,
@@ -200,7 +200,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo clippy --no-default-features --features=i18n-ru",
+                  "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": true,
                   "show_bash_c": true,
@@ -225,7 +225,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo build --release --no-default-features --features=i18n-ru",
+                  "bash_c": "cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": false,
                   "show_bash_c": true,

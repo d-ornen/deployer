@@ -31,6 +31,8 @@ That's it! Now you have `/home/username/.cargo/bin/deployer` binary. Modify the 
 
 ## Usage
 
+All project configuration store in `deploy-config.json` or `.deploy-config.json` file.
+
 First of all, let's create a simple action.
 
 ```bash
@@ -290,6 +292,8 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
 ```
 
 Having only `deploy-config.json` inside your project's root, you can share your build/deploy configurations.
+
+If you want to hide your configuration, you can rename it to `.deploy-config.json` manually.
 
 At the end, let's build the project!
 
