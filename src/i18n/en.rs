@@ -289,3 +289,6 @@ tr!(PATH, "path");
 tr!(RELATIVE_PATH, "Enter the relative path:");
 tr!(INCORRECT_PATH, "Incorrect path! Entity must be placed inside build folder!");
 tr!(INCORRECT_AF_INPL_PATH, "Incorrect artifact's inplacement path! Artifact must be inplaced inside `artifacts` folder!");
+
+// Build clean
+tr!(CLEANED, "Cleaned");
