@@ -50,6 +50,7 @@ pub(crate) fn new_content(
   let info = ContentInfo::new(short_name, version)?;
   
   let new_path = content_path.join(info.to_str());
+  if new_path.exists() { std::fs::remove_dir_all(&new_path)?; }
   copy_all(path, &new_path, &[""])?;
   
   println!("{}", i18n::CONTENT_ADDED_SUCC.replace("{1}", &info.to_str()).replace("{2}", &format!("{:?}", new_path)));
