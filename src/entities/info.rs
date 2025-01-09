@@ -3,10 +3,24 @@ use regex::Regex;
 use serde::Deserialize;
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+use crate::i18n;
+
+#[derive(Debug, Clone)]
 pub(crate) struct Info {
   short_name: String,
   version: String,
+}
+
+impl PartialEq for Info {
+  fn eq(&self, other: &Self) -> bool {
+    self.short_name.as_str().eq(other.short_name.as_str())
+  }
+}
+
+impl PartialOrd for Info {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    self.version.as_str().partial_cmp(other.version.as_str())
+  }
 }
 
 static SHORT_NAME_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
@@ -17,18 +31,49 @@ static VERSION_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(r#"^(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?(?:\.(0|[1-9]\d*))?$"#).unwrap()
 });
 
+pub(crate) fn validate_short_name(short_name: &str) -> bool {
+  SHORT_NAME_VALIDATOR.is_match(short_name)
+}
+
+pub(crate) fn validate_version(version: &str) -> bool {
+  VERSION_VALIDATOR.is_match(version)
+}
+
 impl Info {
   pub(crate) fn new(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
-    if !SHORT_NAME_VALIDATOR.is_match(short_name.as_ref()) {
-      bail!("Short names must only contain English characters and `_` and `-` characters.")
-    } else if !VERSION_VALIDATOR.is_match(version.as_ref()) {
-      bail!("Versions must be like this: `1`, `1.2`, or `1.2.3`.")
+    if !validate_short_name(short_name.as_ref()) {
+      bail!(i18n::INCORRECT_SHORT_NAME)
+    } else if !validate_version(version.as_ref()) {
+      bail!(i18n::INCORRECT_VERSION)
     } else {
       Ok(Self {
         short_name: short_name.as_ref().to_owned(),
         version: version.as_ref().to_owned(),
       })
     }
+  }
+  
+  // allow use `latest` version for `UseFromStorage` Action
+  pub(crate) fn new_for_using(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
+    if !short_name.as_ref().eq("latest") && !validate_short_name(short_name.as_ref()) {
+      bail!(i18n::INCORRECT_SHORT_NAME)
+    } else if !validate_version(version.as_ref()) {
+      bail!(i18n::INCORRECT_VERSION)
+    } else {
+      Ok(Self {
+        short_name: short_name.as_ref().to_owned(),
+        version: version.as_ref().to_owned(),
+      })
+    }
+  }
+  
+  pub(crate) fn short_name(&self) -> &str {
+    self.short_name.as_str()
+  }
+  
+  #[allow(dead_code)]
+  pub(crate) fn version(&self) -> &str {
+    self.version.as_str()
   }
   
   pub(crate) fn to_str(&self) -> String {

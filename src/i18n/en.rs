@@ -76,9 +76,6 @@ tr!(OR_HIT_ESC, "(or hit `esc`)");
 
 tr!(CUSTOM_CMD_EDIT_PROMPT, "Select a concrete command to change (hit `esc` when done):");
 
-// Project clean
-tr!(PC_TO_REMOVE, "Enter comma-separated list of paths to remove:");
-
 // Observe
 tr!(OBSERVE_TAGS, "Enter observe tags:");
 
@@ -164,7 +161,6 @@ tr!(EDIT_TARGETS, "Edit targets");
 tr!(EDIT_DEPL_TOOLKIT, "Edit deploy toolkit");
 tr!(EDIT_DESC, "Edit description");
 tr!(EDIT_TAGS, "Edit tags");
-tr!(EDIT_PC_FILES, "Edit files and folders to remove");
 tr!(EDIT_EXCL_TAG, "Edit exclusive execution tag");
 tr!(EDIT_PIPELINE_ACTIONS, "Edit Pipeline's Actions");
 tr!(EDIT_PROJECT_NAME, "Edit project name");
@@ -176,6 +172,7 @@ tr!(EDIT_ARTIFACTS, "Edit artifacts");
 tr!(EDIT_AF_INPLACE, "Edit artifact inplacements");
 tr!(EDIT_DEFAULT, "Select default Pipeline");
 tr!(EDIT_PATCH, "Edit patch");
+tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -292,3 +289,14 @@ tr!(INCORRECT_AF_INPL_PATH, "Incorrect artifact's inplacement path! Artifact mus
 
 // Build clean
 tr!(CLEANED, "Cleaned");
+
+// Info
+tr!(INCORRECT_SHORT_NAME, "Short names must only contain English characters and `_` and `-` characters.");
+tr!(INCORRECT_VERSION, "Versions must be like this: `1`, `1.2`, or `1.2.3`.");
+
+tr!(SPECIFY_SHORT_NAME_FOR_ADD_TO_STORAGE, "Specify a short name for the content under which it will be loaded into the storage automatically:");
+tr!(IF_NEEDED_TO_CHANGE_AUTOVER, "Do you want to change the way content is automatically versioned? Current method is:");
+tr!(AUTO_VER_CMD_STDOUT, "execute the command and get output from `stdout` as version");
+tr!(AUTO_VER_PLAIN_FILE, "get a version from specified plain file");
+tr!(SPECIFY_AUTO_VER, "Select the version detection method:");
+tr!(SPECIFY_AUTO_VER_RELATIVE_FILEPATH, "Specify the relative path to plain version file:");
