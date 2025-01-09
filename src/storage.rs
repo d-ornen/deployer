@@ -63,13 +63,28 @@ pub(crate) fn use_from_storage(
   build_dir: &Path,
   content_info: &ContentInfo,
 ) -> anyhow::Result<()> {
+  let content_info_str = content_info.to_str();
+  
   let mut content_path = PathBuf::from(storage_dir);
   content_path.push(STORAGE_DIR);
-  content_path.push(content_info.to_str());
   
-  if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info.to_str()) }
-  
-  copy_all(&content_path, build_dir, &[""])?;
+  if !content_info_str.ends_with("latest") {
+    content_path.push(&content_info_str);
+    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    copy_all(&content_path, build_dir, &[""])?;
+  } else {
+    let mut versions = vec![];
+    for entry in std::fs::read_dir(&content_path)? {
+      let entry = entry?;
+      let name = entry.file_name().to_str().unwrap().to_owned();
+      if name.starts_with(content_info.short_name()) { versions.push(name); }
+    }
+    if versions.is_empty() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    let max = versions.iter().max().unwrap();
+    content_path.push(max);
+    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    copy_all(&content_path, build_dir, &[""])?;
+  }
   
   Ok(())
 }
