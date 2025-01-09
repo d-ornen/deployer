@@ -76,9 +76,6 @@ tr!(OR_HIT_ESC, "(or hit `esc`)");
 
 tr!(CUSTOM_CMD_EDIT_PROMPT, "Select a concrete command to change (hit `esc` when done):");
 
-// Project clean
-tr!(PC_TO_REMOVE, "Enter comma-separated list of paths to remove:");
-
 // Observe
 tr!(OBSERVE_TAGS, "Enter observe tags:");
 
@@ -164,7 +161,6 @@ tr!(EDIT_TARGETS, "Edit targets");
 tr!(EDIT_DEPL_TOOLKIT, "Edit deploy toolkit");
 tr!(EDIT_DESC, "Edit description");
 tr!(EDIT_TAGS, "Edit tags");
-tr!(EDIT_PC_FILES, "Edit files and folders to remove");
 tr!(EDIT_EXCL_TAG, "Edit exclusive execution tag");
 tr!(EDIT_PIPELINE_ACTIONS, "Edit Pipeline's Actions");
 tr!(EDIT_PROJECT_NAME, "Edit project name");

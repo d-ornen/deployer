@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::process::exit;
 
 pub(crate) mod check;
-pub(crate) mod project_clean;
 pub(crate) mod buildlike;
 pub(crate) mod packlike;
 pub(crate) mod deploylike;
@@ -13,7 +12,6 @@ pub(crate) mod patch;
 
 use crate::actions::{
   check::{CheckAction, specify_regex},
-  project_clean::ProjectCleanAction,
   buildlike::*,
   packlike::*,
   deploylike::*,
@@ -70,9 +68,6 @@ pub(crate) enum Action {
   /// Тесты
   Test(TestAction),
   
-  /// Очистка проекта от следов взаимодействия
-  ProjectClean(ProjectCleanAction),
-  
   /// Упаковка артефактов
   Pack(PackAction),
   /// Доставка артефактов
@@ -124,7 +119,6 @@ impl DescribedAction {
       "Build",
       "Post-build",
       "Test",
-      "Project clean",
       "Pack",
       "Deliver",
       "Install",
@@ -196,17 +190,6 @@ impl DescribedAction {
           "Test" => Action::Test(action),
           _ => unreachable!(),
         }
-      },
-      "Project clean" => {
-        let to_remove = Text::new(i18n::PC_TO_REMOVE)
-          .prompt()
-          .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())?;
-        let additional_commands = collect_multiple_commands()?;
-        
-        Action::ProjectClean(ProjectCleanAction {
-          to_remove,
-          additional_commands,
-        })
       },
       action_type @ ("Pack" | "Deliver" | "Install") => {
         let target = TargetDescription::new_from_prompt()?;
@@ -305,17 +288,6 @@ impl DescribedAction {
     Ok(action)
   }
   
-  fn setup_projectclean_action(
-    &self,
-    action: &ProjectCleanAction,
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<ProjectCleanAction> {
-    let mut action = action.clone();
-    for cmd in &mut action.additional_commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
-    Ok(action)
-  }
-  
   fn setup_packlike_action(
     &self,
     action: &PackAction,
@@ -394,7 +366,6 @@ impl DescribedAction {
       Action::Build(b_action) => Action::Build(self.setup_buildlike_action(b_action, langs, variables, artifacts)?),
       Action::PostBuild(pb_action) => Action::PostBuild(self.setup_buildlike_action(pb_action, langs, variables, artifacts)?),
       Action::Test(t_action) => Action::Test(self.setup_buildlike_action(t_action, langs, variables, artifacts)?),
-      Action::ProjectClean(pc_action) => Action::ProjectClean(self.setup_projectclean_action(pc_action, variables, artifacts)?),
       Action::Pack(p_action) => Action::Pack(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
       Action::Deliver(p_action) => Action::Deliver(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
       Action::Install(p_action) => Action::Install(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
@@ -416,7 +387,6 @@ impl DescribedAction {
     match &self.action {
       Action::Custom(_) | Action::Observe(_) => { actions.push(i18n::EDIT_COMMAND); },
       Action::Check(_) => { actions.extend_from_slice(&[i18n::EDIT_COMMAND, i18n::CHECK_EDIT_REGEXES]); }
-      Action::ProjectClean(_) => { actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_PC_FILES]); },
       Action::PreBuild(_) | Action::Build(_) | Action::PostBuild(_) | Action::Test(_) => {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_PLS]);
       },
@@ -457,7 +427,6 @@ impl DescribedAction {
         },
         i18n::EDIT_COMMANDS => {
           match &mut self.action {
-            Action::ProjectClean(a) => a.additional_commands.edit_from_prompt()?,
             Action::PreBuild(a) => a.commands.edit_from_prompt()?,
             Action::Build(a) => a.commands.edit_from_prompt()?,
             Action::PostBuild(a) => a.commands.edit_from_prompt()?,
@@ -475,11 +444,6 @@ impl DescribedAction {
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,
-        i18n::EDIT_PC_FILES if let Action::ProjectClean(pc_action) = &mut self.action => {
-          pc_action.to_remove = inquire::Text::new(i18n::PC_TO_REMOVE)
-            .prompt()
-            .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())?;
-        }
         i18n::EDIT_PLS => {
           match &mut self.action {
             Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => {

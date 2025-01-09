@@ -588,7 +588,6 @@ pub(crate) fn execute_pipeline(
       Action::Custom(cmd) => cmd.execute(env)?,
       Action::Check(check) => check.execute(env)?,
       Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
-      Action::ProjectClean(pc_action) => pc_action.execute(env)?,
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
       Action::Observe(o_action) => o_action.execute(env)?,
