@@ -100,7 +100,7 @@ pub(crate) fn add_to_storage(
   content_path.push(STORAGE_DIR);
   content_path.push(&content_info_str);
   
-  if content_path.exists() { std::fs::remove_dir_all(&content_path)?; }
+  if content_path.exists() { return Ok(()) }
   copy_all(artifacts_dir, &content_path, &[""])?;
   
   Ok(())
