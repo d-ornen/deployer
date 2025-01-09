@@ -88,3 +88,20 @@ pub(crate) fn use_from_storage(
   
   Ok(())
 }
+
+pub(crate) fn add_to_storage(
+  storage_dir: &Path,
+  artifacts_dir: &Path,
+  content_info: &ContentInfo,
+) -> anyhow::Result<()> {
+  let content_info_str = content_info.to_str();
+  
+  let mut content_path = PathBuf::from(storage_dir);
+  content_path.push(STORAGE_DIR);
+  content_path.push(&content_info_str);
+  
+  if content_path.exists() { std::fs::remove_dir_all(&content_path)?; }
+  copy_all(artifacts_dir, &content_path, &[""])?;
+  
+  Ok(())
+}

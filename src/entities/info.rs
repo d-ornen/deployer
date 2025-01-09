@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use crate::i18n;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub(crate) struct Info {
   short_name: String,
   version: String,
@@ -71,6 +71,7 @@ impl Info {
     self.short_name.as_str()
   }
   
+  #[allow(dead_code)]
   pub(crate) fn version(&self) -> &str {
     self.version.as_str()
   }

@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::process::exit;
 
 use crate::actions::{DescribedAction, Action, new_action};
@@ -7,18 +8,19 @@ use crate::build::enplace_artifacts;
 use crate::cmd::{NewActionArgs, NewPipelineArgs, CatPipelineArgs, WithPipelineArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
+  auto_version::AutoVersionExtractFromRule,
   environment::BuildEnvironment,
-  info::{PipelineInfo, info2str, str2info},
+  info::{PipelineInfo, ContentInfo, info2str, str2info},
   traits::{EditExtended, Execute},
 };
 use crate::hmap;
 use crate::i18n;
 use crate::rw::{read_checked, generate_build_log_filepath, build_log};
-use crate::storage::use_from_storage;
+use crate::storage::{use_from_storage, add_to_storage};
 use crate::utils::tags_custom_type;
 use crate::ARTIFACTS_DIR;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct DescribedPipeline {
   /// Заголовок Пайплайна.
   pub(crate) title: String,
@@ -611,6 +613,27 @@ pub(crate) fn execute_pipeline(
         match use_from_storage(env.storage_dir, env.build_dir, content_info) {
           Ok(_) => (true, vec![]),
           Err(e) => (false, vec![e.to_string()]),
+        }
+      },
+      Action::AddToStorage(rules) => {
+        match &rules.auto_version_rule {
+          AutoVersionExtractFromRule::CmdStdout(cmd) => {
+            let (succ, out) = cmd.execute(env)?;
+            if !succ || out.is_empty() { (false, out) }
+            else {
+              let version = out.last().unwrap();
+              let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
+              if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
+              else { (true, vec![]) }
+            }
+          },
+          AutoVersionExtractFromRule::PlainFile(path) => {
+            let mut file = std::fs::File::open(path)?;
+            let version = { let mut ver = String::new(); file.read_to_string(&mut ver)?; ver };
+            let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
+            if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
+            else { (true, vec![]) }
+          },
         }
       },
     };

@@ -15,7 +15,7 @@ use crate::hmap;
 use crate::utils::ordered_map;
 
 /// Конфигурация проекта.
-#[derive(Deserialize, Serialize, PartialEq, Default, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default)]
 pub(crate) struct DeployerProjectOptions {
   /// Название проекта.
   pub(crate) project_name: String,
@@ -41,7 +41,7 @@ pub(crate) struct DeployerProjectOptions {
 }
 
 /// Глобальная конфигурация Деплойера.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct DeployerGlobalConfig {
   /// Список ведомых проектов.
   pub(crate) projects: Vec<String>,
