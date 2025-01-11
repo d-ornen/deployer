@@ -362,7 +362,7 @@ pub(crate) fn execute_pipeline(
             let (succ, out) = cmd.execute(env)?;
             if !succ || out.is_empty() { (false, out) }
             else {
-              let version = out.last().unwrap();
+              let version = out.last().unwrap().trim().to_owned();
               let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
               if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
               else { (true, vec![]) }
@@ -370,7 +370,7 @@ pub(crate) fn execute_pipeline(
           },
           AutoVersionExtractFromRule::PlainFile(path) => {
             let mut file = std::fs::File::open(path)?;
-            let version = { let mut ver = String::new(); file.read_to_string(&mut ver)?; ver };
+            let version = { let mut ver = String::new(); file.read_to_string(&mut ver)?; ver.trim().to_string() };
             let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
             if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
             else { (true, vec![]) }
