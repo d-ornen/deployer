@@ -12,7 +12,7 @@ pub(crate) mod patch;
 pub(crate) mod storage_add;
 
 use crate::actions::{
-  check::{CheckAction, specify_regex},
+  check::CheckAction,
   buildlike::*,
   packlike::*,
   deploylike::*,
@@ -23,18 +23,15 @@ use crate::actions::{
 use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
-  auto_version::AutoVersionExtractFromRule,
-  custom_command::{CustomCommand, specify_bash_c},
+  custom_command::CustomCommand,
   info::{ActionInfo, ContentInfo, info2str, str2info},
-  programming_languages::{ProgrammingLanguage, specify_programming_languages},
+  programming_languages::ProgrammingLanguage,
   targets::TargetDescription,
-  traits::{Edit, EditExtended},
   variables::Variable,
 };
 use crate::hmap;
 use crate::i18n;
 use crate::rw::read_checked;
-use crate::utils::tags_custom_type;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct DescribedAction {
@@ -101,181 +98,6 @@ pub(crate) enum Action {
 }
 
 impl DescribedAction {
-  pub(crate) fn new_from_prompt(opts: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
-    use inquire::{Select, Text};
-    
-    let short_name = Text::new(i18n::ACTION_SHORT_NAME).prompt()?;
-    let version = Text::new(i18n::ACTION_VERSION).prompt()?;
-    
-    let info = ActionInfo::new(short_name, version)?;
-    
-    let name = Text::new(i18n::ACTION_FULL_NAME).prompt()?;
-    let desc = Text::new(i18n::ACTION_DESC).prompt()?;
-    
-    let tags: Vec<String> = tags_custom_type(i18n::ACTION_TAGS, None).prompt()?;
-    
-    let action_types: Vec<&str> = vec![
-      "Interrupt",
-      "Custom",
-      "Check",
-      "Force artifacts enplace",
-      "Use content from storage",
-      "Patch",
-      "Pre-build",
-      "Build",
-      "Post-build",
-      "Test",
-      "Pack",
-      "Deliver",
-      "Install",
-      "Configure deploy",
-      "Deploy",
-      "Post-deploy",
-      "Observe",
-      "Automatical push artifacts to the common storage",
-    ];
-    
-    let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
-    
-    let action = match selected_action_type {
-      "Interrupt" => Action::Interrupt,
-      "Force artifacts enplace" => Action::ForceArtifactsEnplace,
-      "Custom" => {
-        let command = CustomCommand::new_from_prompt()?;
-        Action::Custom(command)
-      },
-      "Check" => {
-        let bash_c = specify_bash_c(None)?;
-        
-        let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
-        let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
-        
-        let ignore_fails = !inquire::Confirm::new(i18n::CHECK_IGNORE_FAILS).with_default(true).prompt()?;
-        
-        let mut success_when_found = None;
-        let mut success_when_not_found = None;
-        loop {
-          if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
-            success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
-          }
-          
-          if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
-            success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
-          }
-          
-          if success_when_found.is_some() || success_when_not_found.is_some() { break }
-          else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
-        }
-        
-        Action::Check(CheckAction {
-          success_when_found,
-          success_when_not_found,
-          command: CustomCommand {
-            bash_c,
-            placeholders,
-            replacements: None,
-            ignore_fails,
-            show_success_output: true,
-            show_bash_c: false,
-            only_when_fresh: None,
-          },
-        })
-      },
-      action_type @ ("Pre-build" | "Build" | "Post-build" | "Test") => {
-        let supported_langs = specify_programming_languages()?;
-        let commands = collect_multiple_commands()?;
-        
-        let action = BuildAction {
-          supported_langs,
-          commands,
-        };
-        
-        match action_type {
-          "Pre-build" => Action::PreBuild(action),
-          "Build" => Action::Build(action),
-          "Post-build" => Action::PostBuild(action),
-          "Test" => Action::Test(action),
-          _ => unreachable!(),
-        }
-      },
-      action_type @ ("Pack" | "Deliver" | "Install") => {
-        let target = TargetDescription::new_from_prompt()?;
-        let commands = collect_multiple_commands()?;
-        
-        let action = PackAction {
-          target: Some(target),
-          commands,
-        };
-        
-        match action_type {
-          "Pack" => Action::Pack(action),
-          "Deliver" => Action::Deliver(action),
-          "Install" => Action::Install(action),
-          _ => unreachable!(),
-        }
-      },
-      action_type @ ("Configure deploy" | "Deploy" | "Post-deploy") => {
-        let deploy_toolkit = Text::new("Enter deploy toolkit name (or hit `esc`):").prompt_skippable()?;
-        let tags = tags_custom_type("Enter deploy tags:", None).prompt()?;
-        let commands = collect_multiple_commands()?;
-        
-        let action = DeployAction {
-          deploy_toolkit,
-          tags,
-          commands,
-        };
-        
-        match action_type {
-          "Configure deploy" => Action::ConfigureDeploy(action),
-          "Deploy" => Action::Deploy(action),
-          "Post-deploy" => Action::PostDeploy(action),
-          _ => unreachable!(),
-        }
-      },
-      "Observe" => {
-        let tags = tags_custom_type(i18n::OBSERVE_TAGS, None).prompt()?;
-        let command = CustomCommand::new_from_prompt_unspecified()?;
-        
-        Action::Observe(ObserveAction { tags, command })
-      },
-      "Patch" => Action::Patch(PatchAction::new_from_prompt()?),
-      "Use content from storage" => {
-        let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
-        let version = Text::new(i18n::CONTENT_VER).prompt()?;
-        
-        let info = ContentInfo::new_for_using(short_name, version)?;
-        
-        Action::UseFromStorage(info)
-      },
-      "Automatical push artifacts to the common storage" => {
-        let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
-        let auto_version_rule = AutoVersionExtractFromRule::new_from_prompt()?;
-        
-        Action::AddToStorage(AddToStorageAction { short_name, auto_version_rule })
-      }
-      _ => unreachable!(),
-    };
-    
-    let described_action = DescribedAction {
-      title: name,
-      desc,
-      info,
-      tags,
-      action,
-    };
-    
-    if
-      opts.actions_registry.contains_key(&described_action.info.to_str()) &&
-      !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &described_action.info.to_str())).prompt()?
-    {
-      exit(0);
-    }
-    
-    opts.actions_registry.insert(described_action.info.to_str(), described_action.clone());
-    
-    Ok(described_action)
-  }
-  
   fn setup_buildlike_action(
     &self,
     action: &BuildAction,
@@ -394,208 +216,6 @@ impl DescribedAction {
     
     Ok(described_action)
   }
-  
-  pub(crate) fn edit_action_from_prompt(&mut self) -> anyhow::Result<()> {
-    let mut actions = vec![];
-    match &self.action {
-      Action::Custom(_) | Action::Observe(_) => { actions.push(i18n::EDIT_COMMAND); },
-      Action::Check(_) => { actions.extend_from_slice(&[i18n::EDIT_COMMAND, i18n::CHECK_EDIT_REGEXES]); },
-      Action::PreBuild(_) | Action::Build(_) | Action::PostBuild(_) | Action::Test(_) => {
-        actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_PLS]);
-      },
-      Action::Pack(_) | Action::Deliver(_) | Action::Install(_) => {
-        actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_TARGETS]);
-      },
-      Action::ConfigureDeploy(_) | Action::Deploy(_) | Action::PostDeploy(_) => {
-        actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_DEPL_TOOLKIT]);
-      },
-      Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); },
-      Action::AddToStorage(_) => { actions.push(i18n::EDIT_ATS); }
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
-    }
-    actions.extend_from_slice(&[
-      i18n::EDIT_TITLE,
-      i18n::EDIT_DESC,
-      i18n::EDIT_TAGS,
-    ]);
-    
-    while let Some(action) = inquire::Select::new(
-      &format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC),
-      actions.clone(),
-    ).prompt_skippable()? {
-      match action {
-        i18n::EDIT_TITLE => self.title = inquire::Text::new(i18n::ACTION_FULL_NAME).with_initial_value(self.title.as_str()).prompt()?,
-        i18n::EDIT_DESC => self.desc = inquire::Text::new(i18n::ACTION_DESC).with_initial_value(self.desc.as_str()).prompt()?,
-        i18n::EDIT_TAGS => {
-          let joined = self.tags.join(", ");
-          self.tags = tags_custom_type(i18n::ACTION_TAGS, if joined.is_empty() { None } else { Some(joined.as_str()) }).prompt()?
-        },
-        i18n::EDIT_COMMAND => {
-          if let Action::Custom(cmd) = &mut self.action {
-            cmd.edit_command_from_prompt()?;
-          } else if let Action::Observe(o_command) = &mut self.action {
-            o_command.command.edit_command_from_prompt()?;
-          } else if let Action::Check(c_command) = &mut self.action {
-            c_command.command.edit_command_from_prompt()?;
-          }
-        },
-        i18n::EDIT_ATS if let Action::AddToStorage(a) = &mut self.action => a.edit_from_prompt()?,
-        i18n::EDIT_COMMANDS => {
-          match &mut self.action {
-            Action::PreBuild(a) => a.commands.edit_from_prompt()?,
-            Action::Build(a) => a.commands.edit_from_prompt()?,
-            Action::PostBuild(a) => a.commands.edit_from_prompt()?,
-            Action::Test(a) => a.commands.edit_from_prompt()?,
-            Action::Pack(a) => a.commands.edit_from_prompt()?,
-            Action::Deliver(a) => a.commands.edit_from_prompt()?,
-            Action::Install(a) => a.commands.edit_from_prompt()?,
-            Action::ConfigureDeploy(a) => a.commands.edit_from_prompt()?,
-            Action::Deploy(a) => a.commands.edit_from_prompt()?,
-            Action::PostDeploy(a) => a.commands.edit_from_prompt()?,
-            Action::Check(a) => a.edit_check_from_prompt()?,
-            Action::Observe(a) => a.command.edit_command_from_prompt()?,
-            Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) => {},
-          }
-        },
-        i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,
-        i18n::EDIT_PLS => {
-          match &mut self.action {
-            Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => {
-              a.supported_langs = specify_programming_languages()?;
-            },
-            _ => {},
-          }
-        },
-        i18n::EDIT_TARGETS => {
-          match &mut self.action {
-            Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => {
-              a.target = Some(TargetDescription::new_from_prompt()?);
-            },
-            _ => {},
-          }
-        },
-        i18n::EDIT_DEPL_TOOLKIT => {
-          match &mut self.action {
-            Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => {
-              a.deploy_toolkit = inquire::Text::new(&format!("{} {}:", i18n::DEPL_TOOLKIT, i18n::HIT_ESC)).prompt_skippable()?;
-            },
-            _ => {},
-          }
-        },
-        i18n::EDIT_PATCH if let Action::Patch(patch) = &mut self.action => { patch.edit_from_prompt()?; },
-        _ => {},
-      }
-    }
-    
-    Ok(())
-  }
-}
-
-impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
-  fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
-    loop {
-      let mut cmap = hmap!();
-      let mut cs = vec![];
-      
-      self.iter_mut().for_each(|c| {
-        let s = i18n::ACTION_EDIT.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
-        
-        cmap.insert(s.clone(), c);
-        cs.push(s);
-      });
-      
-      cs.extend_from_slice(&[i18n::REORDER.to_string(), i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
-      
-      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::ACTION_SELECT_TO_CHANGE, i18n::HIT_ESC), cs).prompt_skippable()? {
-        match action.as_str() {
-          i18n::REORDER => self.reorder(opts)?,
-          i18n::ADD => self.add_item(opts)?,
-          i18n::REMOVE => self.remove_item(opts)?,
-          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_action_from_prompt()?,
-          _ => {},
-        }
-      } else { break }
-    }
-    
-    Ok(())
-  }
-  
-  fn reorder(&mut self, _opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
-    use inquire::ReorderableList;
-    
-    let mut h = hmap!();
-    let mut k = vec![];
-    
-    for selected in self.iter() {
-      let key = i18n::ACTION.replace("{1}", &selected.title).replace("{2}", &selected.info.to_str());
-      k.push(key.clone());
-      h.insert(key, selected);
-    }
-    
-    let reordered = ReorderableList::new(i18n::CMDS_REORDER, k).prompt()?;
-    
-    let mut selected_commands_ordered = vec![];
-    for key in reordered {
-      selected_commands_ordered.push((*h.get(&key).unwrap()).clone());
-    }
-    
-    *self = selected_commands_ordered;
-    
-    Ok(())
-  }
-  
-  fn add_item(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
-    use inquire::Select;
-    
-    const USE_ANOTHER: &str = i18n::ACTION_SPECIFY_ANOTHER;
-    
-    let mut h = hmap!();
-    let mut k = vec![];
-    
-    for action in opts.actions_registry.values() {
-      let key = i18n::ACTION.replace("{1}", &action.title).replace("{2}", &action.info.to_str());
-      k.push(key.clone());
-      h.insert(key, action);
-    }
-    
-    k.push(USE_ANOTHER.to_string());
-    
-    let selected = Select::new(i18n::ACTION_CHOOSE_TO_ADD, k).prompt()?;
-    
-    if selected.as_str() == USE_ANOTHER {
-      if let Ok(action) = DescribedAction::new_from_prompt(opts) {
-        self.push(action);
-      }
-    } else {
-      self.push((**h.get(&selected).ok_or(anyhow::anyhow!("Can't get specified Action!"))?).clone());
-    }
-    Ok(())
-  }
-  
-  fn remove_item(&mut self, _opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
-    let mut cmap = hmap!();
-    let mut cs = vec![];
-    
-    self.iter().for_each(|c| {
-      let s = i18n::ACTION_REMOVE.replace("{1}", &c.title).replace("{2}", &c.info.to_str());
-      
-      cmap.insert(s.clone(), c);
-      cs.push(s);
-    });
-    
-    let selected = inquire::Select::new(i18n::ACTION_CHOOSE_TO_REMOVE, cs.clone()).prompt()?;
-    
-    let mut commands = vec![];
-    for key in cs {
-      if key.as_str().eq(selected.as_str()) { continue }
-      commands.push((*cmap.get(&key).unwrap()).clone());
-    }
-    
-    *self = commands;
-    
-    Ok(())
-  }
 }
 
 /// Перечисляет все доступные действия.
@@ -660,7 +280,6 @@ pub(crate) fn remove_action(
 pub(crate) fn new_action(
   globals: &mut DeployerGlobalConfig,
   args: &NewActionArgs,
-  // data_dir: &str,
 ) -> anyhow::Result<DescribedAction> {
   let actions = &mut globals.actions_registry;
   
@@ -676,36 +295,6 @@ pub(crate) fn new_action(
   
   Ok(described_action)
 }
-
-/// Создаёт несколько новых команд.
-fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> {
-  use inquire::Confirm;
-  
-  let mut commands = Vec::new();
-  let mut first = true;
-  while Confirm::new(i18n::ADD_CMD).with_default(first).prompt()? {
-    if let Ok(command) = CustomCommand::new_from_prompt() {
-      commands.push(command);
-    }
-    first = false;
-  }
-  Ok(commands)
-}
-
-// fn collect_key_value_pairs(prompt: &str) -> anyhow::Result<HashMap<String, String>> {
-//   use inquire::Text;
-//   
-//   let mut map = HashMap::new();
-//   loop {
-//     let key = Text::new(prompt).prompt()?;
-//     if key.is_empty() {
-//       break;
-//     }
-//     let value = Text::new("Enter value:").prompt()?;
-//     map.insert(key, value);
-//   }
-//   Ok(map)
-// }
 
 pub(crate) fn cat_action(
   globals: &DeployerGlobalConfig,

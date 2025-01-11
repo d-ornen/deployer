@@ -1,16 +1,29 @@
-use colored::Colorize;
-use safe_path::scoped_join;
 use std::path::PathBuf;
 
-use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
+use crate::cmd::InitArgs;
 use crate::configs::{DeployerProjectOptions, DeployerGlobalConfig};
 use crate::entities::{
-  targets::TargetDescription,
+  programming_languages::{ProgrammingLanguage, specify_programming_languages},
   traits::{Edit, EditExtended},
-  variables::Variable,
 };
 use crate::hmap;
 use crate::i18n;
+use crate::tui::add::{collect_af_inplacements, collect_artifacts, collect_targets, collect_variables};
+
+pub(crate) fn init_project(
+  globals: &mut DeployerGlobalConfig,
+  config: &mut DeployerProjectOptions,
+  _args: &InitArgs,
+) -> anyhow::Result<()> {
+  let curr_dir = std::env::current_dir().expect("Can't get current dir!").to_str().expect("Can't convert current dir's path to string!").to_owned();
+  if !globals.projects.contains(&curr_dir) { globals.projects.push(curr_dir.to_owned()); }
+  
+  config.init_from_prompt(curr_dir)?;
+  
+  println!("{}", i18n::INIT_SUCC);
+  
+  Ok(())
+}
 
 impl DeployerProjectOptions {
   pub(crate) fn init_from_prompt(&mut self, curr_dir: String) -> anyhow::Result<()> {
@@ -122,269 +135,6 @@ impl DeployerProjectOptions {
     
     Ok(())
   }
-}
-
-impl Edit for Vec<PathBuf> {
-  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    loop {
-      let mut cmap = hmap!();
-      let mut cs = vec![];
-      
-      self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
-        
-        cmap.insert(s.clone(), c);
-        cs.push(s);
-      });
-      
-      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
-      
-      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
-        match action.as_str() {
-          i18n::ADD => self.add_item()?,
-          i18n::REMOVE => self.remove_item()?,
-          _ => {},
-        }
-      } else { break }
-    }
-    
-    Ok(())
-  }
-  
-  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
-  
-  fn add_item(&mut self) -> anyhow::Result<()> {
-    self.push(collect_artifact()?);
-    Ok(())
-  }
-  
-  fn remove_item(&mut self) -> anyhow::Result<()> {
-    let mut cmap = hmap!();
-    let mut cs = vec![];
-    
-    self.iter().for_each(|c| {
-      let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
-      
-      cmap.insert(s.clone(), c);
-      cs.push(s);
-    });
-    
-    let selected = inquire::Select::new(i18n::VALUE_TO_REMOVE, cs.clone()).prompt()?;
-    
-    let mut commands = vec![];
-    for key in cs {
-      if key.as_str().eq(selected.as_str()) { continue }
-      commands.push((*cmap.get(&key).unwrap()).clone());
-    }
-    
-    *self = commands;
-    Ok(())
-  }
-}
-
-impl EditExtended<Vec<PathBuf>> for Vec<(PathBuf, PathBuf)> {
-  fn edit_from_prompt(&mut self, opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
-    loop {
-      let mut cmap = hmap!();
-      let mut cs = vec![];
-      
-      self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0.to_string_lossy(), c.1.to_string_lossy());
-        
-        cmap.insert(s.clone(), c);
-        cs.push(s);
-      });
-      
-      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
-      
-      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
-        match action.as_str() {
-          i18n::ADD => self.add_item(opts)?,
-          i18n::REMOVE => self.remove_item(opts)?,
-          _ => {},
-        }
-      } else { break }
-    }
-    
-    Ok(())
-  }
-  
-  fn reorder(&mut self, _opts: &mut Vec<PathBuf>) -> anyhow::Result<()> { Ok(()) }
-  
-  fn add_item(&mut self, opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
-    let v = opts.iter().map(|v| v.to_string_lossy()).collect::<Vec<_>>();
-    self.push(collect_af_inplacement(&v)?);
-    Ok(())
-  }
-  
-  fn remove_item(&mut self, _opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
-    let mut cmap = hmap!();
-    let mut cs = vec![];
-    
-    self.iter().for_each(|c| {
-      let s = format!("{} `{}` -> `{}`", i18n::INPLACEMENT, c.0.to_string_lossy(), c.1.to_string_lossy());
-      
-      cmap.insert(s.clone(), c);
-      cs.push(s);
-    });
-    
-    let selected = inquire::Select::new(i18n::REMOVE_INPLACEMENT, cs.clone()).prompt()?;
-    
-    let mut commands = vec![];
-    for key in cs {
-      if key.as_str().eq(selected.as_str()) { continue }
-      commands.push((*cmap.get(&key).unwrap()).clone());
-    }
-    
-    *self = commands;
-    Ok(())
-  }
-}
-
-impl Edit for Vec<TargetDescription> {
-  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    loop {
-      let mut cmap = hmap!();
-      let mut cs = vec![];
-      
-      self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}`", i18n::EDIT_TARGET, c.to_string().green());
-        
-        cmap.insert(s.clone(), c);
-        cs.push(s);
-      });
-      
-      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
-      
-      if let Some(action) = inquire::Select::new(
-        &format!("{} {}:", i18n::SELECT_TARGET_TO_CHANGE, i18n::HIT_ESC),
-        cs,
-      ).prompt_skippable()? {
-        match action.as_str() {
-          i18n::ADD => self.add_item()?,
-          i18n::REMOVE => self.remove_item()?,
-          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_target_from_prompt()?,
-          _ => {},
-        }
-      } else { break }
-    }
-    
-    Ok(())
-  }
-  
-  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
-  
-  fn add_item(&mut self) -> anyhow::Result<()> {
-    self.push(TargetDescription::new_from_prompt()?);
-    Ok(())
-  }
-  
-  fn remove_item(&mut self) -> anyhow::Result<()> {
-    let mut cmap = hmap!();
-    let mut cs = vec![];
-    
-    self.iter().for_each(|c| {
-      let s = format!("{} `{}`", i18n::TARGET, c.to_string().green());
-      
-      cmap.insert(s.clone(), c);
-      cs.push(s);
-    });
-    
-    let selected = inquire::Select::new(i18n::SELECT_TARGET_TO_REMOVE, cs.clone()).prompt()?;
-    
-    let mut commands = vec![];
-    for key in cs {
-      if key.as_str().eq(selected.as_str()) { continue }
-      commands.push((*cmap.get(&key).unwrap()).clone());
-    }
-    
-    *self = commands;
-    Ok(())
-  }
-}
-
-fn collect_targets() -> anyhow::Result<Vec<TargetDescription>> {
-  let mut v = vec![];
-  let mut first = true;
-  
-  while inquire::Confirm::new(i18n::ADD_NEW_TARGET).with_default(first).prompt()? {
-    v.push(TargetDescription::new_from_prompt()?);
-    first = false;
-  }
-  
-  Ok(v)
-}
-
-fn collect_artifact() -> anyhow::Result<PathBuf> {
-  let assume_root = PathBuf::from("/");
-  
-  loop {
-    let path = PathBuf::from(inquire::Text::new(i18n::RELATIVE_PATH).prompt()?);
-    if scoped_join(&assume_root, &path).is_ok() { return Ok(path) }
-    else { println!("{}", i18n::INCORRECT_PATH) }
-  }
-}
-
-fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
-  let mut v = vec![];
-  let mut first = true;
-  
-  while inquire::Confirm::new(i18n::ADD_NEW_AF).with_default(first).prompt()? {
-    v.push(collect_artifact()?);
-    first = false;
-  }
-  
-  Ok(v)
-}
-
-fn collect_variables() -> anyhow::Result<Vec<Variable>> {
-  let mut v = vec![];
-  let mut first = true;
-  
-  while inquire::Confirm::new(i18n::ADD_NEW_VAR).with_default(first).prompt()? {
-    v.push(Variable::new_from_prompt()?);
-    first = false;
-  }
-  
-  Ok(v)
-}
-
-fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(PathBuf, PathBuf)> {
-  use inquire::{Select, Text};
-  
-  let assume_root = PathBuf::from("/");
-  let artifacts = artifacts.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
-  
-  loop {
-    let from = PathBuf::from(Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?);
-    let to = PathBuf::from(Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?);
-    if scoped_join(&assume_root, &to).is_ok() { return Ok((from, to)) }
-    else { println!("{}", i18n::INCORRECT_AF_INPL_PATH) }
-  }
-}
-
-fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
-  use inquire::Confirm;
-  
-  let artifacts = artifacts.iter().map(|v| v.to_str().unwrap()).collect::<Vec<_>>();
-  
-  const FIRST_PROMPT: &str = i18n::ADD_NEW_INPLACEMENT_FIRST;
-  const ANOTHER_PROMPT: &str = i18n::ADD_NEW_INPLACEMENT_SECOND;
-  
-  let mut v = vec![];
-  let mut prompt = FIRST_PROMPT;
-  let mut first = true;
-  
-  if artifacts.is_empty() { first = false; }
-  
-  
-  while Confirm::new(prompt).with_default(first).prompt()? {
-    v.push(collect_af_inplacement(&artifacts)?);
-    prompt = ANOTHER_PROMPT;
-    first = false;
-  }
-  
-  Ok(v)
 }
 
 pub(crate) fn edit_project(
