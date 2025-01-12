@@ -2,6 +2,8 @@ use anyhow::anyhow;
 use env_file_reader::read_file;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
+use vaultrs::kv2;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct Variable {
@@ -27,7 +29,15 @@ impl Variable {
         let val = env_variables.get(&info.key).ok_or(anyhow!("There is no such key in your ENV file."))?;
         Ok(val.to_owned())
       },
-      VarValue::FromHCVaultKv2(_) => unimplemented!(),
+      VarValue::FromHCVaultKv2(info) => {
+        let vault_addr = std::env::var("DEPLOYER_VAULT_ADDR")?;
+        let vault_token = std::env::var("DEPLOYER_VAULT_TOKEN")?;
+        
+        let client = VaultClient::new(VaultClientSettingsBuilder::default().address(vault_addr).token(vault_token).build()?)?;
+        
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(kv2::read(&client, &info.mount_path, &info.secret_path)).map_err(|e| anyhow!(e.to_string()))
+      },
     }
   }
 }
