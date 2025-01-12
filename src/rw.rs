@@ -120,6 +120,8 @@ pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
 
 /// Копирует, только если файлы отличаются друг от друга.
 fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Result<()> {
+  use std::io::Read;
+  
   let src_path = src.as_ref();
   let dst_path = dst.as_ref();
 
@@ -130,12 +132,21 @@ fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Re
   if src_path.metadata()?.len() != dst_path.metadata()?.len() {
     return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
   }
+  
+  let mut src_file = std::fs::File::open(src_path)?;
+  let mut dst_file = std::fs::File::open(dst_path)?;
+  
+  let mut src_buffer = [0; 8192]; // 8KB chunks
+  let mut dst_buffer = [0; 8192];
 
-  let src_content = std::fs::read(src_path)?;
-  let dst_content = std::fs::read(dst_path)?;
+  loop {
+    let src_bytes = src_file.read(&mut src_buffer)?;
+    let dst_bytes = dst_file.read(&mut dst_buffer)?;
 
-  if src_content != dst_content {
-    return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
+    if src_bytes != dst_bytes { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
+    if src_bytes == 0 { break; }
+
+    if src_buffer[..src_bytes] != dst_buffer[..dst_bytes] { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
   }
 
   Ok(())
