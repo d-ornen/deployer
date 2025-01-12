@@ -259,6 +259,11 @@ pub(crate) fn execute_pipeline(
   if !env.silent_build { println!("{}", i18n::STARTING_PIPELINE.replace("{}", &pipeline.title)); }
   build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
   
+  let canonicalized = env.build_dir.canonicalize()?;
+  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
+  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
+  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
+  
   let mut cntr = 1usize;
   let total = pipeline.actions.len();
   for action in &pipeline.actions {
@@ -356,11 +361,6 @@ pub(crate) fn execute_pipeline(
     
     if !status { return Ok(()) }
   }
-  
-  let canonicalized = env.build_dir.canonicalize()?;
-  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
-  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
-  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
   
   Ok(())
 }
