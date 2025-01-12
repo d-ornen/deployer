@@ -16,7 +16,7 @@ use crate::actions::{
   DescribedAction,
 };
 use crate::cmd::NewActionArgs;
-use crate::configs::DeployerGlobalConfig;
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
   custom_command::{CustomCommand, specify_bash_c},
@@ -29,6 +29,42 @@ use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::utils::tags_custom_type;
+
+impl DeployerProjectOptions {
+  pub(crate) fn init_from_prompt(&mut self, curr_dir: String) -> anyhow::Result<()> {
+    use inquire::Text;
+    
+    #[cfg(unix)]
+    let curr_dir = curr_dir.split('/').last().unwrap();
+    let project_name_proposal = if self.project_name.is_empty() {
+      curr_dir.to_owned()
+    } else {
+      self.project_name.to_owned()
+    };
+    self.project_name = Text::new(i18n::PROJECT_NAME).with_initial_value(project_name_proposal.as_str()).prompt()?;
+    
+    self.cache_files.push(PathBuf::from(".git"));
+    println!("{}", i18n::PROJECT_SPECIFY_PLS);
+    self.langs = specify_programming_languages()?;
+    for lang in &self.langs {
+      match lang {
+        ProgrammingLanguage::Rust => self.cache_files.extend_from_slice(&[PathBuf::from("Cargo.lock"), PathBuf::from("target")]),
+        ProgrammingLanguage::Go => self.cache_files.extend_from_slice(&[PathBuf::from("go.sum"), PathBuf::from("vendor")]),
+        ProgrammingLanguage::Python => self.cache_files.extend_from_slice(&[PathBuf::from("__pycache__"), PathBuf::from("dist")]),
+        ProgrammingLanguage::C | ProgrammingLanguage::Cpp => self.cache_files.extend_from_slice(&[PathBuf::from("CMakeFiles"), PathBuf::from("CMakeCache.txt")]),
+        _ => {},
+      }
+    }
+    
+    self.deploy_toolkit = Text::new(&format!("{} {}:", i18n::PROJECT_DEPL_TOOLKIT, i18n::OR_HIT_ESC)).prompt_skippable()?;
+    self.targets = collect_targets()?;
+    self.variables = collect_variables()?;
+    self.artifacts = collect_artifacts()?;
+    self.inplace_artifacts_into_project_root = collect_af_inplacements(&self.artifacts)?;
+    
+    Ok(())
+  }
+}
 
 impl DescribedAction {
   pub(crate) fn new_from_prompt(opts: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {

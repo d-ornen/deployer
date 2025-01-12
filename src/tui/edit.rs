@@ -2,7 +2,7 @@ use colored::Colorize;
 use std::path::PathBuf;
 
 use crate::actions::{Action, DescribedAction};
-use crate::configs::DeployerGlobalConfig;
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::custom_command::{CustomCommand, specify_bash_c};
 use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
 use crate::entities::targets::{TargetDescription, OsVariant, OsVersionSpecification};
@@ -13,6 +13,84 @@ use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::tui::add::{collect_af_inplacement, collect_artifact};
 use crate::utils::tags_custom_type;
+
+impl DeployerProjectOptions {
+  pub(crate) fn edit_project_from_prompt(&mut self, globals: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
+    let actions = vec![
+      i18n::EDIT_PROJECT_PIPELINES,
+      i18n::EDIT_DEFAULT,
+      i18n::EDIT_PROJECT_NAME,
+      i18n::EDIT_PROJECT_REASSIGN,
+      i18n::EDIT_CACHE,
+      i18n::EDIT_PLS,
+      i18n::EDIT_TARGETS,
+      i18n::EDIT_DEPL_TOOLKIT,
+      i18n::EDIT_PROJECT_VARS,
+      i18n::EDIT_ARTIFACTS,
+      i18n::EDIT_AF_INPLACE,
+    ];
+    
+    while let Some(action) = inquire::Select::new(
+      &format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC),
+      actions.clone(),
+    ).prompt_skippable()? {
+      match action {
+        i18n::EDIT_PROJECT_NAME => self.project_name = inquire::Text::new(i18n::PROJECT_NAME).prompt()?,
+        i18n::EDIT_DEFAULT => self.select_default_pipeline()?,
+        i18n::EDIT_CACHE => self.cache_files.edit_from_prompt()?,
+        i18n::EDIT_PLS => self.langs.edit_from_prompt()?,
+        i18n::EDIT_TARGETS => self.targets.edit_from_prompt()?,
+        i18n::EDIT_DEPL_TOOLKIT => self.deploy_toolkit = inquire::Text::new(
+          &format!("{} {}:", i18n::DEPL_TOOLKIT, i18n::OR_HIT_ESC)
+        ).prompt_skippable()?,
+        i18n::EDIT_PROJECT_VARS => self.variables.edit_from_prompt()?,
+        i18n::EDIT_ARTIFACTS => self.artifacts.edit_from_prompt()?,
+        i18n::EDIT_AF_INPLACE => self.inplace_artifacts_into_project_root.edit_from_prompt(&mut self.artifacts)?,
+        i18n::EDIT_PROJECT_PIPELINES => self.pipelines.edit_from_prompt(globals)?,
+        i18n::EDIT_PROJECT_REASSIGN => for pipeline in &mut self.pipelines {
+          for action in &mut pipeline.actions {
+            *action = action.prompt_setup_for_project(&self.langs, &self.deploy_toolkit, &self.targets, &self.variables, &self.artifacts)?;
+          }
+        },
+        _ => {},
+      }
+    }
+    
+    Ok(())
+  }
+  
+  pub(crate) fn select_default_pipeline(&mut self) -> anyhow::Result<()> {
+    match self.pipelines.len() {
+      0 => {
+        println!("{}", i18n::PROJECT_NO_PIPELINES);
+      },
+      1 => {
+        let pipeline = self.pipelines.first_mut().unwrap();
+        pipeline.default = Some(true);
+      },
+      _ => {
+        let mut cmap = hmap!();
+        let mut cs = vec![];
+        
+        self.pipelines.iter_mut().for_each(|c| {
+          let s = format!("{} `{}`", i18n::PIPELINE, c.title);
+          
+          cmap.insert(s.clone(), c);
+          cs.push(s);
+        });
+        
+        if let Some(pipe) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_DEFAULT_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
+          for (key, val) in cmap.iter_mut() {
+            if key.as_str().eq(pipe.as_str()) { val.default = Some(true); }
+            else { val.default = Some(false); }
+          }
+        }
+      },
+    }
+    
+    Ok(())
+  }
+}
 
 impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
   fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
