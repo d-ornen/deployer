@@ -1,4 +1,5 @@
 use colored::Colorize;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::actions::{Action, DescribedAction};
@@ -445,7 +446,7 @@ impl Edit for Vec<PathBuf> {
       let mut cmap = hmap!();
       let mut cs = vec![];
       
-      self.iter_mut().for_each(|c| {
+      self.iter().for_each(|c| {
         let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
         
         cmap.insert(s.clone(), c);
@@ -490,6 +491,64 @@ impl Edit for Vec<PathBuf> {
     for key in cs {
       if key.as_str().eq(selected.as_str()) { continue }
       commands.push((*cmap.get(&key).unwrap()).clone());
+    }
+    
+    *self = commands;
+    Ok(())
+  }
+}
+
+impl Edit for HashSet<PathBuf> {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let mut cmap = hmap!();
+      let mut cs = vec![];
+      
+      self.iter().for_each(|c| {
+        let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
+        
+        cmap.insert(s.clone(), c);
+        cs.push(s);
+      });
+      
+      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
+      
+      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
+        match action.as_str() {
+          i18n::ADD => self.add_item()?,
+          i18n::REMOVE => self.remove_item()?,
+          _ => {},
+        }
+      } else { break }
+    }
+    
+    Ok(())
+  }
+  
+  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
+  
+  fn add_item(&mut self) -> anyhow::Result<()> {
+    self.insert(collect_artifact()?);
+    Ok(())
+  }
+  
+  fn remove_item(&mut self) -> anyhow::Result<()> {
+    let mut cmap = hmap!();
+    let mut cs = vec![];
+    
+    self.iter().for_each(|c| {
+      let s = format!("{} `{}`", i18n::ENTITY, c.to_string_lossy());
+      
+      cmap.insert(s.clone(), c);
+      cs.push(s);
+    });
+    
+    let selected = inquire::Select::new(i18n::VALUE_TO_REMOVE, cs.clone()).prompt()?;
+    
+    let mut commands = HashSet::new();
+    for key in cs {
+      if key.as_str().eq(selected.as_str()) { continue }
+      commands.insert((*cmap.get(&key).unwrap()).clone());
     }
     
     *self = commands;

@@ -55,7 +55,7 @@ pub(crate) fn enplace_artifacts(
   panic_when_not_found: bool,
 ) -> anyhow::Result<()> {
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
-  ignore.extend_from_slice(&config.cache_files);
+  ignore.extend(config.cache_files.iter().cloned());
   
   for (from, to) in &config.inplace_artifacts_into_project_root {
     let artifact_path = env.build_dir.join(from);
@@ -124,7 +124,7 @@ fn prepare_build_folder(
   std::fs::create_dir_all(build_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", build_path));
   
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR), PathBuf::from(build_path.file_name().unwrap())];
-  ignore.extend_from_slice(&config.cache_files);
+  ignore.extend(config.cache_files.iter().cloned());
   
   copy_all(get_current_working_dir().unwrap(), build_path.as_path(), &ignore)?;
   write(cache_dir, BUILD_CACHE_LIST, &builds);

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::actions::{DescribedAction, Action, buildlike::BuildAction};
@@ -27,7 +27,7 @@ pub(crate) struct DeployerProjectOptions {
   pub(crate) deploy_toolkit: Option<String>,
   
   /// Метки кэша
-  pub(crate) cache_files: Vec<PathBuf>,
+  pub(crate) cache_files: HashSet<PathBuf>,
   
   /// Пайплайны
   pub(crate) pipelines: Vec<DescribedPipeline>,

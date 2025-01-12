@@ -43,15 +43,15 @@ impl DeployerProjectOptions {
     };
     self.project_name = Text::new(i18n::PROJECT_NAME).with_initial_value(project_name_proposal.as_str()).prompt()?;
     
-    self.cache_files.push(PathBuf::from(".git"));
+    self.cache_files.insert(PathBuf::from(".git"));
     println!("{}", i18n::PROJECT_SPECIFY_PLS);
     self.langs = specify_programming_languages()?;
     for lang in &self.langs {
       match lang {
-        ProgrammingLanguage::Rust => self.cache_files.extend_from_slice(&[PathBuf::from("Cargo.lock"), PathBuf::from("target")]),
-        ProgrammingLanguage::Go => self.cache_files.extend_from_slice(&[PathBuf::from("go.sum"), PathBuf::from("vendor")]),
-        ProgrammingLanguage::Python => self.cache_files.extend_from_slice(&[PathBuf::from("__pycache__"), PathBuf::from("dist")]),
-        ProgrammingLanguage::C | ProgrammingLanguage::Cpp => self.cache_files.extend_from_slice(&[PathBuf::from("CMakeFiles"), PathBuf::from("CMakeCache.txt")]),
+        ProgrammingLanguage::Rust => self.cache_files.extend([PathBuf::from("Cargo.lock"), PathBuf::from("target")].into_iter()),
+        ProgrammingLanguage::Go => self.cache_files.extend([PathBuf::from("go.sum"), PathBuf::from("vendor")].into_iter()),
+        ProgrammingLanguage::Python => self.cache_files.extend([PathBuf::from("__pycache__"), PathBuf::from("dist")].into_iter()),
+        ProgrammingLanguage::C | ProgrammingLanguage::Cpp => self.cache_files.extend([PathBuf::from("CMakeFiles"), PathBuf::from("CMakeCache.txt")].into_iter()),
         _ => {},
       }
     }
