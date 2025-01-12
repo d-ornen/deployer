@@ -3,9 +3,11 @@ use std::path::PathBuf;
 
 use crate::actions::{Action, DescribedAction};
 use crate::configs::DeployerGlobalConfig;
-use crate::entities::programming_languages::specify_programming_languages;
-use crate::entities::targets::TargetDescription;
+use crate::entities::custom_command::{CustomCommand, specify_bash_c};
+use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
+use crate::entities::targets::{TargetDescription, OsVariant, OsVersionSpecification};
 use crate::entities::traits::{Edit, EditExtended};
+use crate::entities::variables::{Variable, VarValue};
 use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
@@ -526,6 +528,347 @@ impl Edit for Vec<TargetDescription> {
     });
     
     let selected = inquire::Select::new(i18n::SELECT_TARGET_TO_REMOVE, cs.clone()).prompt()?;
+    
+    let mut commands = vec![];
+    for key in cs {
+      if key.as_str().eq(selected.as_str()) { continue }
+      commands.push((*cmap.get(&key).unwrap()).clone());
+    }
+    
+    *self = commands;
+    Ok(())
+  }
+}
+
+impl Variable {
+  pub(crate) fn edit_variable_from_prompt(&mut self) -> anyhow::Result<()> {
+    let actions = vec![
+      i18n::EDIT_TITLE,
+      i18n::EDIT_VAR_SECRET,
+      i18n::EDIT_VALUE,
+    ];
+    
+    while let Some(action) = inquire::Select::new(
+      &format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC),
+      actions.clone(),
+    ).prompt_skippable()? {
+      match action {
+        i18n::EDIT_TITLE => self.title = inquire::Text::new(i18n::VAR_TITLE).prompt()?,
+        i18n::EDIT_VAR_SECRET => self.is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?,
+        i18n::EDIT_VALUE => self.value = VarValue::Plain(inquire::Text::new(i18n::VAR_CONTENT).prompt()?),
+        _ => {},
+      }
+    }
+    
+    Ok(())
+  }
+}
+
+impl Edit for Vec<Variable> {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let mut cmap = hmap!();
+      let mut cs = vec![];
+      
+      self.iter_mut().for_each(|c| {
+        let s = format!("{} `{}`", i18n::VAR_EDIT, c.title.green());
+        
+        cmap.insert(s.clone(), c);
+        cs.push(s);
+      });
+      
+      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
+      
+      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::VAR_SELECT_FC, i18n::HIT_ESC), cs).prompt_skippable()? {
+        match action.as_str() {
+          i18n::ADD => self.add_item()?,
+          i18n::REMOVE => self.remove_item()?,
+          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_variable_from_prompt()?,
+          _ => {},
+        }
+      } else { break }
+    }
+    
+    Ok(())
+  }
+  
+  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
+  
+  fn add_item(&mut self) -> anyhow::Result<()> {
+    self.push(Variable::new_from_prompt()?);
+    Ok(())
+  }
+  
+  fn remove_item(&mut self) -> anyhow::Result<()> {
+    let mut cmap = hmap!();
+    let mut cs = vec![];
+    
+    self.iter().for_each(|c| {
+      let s = format!("{} `{}`", i18n::VAR, c.title.green());
+      
+      cmap.insert(s.clone(), c);
+      cs.push(s);
+    });
+    
+    let selected = inquire::Select::new(i18n::VAR_TO_REMOVE, cs.clone()).prompt()?;
+    
+    let mut commands = vec![];
+    for key in cs {
+      if key.as_str().eq(selected.as_str()) { continue }
+      commands.push((*cmap.get(&key).unwrap()).clone());
+    }
+    
+    *self = commands;
+    Ok(())
+  }
+}
+
+impl TargetDescription {
+  pub(crate) fn edit_target_from_prompt(&mut self) -> anyhow::Result<()> {
+    let actions = vec![
+      i18n::EDIT_ARCH,
+      i18n::EDIT_OS,
+    ];
+    
+    while let Some(action) = inquire::Select::new(
+      &format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC),
+      actions.clone(),
+    ).prompt_skippable()? {
+      use inquire::{Select, Text};
+      
+      match action {
+        i18n::EDIT_ARCH => self.arch = Text::new(i18n::TARGET_ARCH).prompt()?,
+        i18n::EDIT_OS => {
+          let os = Select::new(
+            i18n::TARGET_OS_SELECT,
+            vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"]
+          ).prompt()?;
+          
+          self.os = match os {
+            "Android" => OsVariant::Android,
+            "iOS" => OsVariant::iOS,
+            "Linux" => OsVariant::Linux,
+            "Unix-like" => {
+              let name = Text::new(i18n::TARGET_OS_UNIX_LIKE).prompt()?;
+              OsVariant::UnixLike(name)
+            },
+            "Windows" => OsVariant::Windows,
+            "macOS" => OsVariant::macOS,
+            "Other" => {
+              let name = Text::new(i18n::TARGET_OS_OTHER).prompt()?;
+              OsVariant::Other(name)
+            },
+            _ => unreachable!(),
+          };
+          
+          self.derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
+          
+          let version_type = Select::new(
+            i18n::TARGET_OS_VER_S,
+            vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS]
+          ).prompt()?;
+          
+          self.version = match version_type {
+            i18n::TARGET_OS_VER_NS => OsVersionSpecification::No,
+            i18n::TARGET_OS_VER_WS => {
+              let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
+              OsVersionSpecification::Weak(ver)
+            },
+            i18n::TARGET_OS_VER_SS => {
+              let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
+              OsVersionSpecification::Strong(ver)
+            },
+            _ => unreachable!(),
+          };
+        },
+        _ => {},
+      }
+    }
+    
+    Ok(())
+  }
+}
+
+impl CustomCommand {
+  pub(crate) fn edit_command_from_prompt(&mut self) -> anyhow::Result<()> {
+    while let Some(action) = inquire::Select::new(
+      &format!("{} {}:", i18n::CMD_SELECT_TO_CHANGE.replace("{}", &self.bash_c.green()), i18n::HIT_ESC),
+      vec![
+        i18n::CMD_EDIT_SHELL,
+        i18n::CMD_CHANGE_PLACEHOLDERS,
+        i18n::CMD_CHANGE_FAILURE_IGNORANCE,
+        i18n::CMD_CHANGE_VISIBILITY_AT_BUILD,
+        i18n::CMD_CHANGE_VISIBILITY_ON_SUCC,
+        i18n::CMD_CHANGE_ON_FRESH,
+      ],
+    ).prompt_skippable()? {
+      match action {
+        i18n::CMD_EDIT_SHELL => self.bash_c = specify_bash_c(Some(self.bash_c.as_str()))?,
+        i18n::CMD_CHANGE_PLACEHOLDERS => {
+          let placeholders = if let Some(phs) = &self.placeholders {
+            let joined = phs.join(", ");
+            tags_custom_type(i18n::CMD_PLACEHOLDERS, Some(joined.as_str())).prompt()?
+          } else {
+            tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?
+          };
+          self.placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
+        },
+        i18n::CMD_CHANGE_FAILURE_IGNORANCE => {
+          self.ignore_fails = inquire::Confirm::new(i18n::CMD_IGNORE_FAILS).with_default(false).prompt()?;
+        },
+        i18n::CMD_CHANGE_VISIBILITY_AT_BUILD => {
+          self.show_bash_c = inquire::Confirm::new(i18n::CMD_SHOW_BASH_C).with_default(true).prompt()?;
+        },
+        i18n::CMD_CHANGE_VISIBILITY_ON_SUCC => {
+          self.show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
+        },
+        i18n::CMD_CHANGE_ON_FRESH => {
+          self.only_when_fresh = if inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()? {
+            Some(true)
+          } else {
+            None
+          };
+        },
+        _ => {},
+      }
+    }
+    
+    Ok(())
+  }
+}
+
+impl Edit for Vec<CustomCommand> {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let mut cmap = hmap!();
+      let mut cs = vec![];
+      
+      self.iter_mut().for_each(|c| {
+        let s = format!("{} `{}`", i18n::CUSTOM_CMD_EDIT, c.bash_c.green());
+        cmap.insert(s.clone(), c);
+        cs.push(s);
+      });
+      
+      cs.extend_from_slice(&[i18n::CUSTOM_CMD_REORDER.to_string(), i18n::CUSTOM_CMD_ADD.to_string(), i18n::CUSTOM_CMD_RM.to_string()]);
+      
+      if let Some(action) = inquire::Select::new(
+        &format!("{} {}:", i18n::CUSTOM_CMD_EDIT_PROMPT, i18n::HIT_ESC),
+        cs,
+      ).prompt_skippable()? {
+        match action.as_str() {
+          i18n::CUSTOM_CMD_REORDER => self.reorder()?,
+          i18n::CUSTOM_CMD_ADD => self.add_item()?,
+          i18n::CUSTOM_CMD_RM => self.remove_item()?,
+          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_command_from_prompt()?,
+          _ => {},
+        }
+      } else { break }
+    }
+    
+    Ok(())
+  }
+  
+  fn reorder(&mut self) -> anyhow::Result<()> {
+    use inquire::ReorderableList;
+    
+    let mut h = hmap!();
+    let mut k = vec![];
+    
+    for selected_command in self.iter() {
+      let key = format!("`{}`", selected_command.bash_c);
+      k.push(key.clone());
+      h.insert(key, selected_command);
+    }
+    
+    let reordered = ReorderableList::new(i18n::CMDS_REORDER, k).prompt()?;
+    
+    let mut selected_commands_ordered = vec![];
+    for key in reordered {
+      selected_commands_ordered.push((*h.get(&key).unwrap()).clone());
+    }
+    
+    *self = selected_commands_ordered;
+    
+    Ok(())
+  }
+  
+  fn add_item(&mut self) -> anyhow::Result<()> {
+    self.push(CustomCommand::new_from_prompt()?);
+    
+    Ok(())
+  }
+  
+  fn remove_item(&mut self) -> anyhow::Result<()> {
+    let mut cmap = hmap!();
+    let mut cs = vec![];
+    
+    self.iter().for_each(|c| {
+      let s = format!("`{}`", c.bash_c.green());
+      
+      cmap.insert(s.clone(), c);
+      cs.push(s);
+    });
+    
+    let selected = inquire::Select::new(i18n::CMD_SELECT_TO_REMOVE, cs.clone()).prompt()?;
+    
+    let mut commands = vec![];
+    for key in cs {
+      if key.as_str().eq(selected.as_str()) { continue }
+      commands.push((*cmap.get(&key).unwrap()).clone());
+    }
+    
+    *self = commands;
+    
+    Ok(())
+  }
+}
+
+impl Edit for Vec<ProgrammingLanguage> {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let mut cmap = hmap!();
+      let mut cs = vec![];
+      
+      self.iter_mut().for_each(|c| {
+        let s = format!("{} `{}`", i18n::LANGUAGE, c);
+        
+        cmap.insert(s.clone(), c);
+        cs.push(s);
+      });
+      
+      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
+      
+      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::PL_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
+        match action.as_str() {
+          i18n::ADD => self.add_item()?,
+          i18n::REMOVE => self.remove_item()?,
+          _ => {},
+        }
+      } else { break }
+    }
+    
+    Ok(())
+  }
+  
+  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
+  
+  fn add_item(&mut self) -> anyhow::Result<()> {
+    self.push(ProgrammingLanguage::new_from_prompt()?);
+    Ok(())
+  }
+  
+  fn remove_item(&mut self) -> anyhow::Result<()> {
+    let mut cmap = hmap!();
+    let mut cs = vec![];
+    
+    self.iter().for_each(|c| {
+      let s = format!("`{}`", c);
+      
+      cmap.insert(s.clone(), c);
+      cs.push(s);
+    });
+    
+    let selected = inquire::Select::new(i18n::PL_TO_REMOVE, cs.clone()).prompt()?;
     
     let mut commands = vec![];
     for key in cs {

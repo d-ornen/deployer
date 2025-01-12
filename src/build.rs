@@ -1,16 +1,22 @@
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+use crate::actions::Action;
 use crate::{CACHE_DIR, ARTIFACTS_DIR, BUILD_CACHE_LIST};
+use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::environment::BuildEnvironment;
+use crate::entities::info::ContentInfo;
+use crate::entities::traits::Execute;
 use crate::cmd::{BuildArgs, CleanArgs};
 use crate::configs::DeployerProjectOptions;
 use crate::i18n;
-use crate::pipelines::{execute_pipeline, DescribedPipeline};
-use crate::rw::{copy_all, write, symlink, log};
+use crate::pipelines::DescribedPipeline;
+use crate::rw::{copy_all, write, symlink, log, generate_build_log_filepath, build_log};
+use crate::storage::{use_from_storage, add_to_storage};
 use crate::utils::get_current_working_dir;
 
 /// Список всех билдов в системе
@@ -232,6 +238,129 @@ pub(crate) fn build(
       }
     }
   }
+  
+  Ok(())
+}
+
+pub(crate) fn execute_pipeline(
+  config: &DeployerProjectOptions,
+  env: BuildEnvironment,
+  pipeline: &DescribedPipeline,
+) -> anyhow::Result<()> {
+  use std::io::{stdout, Write};
+  use std::time::Instant;
+  
+  let log_file = generate_build_log_filepath(
+    &config.project_name,
+    &pipeline.title,
+    env.cache_dir,
+  );
+  
+  if !env.silent_build { println!("{}", i18n::STARTING_PIPELINE.replace("{}", &pipeline.title)); }
+  build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
+  
+  let mut cntr = 1usize;
+  let total = pipeline.actions.len();
+  for action in &pipeline.actions {
+    if !env.silent_build {
+      if !env.no_pipe {
+        print!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
+      } else {
+        println!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
+      }
+      build_log(&log_file, &[format!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title)])?;
+    }
+    stdout().flush()?;
+    let now = Instant::now();
+    
+    let (status, output) = match &action.action {
+      Action::Custom(cmd) => cmd.execute(env)?,
+      Action::Check(check) => check.execute(env)?,
+      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
+      Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
+      Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
+      Action::Observe(o_action) => o_action.execute(env)?,
+      Action::Patch(patch) => patch.execute(env)?,
+      Action::ForceArtifactsEnplace => {
+        enplace_artifacts(config, env, false)?;
+        
+        let mut modified_env = env;
+        let artifacts_dir = modified_env.build_dir.to_path_buf().join(ARTIFACTS_DIR);
+        modified_env.artifacts_dir = &artifacts_dir;
+        enplace_artifacts(config, modified_env, false)?;
+        
+        (true, vec![i18n::ARTIFACTS_ENPLACED.into()])
+      },
+      Action::Interrupt => {
+        println!();
+        inquire::Confirm::new(i18n::INTERRUPT).with_default(true).prompt()?;
+        (true, vec![])
+      },
+      Action::UseFromStorage(content_info) => {
+        match use_from_storage(env.storage_dir, env.build_dir, content_info) {
+          Ok(_) => (true, vec![]),
+          Err(e) => (false, vec![e.to_string()]),
+        }
+      },
+      Action::AddToStorage(rules) => {
+        match &rules.auto_version_rule {
+          AutoVersionExtractFromRule::CmdStdout(cmd) => {
+            let (succ, out) = cmd.execute(env)?;
+            if !succ || out.is_empty() { (false, out) }
+            else {
+              let version = out.last().unwrap().trim().to_owned();
+              let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
+              if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
+              else { (true, vec![]) }
+            }
+          },
+          AutoVersionExtractFromRule::PlainFile(path) => {
+            let mut file = std::fs::File::open(path)?;
+            let version = { let mut ver = String::new(); file.read_to_string(&mut ver)?; ver.trim().to_string() };
+            let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
+            if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
+            else { (true, vec![]) }
+          },
+        }
+      },
+    };
+    
+    let status_str = match status {
+      true => i18n::DONE.to_string(),
+      false => i18n::GOT_ERROR.red().bold().to_string(),
+    };
+    
+    let elapsed = now.elapsed();
+    if !env.no_pipe { build_log(&log_file, &output)?; }
+    build_log(&log_file, &[
+      format!(
+        "[{}/{}] {} -{} ({:.2?}).",
+        cntr,
+        total,
+        i18n::STARTING_ACTION.replace("{}", &action.title),
+        if status { i18n::DONE } else { i18n::GOT_ERROR },
+        elapsed,
+      ),
+    ])?;
+    
+    if !env.silent_build {
+      if !env.no_pipe {
+        println!("{} ({}).", status_str, format!("{:.2?}", elapsed).green());
+        for line in output { println!("{}", line); }
+      } else {
+        println!("[{}/{}] {} -{} ({}).", cntr, total, i18n::STARTING_ACTION.replace("{}", &action.title.blue().italic()), status_str, format!("{:.2?}", elapsed).green());
+      }
+    }
+    
+    cntr += 1;
+    
+    if !status { return Ok(()) }
+  }
+  
+  let canonicalized = env.build_dir.canonicalize()?;
+  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
+  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
+  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
   
   Ok(())
 }

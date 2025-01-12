@@ -14,7 +14,7 @@ use crate::i18n;
 use crate::utils::{regexopt2str, str2regexopt, str2regex_simple};
 
 /// Команда, проверяющая вывод на определённое условие.
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct CheckAction {
   pub(crate) command: CustomCommand,
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]

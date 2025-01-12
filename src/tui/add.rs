@@ -1,3 +1,5 @@
+use anyhow::bail;
+use colored::Colorize;
 use safe_path::scoped_join;
 use std::path::PathBuf;
 
@@ -19,9 +21,9 @@ use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
   custom_command::{CustomCommand, specify_bash_c},
   info::{ActionInfo, ContentInfo, PipelineInfo},
-  programming_languages::specify_programming_languages,
-  targets::TargetDescription,
-  variables::Variable,
+  programming_languages::{ProgrammingLanguage, specify_programming_languages},
+  targets::{TargetDescription, OsVariant, OsVersionSpecification},
+  variables::{Variable, VarValue},
 };
 use crate::hmap;
 use crate::i18n;
@@ -417,4 +419,157 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
   }
   
   Ok(v)
+}
+
+impl Variable {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let title = inquire::Text::new(i18n::VAR_TITLE).prompt()?;
+    println!("{}: {}", i18n::NOTE.green().italic(), i18n::VAR_NOTE);
+    let is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?;
+    
+    // TBD
+    let plain = inquire::Text::new(i18n::VAR_CONTENT).prompt()?;
+    
+    Ok(Variable {
+      title,
+      is_secret,
+      value: VarValue::Plain(plain),
+    })
+  }
+}
+
+impl TargetDescription {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    use inquire::{Select, Text};
+    
+    let arch = Text::new(i18n::TARGET_ARCH).prompt()?;
+    
+    let os = Select::new(
+      i18n::TARGET_OS_SELECT,
+      vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"]
+    ).prompt()?;
+    
+    let os_variant = match os {
+      "Android" => OsVariant::Android,
+      "iOS" => OsVariant::iOS,
+      "Linux" => OsVariant::Linux,
+      "Unix-like" => {
+        let name = Text::new(i18n::TARGET_OS_UNIX_LIKE).prompt()?;
+        OsVariant::UnixLike(name)
+      },
+      "Windows" => OsVariant::Windows,
+      "macOS" => OsVariant::macOS,
+      "Other" => {
+        let name = Text::new(i18n::TARGET_OS_OTHER).prompt()?;
+        OsVariant::Other(name)
+      },
+      _ => unreachable!(),
+    };
+    
+    let derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
+    
+    let version_type = Select::new(
+      i18n::TARGET_OS_VER_S,
+      vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS]
+    ).prompt()?;
+    
+    let version = match version_type {
+      i18n::TARGET_OS_VER_NS => OsVersionSpecification::No,
+      i18n::TARGET_OS_VER_WS => {
+        let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
+        OsVersionSpecification::Weak(ver)
+      },
+      i18n::TARGET_OS_VER_SS => {
+        let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
+        OsVersionSpecification::Strong(ver)
+      },
+      _ => unreachable!(),
+    };
+    
+    Ok(TargetDescription {
+      arch,
+      os: os_variant,
+      derivative,
+      version,
+    })
+  }
+}
+
+impl AutoVersionExtractFromRule {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let new_autover_rule = inquire::Select::new(
+      i18n::SPECIFY_AUTO_VER,
+      vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+    ).prompt()?;
+    let auto_version_rule = match new_autover_rule {
+      i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({
+        let mut cmd = CustomCommand::new_from_prompt_unspecified()?;
+        cmd.show_success_output = true;
+        cmd
+      }),
+      i18n::AUTO_VER_PLAIN_FILE => AutoVersionExtractFromRule::PlainFile({
+        let path = inquire::Text::new(i18n::SPECIFY_AUTO_VER_RELATIVE_FILEPATH).prompt()?;
+        PathBuf::from(path)
+      }),
+      _ => bail!("There is no such type"),
+    };
+    Ok(auto_version_rule)
+  }
+}
+
+impl CustomCommand {
+  /// Создаёт новую команду.
+  pub(crate) fn new_from_prompt() -> anyhow::Result<CustomCommand> {
+    let bash_c = specify_bash_c(None)?;
+    
+    let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
+    let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
+    
+    let ignore_fails = inquire::Confirm::new(i18n::CMD_IGNORE_FAILS).with_default(false).prompt()?;
+    let show_bash_c = inquire::Confirm::new(i18n::CMD_SHOW_BASH_C).with_default(true).prompt()?;
+    let show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
+    let only_when_fresh = Some(inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()?);
+    
+    Ok(CustomCommand {
+      bash_c,
+      placeholders,
+      ignore_fails,
+      show_bash_c,
+      show_success_output,
+      only_when_fresh,
+      replacements: None,
+    })
+  }
+  
+  pub(crate) fn new_from_prompt_unspecified() -> anyhow::Result<CustomCommand> {
+    let bash_c = specify_bash_c(None)?;
+    
+    let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
+    let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
+    
+    Ok(CustomCommand {
+      bash_c,
+      placeholders,
+      ignore_fails: true,
+      show_success_output: true,
+      show_bash_c: false,
+      only_when_fresh: Some(false),
+      replacements: None,
+    })
+  }
+}
+
+impl ProgrammingLanguage {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let s = inquire::Text::new(i18n::PL_INPUT_PROMPT).prompt()?;
+    let pl = match s.as_str() {
+      "Rust" => Self::Rust,
+      "Go" => Self::Go,
+      "C" => Self::C,
+      "C++" => Self::Cpp,
+      "Python" => Self::Python,
+      s => Self::Other(s.to_owned()),
+    };
+    Ok(pl)
+  }
 }
