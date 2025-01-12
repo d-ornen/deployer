@@ -1,4 +1,7 @@
+use anyhow::anyhow;
+use env_file_reader::read_file;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct Variable {
@@ -16,10 +19,14 @@ impl Variable {
     }
   }
   
-  pub(crate) fn get_value(&self) -> anyhow::Result<&str> {
+  pub(crate) fn get_value(&self) -> anyhow::Result<String> {
     match &self.value {
-      VarValue::Plain(val) => Ok(val.as_str()),
-      VarValue::FromEnvFile(_) => unimplemented!(),
+      VarValue::Plain(val) => Ok(val.to_owned()),
+      VarValue::FromEnvFile(info) => {
+        let env_variables = read_file(&info.env_file_path)?;
+        let val = env_variables.get(&info.key).ok_or(anyhow!("There is no such key in your ENV file."))?;
+        Ok(val.to_owned())
+      },
       VarValue::FromHCVaultKv2(_) => unimplemented!(),
     }
   }
@@ -34,7 +41,7 @@ pub(crate) enum VarValue {
 
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct FromEnvFile {
-  pub(crate) env_file_path: String,
+  pub(crate) env_file_path: PathBuf,
   pub(crate) key: String,
 }
 

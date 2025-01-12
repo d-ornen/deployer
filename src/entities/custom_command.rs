@@ -144,7 +144,7 @@ impl Execute for CustomCommand {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
         
-        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?); }
+        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?.as_str()); }
         
         let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
         let mut cmd = std::process::Command::new(&shell);
