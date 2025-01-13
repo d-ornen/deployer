@@ -1,6 +1,7 @@
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -10,6 +11,7 @@ use crate::{CACHE_DIR, ARTIFACTS_DIR, BUILD_CACHE_LIST};
 use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::environment::BuildEnvironment;
 use crate::entities::info::ContentInfo;
+use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
 use crate::entities::traits::Execute;
 use crate::cmd::{BuildArgs, CleanArgs};
 use crate::configs::DeployerProjectOptions;
@@ -55,7 +57,7 @@ pub(crate) fn enplace_artifacts(
   panic_when_not_found: bool,
 ) -> anyhow::Result<()> {
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
-  ignore.extend_from_slice(&config.cache_files);
+  ignore.extend(config.cache_files.iter().cloned());
   
   for (from, to) in &config.inplace_artifacts_into_project_root {
     let artifact_path = env.build_dir.join(from);
@@ -124,7 +126,7 @@ fn prepare_build_folder(
   std::fs::create_dir_all(build_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", build_path));
   
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR), PathBuf::from(build_path.file_name().unwrap())];
-  ignore.extend_from_slice(&config.cache_files);
+  ignore.extend(config.cache_files.iter().cloned());
   
   copy_all(get_current_working_dir().unwrap(), build_path.as_path(), &ignore)?;
   write(cache_dir, BUILD_CACHE_LIST, &builds);
@@ -250,6 +252,28 @@ pub(crate) fn execute_pipeline(
   use std::io::{stdout, Write};
   use std::time::Instant;
   
+  #[allow(clippy::mutable_key_type)]
+  let mut requirements = HashSet::<Requirement>::new();
+  for action in &pipeline.actions {
+    if let Some(action_reqs) = &action.requirements {
+      for action_req in action_reqs { requirements.insert(action_req.clone()); }
+    }
+  }
+  if let Err(e) = requirements.satisfy(env) {
+    match e {
+      SatisfyErr::Exists(path) => println!("{}", i18n::REQ_NOT_SATISFIED.replace("{}", &path.to_string_lossy())),
+      SatisfyErr::ExistsAny(paths) => {
+        let paths = paths.iter().map(|p| p.to_string_lossy().as_str().to_string()).collect::<Vec<_>>();
+        println!("{}", i18n::REQ_NOT_SATISFIED.replace("{}", &paths.join("`, `")))
+      },
+      SatisfyErr::Check(output) => {
+        println!("{}", i18n::REQ_CMD_NOT_SATISFIED);
+        for line in output { println!("{}", line); }
+      }
+    }
+    return Ok(())
+  }
+  
   let log_file = generate_build_log_filepath(
     &config.project_name,
     &pipeline.title,
@@ -258,6 +282,11 @@ pub(crate) fn execute_pipeline(
   
   if !env.silent_build { println!("{}", i18n::STARTING_PIPELINE.replace("{}", &pipeline.title)); }
   build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
+  
+  let canonicalized = env.build_dir.canonicalize()?;
+  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
+  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
+  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
   
   let mut cntr = 1usize;
   let total = pipeline.actions.len();
@@ -356,11 +385,6 @@ pub(crate) fn execute_pipeline(
     
     if !status { return Ok(()) }
   }
-  
-  let canonicalized = env.build_dir.canonicalize()?;
-  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
-  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
-  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
   
   Ok(())
 }

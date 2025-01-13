@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::actions::{DescribedAction, Action, buildlike::BuildAction};
@@ -9,6 +9,7 @@ use crate::entities::{
   info::ActionInfo,
   targets::TargetDescription,
   programming_languages::ProgrammingLanguage,
+  requirements::Requirement,
   variables::Variable,
 };
 use crate::hmap;
@@ -27,7 +28,7 @@ pub(crate) struct DeployerProjectOptions {
   pub(crate) deploy_toolkit: Option<String>,
   
   /// Метки кэша
-  pub(crate) cache_files: Vec<PathBuf>,
+  pub(crate) cache_files: HashSet<PathBuf>,
   
   /// Пайплайны
   pub(crate) pipelines: Vec<DescribedPipeline>,
@@ -79,7 +80,8 @@ impl Default for DeployerGlobalConfig {
           show_bash_c: true,
           only_when_fresh: None,
         }],
-      })
+      }),
+      requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
     });
     
     let pipelines_registry = hmap!();

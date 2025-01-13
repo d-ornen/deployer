@@ -7,6 +7,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-01-13
+
+### Added
+
+- `FromEnvFile` variable type.
+- `FromHCVaultKv2` variable type (HashiCorp Vault KV2 support).
+- Chunk-by-chunk file comparison on `copy_all` function calls (to discard file timestamps rewrite on equal content).
+- Requirements for Actions (satisfy path, one of paths or even `Check` to run given Action).
+- `TODO.md`.
+
+### Changed
+
+- Moved all TUI-related code in `tui` module.
+- Moved output of build folder's path at the top of Pipeline.
+- Made `cache_files` project config field a hashset in Deployer's internals (for reducing duplicates).
+- `Cargo.toml` default features and Deployer's project config.
+
+### Fixed
+
+- `AutoVersionExtractFromRule` trimming.
+- `README.md` and `DOCS.ru.md`.
+
 ## [0.3.4] - 2025-01-10
 
 ### Changed
@@ -219,6 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build support.
 - TUI.
 
+[1.0.0]:          https://github.com/impulse-sw/deployer/compare/0.3.4...1.0.0
 [0.3.4]:          https://github.com/impulse-sw/deployer/compare/0.3.3...0.3.4
 [0.3.3]:          https://github.com/impulse-sw/deployer/compare/0.3.2...0.3.3
 [0.3.2]:          https://github.com/impulse-sw/deployer/compare/0.3.1...0.3.2

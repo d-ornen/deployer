@@ -117,8 +117,17 @@ tr!(VAR, "Variable");
 tr!(VAR_TITLE, "Enter your variable's title:");
 tr!(NOTE, "Note");
 tr!(VAR_NOTE, "if variable is a secret, then no command containing this variable will be printed during the build stage.");
+tr!(KV2_NOTE, "before assembly, you must specify two environment variables for the Deployer:");
 tr!(VAR_IS_SECRET, "Is this variable a secret?");
-tr!(VAR_CONTENT, "Enter the variable's content:");
+tr!(SPECIFY_VAR_TYPE, "Select the variable type:");
+tr!(VAR_PLAIN, "Simple variable");
+tr!(VAR_ENV, "Variable from ENV file");
+tr!(VAR_KV2, "Variable from HashiCorp Vault KV2 storage");
+tr!(VAR_PLAIN_CONTENT, "Enter the variable's content:");
+tr!(VAR_ENV_FILE, "Enter the ENV file path:");
+tr!(VAR_ENV_KEY, "Enter the variable's key:");
+tr!(VAR_MOUNT_PATH, "Enter the KV2 mount path:");
+tr!(VAR_SECRET_PATH, "Enter the secret's path:");
 
 tr!(VAR_EDIT, "Edit variable");
 tr!(VAR_SELECT_FC, "Select a concrete variable to change");
@@ -173,6 +182,7 @@ tr!(EDIT_AF_INPLACE, "Edit artifact inplacements");
 tr!(EDIT_DEFAULT, "Select default Pipeline");
 tr!(EDIT_PATCH, "Edit patch");
 tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
+tr!(EDIT_REQS, "Edit Action requirements");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -283,6 +293,7 @@ tr!(CONTENT_ADDED_SUCC, "Content `{1}` added to Deployer's storage successfully 
 tr!(PATH, "path");
 
 // Paths and resolver
+tr!(ABSOLUTE_PATH, "Enter the absolute path:");
 tr!(RELATIVE_PATH, "Enter the relative path:");
 tr!(INCORRECT_PATH, "Incorrect path! Entity must be placed inside build folder!");
 tr!(INCORRECT_AF_INPL_PATH, "Incorrect artifact's inplacement path! Artifact must be inplaced inside `artifacts` folder!");
@@ -300,3 +311,14 @@ tr!(AUTO_VER_CMD_STDOUT, "execute the command and get output from `stdout` as ve
 tr!(AUTO_VER_PLAIN_FILE, "get a version from specified plain file");
 tr!(SPECIFY_AUTO_VER, "Select the version detection method:");
 tr!(SPECIFY_AUTO_VER_RELATIVE_FILEPATH, "Specify the relative path to plain version file:");
+
+// Requirements
+tr!(REQUIREMENT, "Requirement");
+tr!(REQ_NOT_SATISFIED, "Requirement `{}` for this Action is not satisfied.");
+tr!(REQ_CMD_NOT_SATISFIED, "Requirement (check) for this Action is not satisfied, output:\n");
+tr!(ADD_REQ, "Add any requirement (path check or any Check Action) for this Action?");
+tr!(REQ_TYPE_EX, "Check some path exists");
+tr!(REQ_TYPE_EX_ANY, "Check any of given paths exists");
+tr!(REQ_TYPE_CHECK, "Check the output of given command");
+tr!(SELECT_REQ_TYPE, "Select the requirement type:");
+tr!(ADD_NEW_PATH, "Add new path?");
