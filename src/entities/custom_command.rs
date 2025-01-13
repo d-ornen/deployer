@@ -2,16 +2,14 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::hmap;
 use crate::i18n;
 use crate::entities::environment::BuildEnvironment;
 use crate::entities::variables::{Variable, VarTraits};
 use crate::entities::info::ActionInfo;
-use crate::entities::traits::{Edit, Execute};
-use crate::utils::tags_custom_type;
+use crate::entities::traits::Execute;
 
 /// Команда, исполняемая в командной строке `bash`.
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct CustomCommand {
   /// Команда.
   pub(crate) bash_c: String,
@@ -37,46 +35,6 @@ pub(crate) struct CustomCommand {
 }
 
 impl CustomCommand {
-  /// Создаёт новую команду.
-  pub(crate) fn new_from_prompt() -> anyhow::Result<CustomCommand> {
-    let bash_c = specify_bash_c(None)?;
-    
-    let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
-    let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
-    
-    let ignore_fails = inquire::Confirm::new(i18n::CMD_IGNORE_FAILS).with_default(false).prompt()?;
-    let show_bash_c = inquire::Confirm::new(i18n::CMD_SHOW_BASH_C).with_default(true).prompt()?;
-    let show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
-    let only_when_fresh = Some(inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()?);
-    
-    Ok(CustomCommand {
-      bash_c,
-      placeholders,
-      ignore_fails,
-      show_bash_c,
-      show_success_output,
-      only_when_fresh,
-      replacements: None,
-    })
-  }
-  
-  pub(crate) fn new_from_prompt_unspecified() -> anyhow::Result<CustomCommand> {
-    let bash_c = specify_bash_c(None)?;
-    
-    let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
-    let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
-    
-    Ok(CustomCommand {
-      bash_c,
-      placeholders,
-      ignore_fails: true,
-      show_success_output: true,
-      show_bash_c: false,
-      only_when_fresh: Some(false),
-      replacements: None,
-    })
-  }
-  
   pub(crate) fn prompt_setup_for_project(
     &self,
     info: &ActionInfo,
@@ -134,52 +92,6 @@ impl CustomCommand {
     r.show_bash_c = if let Some(show) = explicitly_show_bash_c { show } else { r.show_bash_c };
     Ok(r)
   }
-  
-  pub(crate) fn edit_command_from_prompt(&mut self) -> anyhow::Result<()> {
-    while let Some(action) = inquire::Select::new(
-      &format!("{} {}:", i18n::CMD_SELECT_TO_CHANGE.replace("{}", &self.bash_c.green()), i18n::HIT_ESC),
-      vec![
-        i18n::CMD_EDIT_SHELL,
-        i18n::CMD_CHANGE_PLACEHOLDERS,
-        i18n::CMD_CHANGE_FAILURE_IGNORANCE,
-        i18n::CMD_CHANGE_VISIBILITY_AT_BUILD,
-        i18n::CMD_CHANGE_VISIBILITY_ON_SUCC,
-        i18n::CMD_CHANGE_ON_FRESH,
-      ],
-    ).prompt_skippable()? {
-      match action {
-        i18n::CMD_EDIT_SHELL => self.bash_c = specify_bash_c(Some(self.bash_c.as_str()))?,
-        i18n::CMD_CHANGE_PLACEHOLDERS => {
-          let placeholders = if let Some(phs) = &self.placeholders {
-            let joined = phs.join(", ");
-            tags_custom_type(i18n::CMD_PLACEHOLDERS, Some(joined.as_str())).prompt()?
-          } else {
-            tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?
-          };
-          self.placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
-        },
-        i18n::CMD_CHANGE_FAILURE_IGNORANCE => {
-          self.ignore_fails = inquire::Confirm::new(i18n::CMD_IGNORE_FAILS).with_default(false).prompt()?;
-        },
-        i18n::CMD_CHANGE_VISIBILITY_AT_BUILD => {
-          self.show_bash_c = inquire::Confirm::new(i18n::CMD_SHOW_BASH_C).with_default(true).prompt()?;
-        },
-        i18n::CMD_CHANGE_VISIBILITY_ON_SUCC => {
-          self.show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
-        },
-        i18n::CMD_CHANGE_ON_FRESH => {
-          self.only_when_fresh = if inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()? {
-            Some(true)
-          } else {
-            None
-          };
-        },
-        _ => {},
-      }
-    }
-    
-    Ok(())
-  }
 }
 
 pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
@@ -212,92 +124,6 @@ pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
   Ok(bash_c)
 }
 
-impl Edit for Vec<CustomCommand> {
-  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    loop {
-      let mut cmap = hmap!();
-      let mut cs = vec![];
-      
-      self.iter_mut().for_each(|c| {
-        let s = format!("{} `{}`", i18n::CUSTOM_CMD_EDIT, c.bash_c.green());
-        cmap.insert(s.clone(), c);
-        cs.push(s);
-      });
-      
-      cs.extend_from_slice(&[i18n::CUSTOM_CMD_REORDER.to_string(), i18n::CUSTOM_CMD_ADD.to_string(), i18n::CUSTOM_CMD_RM.to_string()]);
-      
-      if let Some(action) = inquire::Select::new(
-        &format!("{} {}:", i18n::CUSTOM_CMD_EDIT_PROMPT, i18n::HIT_ESC),
-        cs,
-      ).prompt_skippable()? {
-        match action.as_str() {
-          i18n::CUSTOM_CMD_REORDER => self.reorder()?,
-          i18n::CUSTOM_CMD_ADD => self.add_item()?,
-          i18n::CUSTOM_CMD_RM => self.remove_item()?,
-          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_command_from_prompt()?,
-          _ => {},
-        }
-      } else { break }
-    }
-    
-    Ok(())
-  }
-  
-  fn reorder(&mut self) -> anyhow::Result<()> {
-    use inquire::ReorderableList;
-    
-    let mut h = hmap!();
-    let mut k = vec![];
-    
-    for selected_command in self.iter() {
-      let key = format!("`{}`", selected_command.bash_c);
-      k.push(key.clone());
-      h.insert(key, selected_command);
-    }
-    
-    let reordered = ReorderableList::new(i18n::CMDS_REORDER, k).prompt()?;
-    
-    let mut selected_commands_ordered = vec![];
-    for key in reordered {
-      selected_commands_ordered.push((*h.get(&key).unwrap()).clone());
-    }
-    
-    *self = selected_commands_ordered;
-    
-    Ok(())
-  }
-  
-  fn add_item(&mut self) -> anyhow::Result<()> {
-    self.push(CustomCommand::new_from_prompt()?);
-    
-    Ok(())
-  }
-  
-  fn remove_item(&mut self) -> anyhow::Result<()> {
-    let mut cmap = hmap!();
-    let mut cs = vec![];
-    
-    self.iter().for_each(|c| {
-      let s = format!("`{}`", c.bash_c.green());
-      
-      cmap.insert(s.clone(), c);
-      cs.push(s);
-    });
-    
-    let selected = inquire::Select::new(i18n::CMD_SELECT_TO_REMOVE, cs.clone()).prompt()?;
-    
-    let mut commands = vec![];
-    for key in cs {
-      if key.as_str().eq(selected.as_str()) { continue }
-      commands.push((*cmap.get(&key).unwrap()).clone());
-    }
-    
-    *self = commands;
-    
-    Ok(())
-  }
-}
-
 impl Execute for CustomCommand {
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut output = vec![];
@@ -318,7 +144,7 @@ impl Execute for CustomCommand {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
         
-        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?); }
+        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?.as_str()); }
         
         let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
         let mut cmd = std::process::Command::new(&shell);

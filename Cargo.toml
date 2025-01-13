@@ -1,6 +1,6 @@
 [package]
 name = "deployer"
-version = "0.3.4"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
@@ -10,6 +10,7 @@ clap = { version = "4.5", features = ["derive"] }
 colored = "2"
 ctrlc = "3.4"
 dirs = "5.0"
+env-file-reader = "0.3"
 fs_extra = "1.2"
 inquire = { git = "https://github.com/markcda/inquire.git", branch = "feat/reorder-values", features = ["reorder"] }
 mimalloc = "0.1.43"
@@ -17,12 +18,14 @@ regex = "1.11"
 safe-path = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-smart-patcher = { git = "https://github.com/impulse-sw/smart-patcher", tag = "0.1.3", default-features = false }
+smart-patcher = { git = "https://github.com/impulse-sw/smart-patcher", tag = "0.2.0", default-features = false }
 strip-ansi-escapes = "0.2"
+tokio = { version = "1.0", features = ["rt-multi-thread"] }
 uuid = { version = "1.11", features = ["v4", "fast-rng"] }
+vaultrs = "0.7"
 
 [features]
-default = ["i18n-ru", "python", "lua", "rhai"]
+default = ["python", "lua", "rhai"]
 tests = []
 i18n-ru = []
 python = ["smart-patcher/python"]

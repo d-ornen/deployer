@@ -14,13 +14,23 @@ use crate::i18n;
 use crate::utils::{regexopt2str, str2regexopt, str2regex_simple};
 
 /// Команда, проверяющая вывод на определённое условие.
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct CheckAction {
   pub(crate) command: CustomCommand,
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
   pub(crate) success_when_found: Option<Regex>,
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
   pub(crate) success_when_not_found: Option<Regex>,
+}
+
+impl Eq for CheckAction {}
+
+impl std::hash::Hash for CheckAction {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.command.hash(state);
+    if let Some(succ_found) = &self.success_when_found { succ_found.as_str().hash(state); }
+    if let Some(succ_not_found) = &self.success_when_not_found { succ_not_found.as_str().hash(state); }
+  }
 }
 
 impl PartialEq for CheckAction {

@@ -4,7 +4,7 @@ use crate::entities::environment::BuildEnvironment;
 use crate::entities::custom_command::CustomCommand;
 use crate::entities::traits::Execute;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct ObserveAction {
   pub(crate) tags: Vec<String>,
   pub(crate) command: CustomCommand,

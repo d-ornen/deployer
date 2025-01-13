@@ -4,7 +4,7 @@ use crate::entities::environment::BuildEnvironment;
 use crate::entities::custom_command::CustomCommand;
 use crate::entities::traits::Execute;
 
-#[derive(Deserialize, Serialize, PartialEq, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub(crate) struct DeployAction {
   pub(crate) deploy_toolkit: Option<String>,
   pub(crate) tags: Vec<String>,

@@ -1,15 +1,15 @@
-#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned)]
+#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
 #![deny(warnings, clippy::todo, clippy::unimplemented)]
 
 #[cfg(feature = "tests")]
 mod tests;
 
 mod cmd;
+mod tui;
 mod configs;
 mod rw;
 mod utils;
 
-mod init;
 mod build;
 
 mod storage;
@@ -28,7 +28,7 @@ use crate::build::Builds;
 use crate::cmd::{Cli, DeployerExecType, ListType, NewType, RemoveType, CatType, EditType};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::pipelines::{list_pipelines, new_pipeline, remove_pipeline, cat_pipeline, cat_project_pipelines, assign_pipeline_to_project, edit_pipeline};
-use crate::project::edit_project;
+use crate::project::{init_project, edit_project};
 use crate::rw::{read, write, VERBOSE};
 use crate::storage::{list_content, new_content};
 use crate::utils::get_current_working_dir;
@@ -36,7 +36,6 @@ use crate::utils::get_current_working_dir;
 #[cfg(feature = "tests")]
 use crate::tests::tests;
 
-use crate::init::init;
 use crate::build::{build, clean_builds};
 
 use clap::Parser;
@@ -161,7 +160,7 @@ fn main() {
     DeployerExecType::New(NewType::Content) => new_content(&storage_folder).unwrap(),
     
     DeployerExecType::Init(args) => {
-      init(&mut globals, &mut config, &args).unwrap();
+      init_project(&mut globals, &mut config, &args).unwrap();
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     },
     DeployerExecType::With(args) => {

@@ -5,7 +5,9 @@ Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allow
 - have your own actions and pipelines repositories (`Actions Registry` and `Pipelines Registry`) in a single JSON file
 - create actions and pipelines from TUI or JSON configuration files
 - configure actions for specific project
+- satisfy requirements for your system to run pipelines
 - check compatibility over actions and projects
+- use variables for commands from `env`-files and HashiCorp Vault KV2-storage
 - run pipelines with different cache requirements in different build folders
 - store common content in Deployer's storage, add and patch additional files for build on the fly
 - and share your project build/deploy settings very quickly and without any dependencies.
@@ -23,8 +25,12 @@ After installation, execute this:
 ```bash
 git clone https://github.com/impulse-sw/deployer.git
 cd deployer
-cargo install --path . --no-default-features  # to install English version
-cargo install --path .                        # to install Russian version
+cargo install --path .                     # to install English version
+cargo install --path . --features=i18n-ru  # to install Russian version
+
+# if you already have Deployer installed
+deployer build en  # to install English version
+deployer build ru  # to install Russian version
 ```
 
 That's it! Now you have `/home/username/.cargo/bin/deployer` binary. Modify the `PATH` variable, if you need to.
@@ -75,7 +81,15 @@ The full JSON is:
         }
       ]
     }
-  }
+  },
+  "requirements": [
+    {
+      "ExistsAny": [
+        "/usr/bin/upx",
+        "~/.local/bin/upx"
+      ]
+    }
+  ]
 }
 ```
 
@@ -148,7 +162,15 @@ The full JSON is:
             }
           ]
         }
-      }
+      },
+      "requirements": [
+        {
+          "ExistsAny": [
+            "/usr/bin/upx",
+            "~/.local/bin/upx"
+          ]
+        }
+      ]
     }
   ]
 }
@@ -274,7 +296,15 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
                 }
               ]
             }
-          }
+          },
+          "requirements": [
+            {
+              "ExistsAny": [
+                "/usr/bin/upx",
+                "~/.local/bin/upx"
+              ]
+            }
+          ]
         }
       ]
     }

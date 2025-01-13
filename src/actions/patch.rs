@@ -9,7 +9,7 @@ use crate::entities::{
 };
 use crate::i18n;
 
-#[derive(Deserialize, Serialize, PartialEq, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub(crate) struct PatchAction {
   pub(crate) patch: PathBuf,
 }

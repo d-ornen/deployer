@@ -7,7 +7,7 @@ use crate::entities::{
   traits::Execute,
 };
 
-#[derive(Deserialize, Serialize, PartialEq, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub(crate) struct PackAction {
   pub(crate) target: Option<TargetDescription>,
   pub(crate) commands: Vec<CustomCommand>,

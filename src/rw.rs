@@ -97,7 +97,7 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[i
       log(format!("Symlinking `{:?}` from {:?} to {:?}", name, entry.path(), d));
       symlink(std::fs::canonicalize(entry.path())?, d);
     } else if ty.is_file() {
-      std::fs::copy(entry.path(), d)?;
+      copy_if_different(entry.path(), d)?;
     } else if ty.is_symlink() {
       symlink(std::fs::canonicalize(name)?, d);
     }
@@ -116,6 +116,40 @@ pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
       log(format!("Skip `{}` due to: {:?}", src.as_ref().to_str().unwrap(), e));
     },
   }
+}
+
+/// Копирует, только если файлы отличаются друг от друга.
+fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Result<()> {
+  use std::io::Read;
+  
+  let src_path = src.as_ref();
+  let dst_path = dst.as_ref();
+
+  if !dst_path.exists() {
+    return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
+  }
+
+  if src_path.metadata()?.len() != dst_path.metadata()?.len() {
+    return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
+  }
+  
+  let mut src_file = std::fs::File::open(src_path)?;
+  let mut dst_file = std::fs::File::open(dst_path)?;
+  
+  let mut src_buffer = [0; 8192]; // 8KB chunks
+  let mut dst_buffer = [0; 8192];
+
+  loop {
+    let src_bytes = src_file.read(&mut src_buffer)?;
+    let dst_bytes = dst_file.read(&mut dst_buffer)?;
+
+    if src_bytes != dst_bytes { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
+    if src_bytes == 0 { break; }
+
+    if src_buffer[..src_bytes] != dst_buffer[..dst_bytes] { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
+  }
+
+  Ok(())
 }
 
 /// Используется для логгирования ошибок.
