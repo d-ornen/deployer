@@ -36,7 +36,7 @@ impl DeployerProjectOptions {
     use inquire::Text;
     
     #[cfg(unix)]
-    let curr_dir = curr_dir.split('/').last().unwrap();
+    let curr_dir = curr_dir.split('/').next_back().unwrap();
     let project_name_proposal = if self.project_name.is_empty() {
       curr_dir.to_owned()
     } else {
