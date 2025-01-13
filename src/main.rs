@@ -1,4 +1,4 @@
-#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned)]
+#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
 #![deny(warnings, clippy::todo, clippy::unimplemented)]
 
 #[cfg(feature = "tests")]

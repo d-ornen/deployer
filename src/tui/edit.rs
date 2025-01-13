@@ -5,14 +5,16 @@ use std::path::PathBuf;
 use crate::actions::{Action, DescribedAction};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::custom_command::{CustomCommand, specify_bash_c};
+use crate::entities::path_type::PathType;
 use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
+use crate::entities::requirements::Requirement;
 use crate::entities::targets::{TargetDescription, OsVariant, OsVersionSpecification};
 use crate::entities::traits::{Edit, EditExtended};
 use crate::entities::variables::{Variable, VarValue};
 use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
-use crate::tui::add::{collect_af_inplacement, collect_artifact};
+use crate::tui::add::{collect_af_inplacement, collect_path, collect_artifact};
 use crate::utils::tags_custom_type;
 
 impl DeployerProjectOptions {
@@ -45,7 +47,10 @@ impl DeployerProjectOptions {
           &format!("{} {}:", i18n::DEPL_TOOLKIT, i18n::OR_HIT_ESC)
         ).prompt_skippable()?,
         i18n::EDIT_PROJECT_VARS => self.variables.edit_from_prompt()?,
-        i18n::EDIT_ARTIFACTS => self.artifacts.edit_from_prompt()?,
+        i18n::EDIT_ARTIFACTS => {
+          let mut path_type = PathType::Relative;
+          self.artifacts.edit_from_prompt(&mut path_type)?
+        },
         i18n::EDIT_AF_INPLACE => self.inplace_artifacts_into_project_root.edit_from_prompt(&mut self.artifacts)?,
         i18n::EDIT_PROJECT_PIPELINES => self.pipelines.edit_from_prompt(globals)?,
         i18n::EDIT_PROJECT_REASSIGN => for pipeline in &mut self.pipelines {
@@ -222,6 +227,7 @@ impl DescribedAction {
       i18n::EDIT_TITLE,
       i18n::EDIT_DESC,
       i18n::EDIT_TAGS,
+      i18n::EDIT_REQS,
     ]);
     
     while let Some(action) = inquire::Select::new(
@@ -289,6 +295,7 @@ impl DescribedAction {
           }
         },
         i18n::EDIT_PATCH if let Action::Patch(patch) = &mut self.action => { patch.edit_from_prompt()?; },
+        i18n::EDIT_REQS => self.requirements.edit_from_prompt()?,
         _ => {},
       }
     }
@@ -440,8 +447,92 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
   }
 }
 
-impl Edit for Vec<PathBuf> {
+impl Requirement {
+  pub(crate) fn edit_requirement_from_prompt(&mut self) -> anyhow::Result<()> {
+    match self {
+      Self::Exists(path) => { *path = PathBuf::from(
+        inquire::Text::new(i18n::ABSOLUTE_PATH).with_default(path.to_str().unwrap()).prompt()?
+      )},
+      Self::ExistsAny(paths) => {
+        let mut path_type = PathType::Absolute;
+        paths.edit_from_prompt(&mut path_type)?;
+      },
+      Self::CheckSuccess(check_action) => check_action.edit_check_from_prompt()?,
+    }
+    Ok(())
+  }
+}
+
+impl Edit for Option<Vec<Requirement>> {
   fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    let mut reqs = match self {
+      None => vec![],
+      Some(reqs) => reqs.to_owned(),
+    };
+    reqs.edit_from_prompt()?;
+    if reqs.is_empty() { *self = None; } else { *self = Some(reqs); }
+    
+    Ok(())
+  }
+}
+
+impl Edit for Vec<Requirement> {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let mut cmap = hmap!();
+      let mut cs = vec![];
+      
+      self.iter_mut().for_each(|c| {
+        let s = format!("{} {}", i18n::REQUIREMENT, c);
+        cmap.insert(s.clone(), c);
+        cs.push(s);
+      });
+      
+      cs.extend_from_slice(&[i18n::ADD.to_string(), i18n::REMOVE.to_string()]);
+      
+      if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
+        match action.as_str() {
+          i18n::ADD => self.add_item()?,
+          i18n::REMOVE => self.remove_item()?,
+          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_requirement_from_prompt()?,
+          _ => {},
+        }
+      } else { break }
+    }
+    
+    Ok(())
+  }
+  
+  fn add_item(&mut self) -> anyhow::Result<()> {
+    self.push(Requirement::new_from_prompt()?);
+    Ok(())
+  }
+  
+  fn remove_item(&mut self) -> anyhow::Result<()> {
+    let mut cmap = hmap!();
+    let mut cs = vec![];
+    
+    self.iter().for_each(|c| {
+      let s = format!("{} {}", i18n::REQUIREMENT, c);
+      cmap.insert(s.clone(), c);
+      cs.push(s);
+    });
+    
+    let selected = inquire::Select::new(i18n::VALUE_TO_REMOVE, cs.clone()).prompt()?;
+    
+    let mut reqs = vec![];
+    for key in cs {
+      if key.as_str().eq(selected.as_str()) { continue }
+      reqs.push((*cmap.get(&key).unwrap()).clone());
+    }
+    
+    *self = reqs;
+    Ok(())
+  }
+}
+
+impl EditExtended<PathType> for Vec<PathBuf> {
+  fn edit_from_prompt(&mut self, opts: &mut PathType) -> anyhow::Result<()> {
     loop {
       let mut cmap = hmap!();
       let mut cs = vec![];
@@ -457,8 +548,8 @@ impl Edit for Vec<PathBuf> {
       
       if let Some(action) = inquire::Select::new(&format!("{} {}:", i18n::EDIT_ACTION_PROMPT, i18n::HIT_ESC), cs).prompt_skippable()? {
         match action.as_str() {
-          i18n::ADD => self.add_item()?,
-          i18n::REMOVE => self.remove_item()?,
+          i18n::ADD => self.add_item(opts)?,
+          i18n::REMOVE => self.remove_item(opts)?,
           _ => {},
         }
       } else { break }
@@ -467,14 +558,17 @@ impl Edit for Vec<PathBuf> {
     Ok(())
   }
   
-  fn reorder(&mut self) -> anyhow::Result<()> { Ok(()) }
+  fn reorder(&mut self, _: &mut PathType) -> anyhow::Result<()> { Ok(()) }
   
-  fn add_item(&mut self) -> anyhow::Result<()> {
-    self.push(collect_artifact()?);
+  fn add_item(&mut self, opts: &mut PathType) -> anyhow::Result<()> {
+    match opts {
+      PathType::Absolute => self.push(collect_path()?),
+      PathType::Relative => self.push(collect_artifact()?),
+    }
     Ok(())
   }
   
-  fn remove_item(&mut self) -> anyhow::Result<()> {
+  fn remove_item(&mut self, _: &mut PathType) -> anyhow::Result<()> {
     let mut cmap = hmap!();
     let mut cs = vec![];
     
@@ -692,7 +786,11 @@ impl Variable {
       match action {
         i18n::EDIT_TITLE => self.title = inquire::Text::new(i18n::VAR_TITLE).prompt()?,
         i18n::EDIT_VAR_SECRET => self.is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?,
-        i18n::EDIT_VALUE => self.value = VarValue::Plain(inquire::Text::new(i18n::VAR_CONTENT).prompt()?),
+        i18n::EDIT_VALUE => match &mut self.value {
+          VarValue::Plain(plain) => *plain = inquire::Text::new(i18n::VAR_PLAIN_CONTENT).with_default(plain).prompt()?,
+          VarValue::FromEnvFile(_) => self.value = Variable::new_env_from_prompt()?,
+          VarValue::FromHCVaultKv2(_) => self.value = Variable::new_kv2_from_prompt()?,
+        },
         _ => {},
       }
     }

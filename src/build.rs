@@ -1,6 +1,7 @@
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -10,6 +11,7 @@ use crate::{CACHE_DIR, ARTIFACTS_DIR, BUILD_CACHE_LIST};
 use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::environment::BuildEnvironment;
 use crate::entities::info::ContentInfo;
+use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
 use crate::entities::traits::Execute;
 use crate::cmd::{BuildArgs, CleanArgs};
 use crate::configs::DeployerProjectOptions;
@@ -249,6 +251,28 @@ pub(crate) fn execute_pipeline(
 ) -> anyhow::Result<()> {
   use std::io::{stdout, Write};
   use std::time::Instant;
+  
+  #[allow(clippy::mutable_key_type)]
+  let mut requirements = HashSet::<Requirement>::new();
+  for action in &pipeline.actions {
+    if let Some(action_reqs) = &action.requirements {
+      for action_req in action_reqs { requirements.insert(action_req.clone()); }
+    }
+  }
+  if let Err(e) = requirements.satisfy(env) {
+    match e {
+      SatisfyErr::Exists(path) => println!("{}", i18n::REQ_NOT_SATISFIED.replace("{}", &path.to_string_lossy())),
+      SatisfyErr::ExistsAny(paths) => {
+        let paths = paths.iter().map(|p| p.to_string_lossy().as_str().to_string()).collect::<Vec<_>>();
+        println!("{}", i18n::REQ_NOT_SATISFIED.replace("{}", &paths.join("`, `")))
+      },
+      SatisfyErr::Check(output) => {
+        println!("{}", i18n::REQ_CMD_NOT_SATISFIED);
+        for line in output { println!("{}", line); }
+      }
+    }
+    return Ok(())
+  }
   
   let log_file = generate_build_log_filepath(
     &config.project_name,

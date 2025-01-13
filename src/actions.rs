@@ -26,6 +26,7 @@ use crate::entities::{
   custom_command::CustomCommand,
   info::{ActionInfo, ContentInfo, info2str, str2info},
   programming_languages::ProgrammingLanguage,
+  requirements::Requirement,
   targets::TargetDescription,
   variables::Variable,
 };
@@ -43,6 +44,8 @@ pub(crate) struct DescribedAction {
   /// Список меток для фильтрации действий при выборе из реестра
   pub(crate) tags: Vec<String>,
   pub(crate) action: Action,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub(crate) requirements: Option<Vec<Requirement>>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone)]

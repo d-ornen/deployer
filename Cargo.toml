@@ -25,7 +25,7 @@ uuid = { version = "1.11", features = ["v4", "fast-rng"] }
 vaultrs = "0.7"
 
 [features]
-default = ["i18n-ru", "python", "lua", "rhai"]
+default = ["python", "lua", "rhai"]
 tests = []
 i18n-ru = []
 python = ["smart-patcher/python"]

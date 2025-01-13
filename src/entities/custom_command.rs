@@ -9,7 +9,7 @@ use crate::entities::info::ActionInfo;
 use crate::entities::traits::Execute;
 
 /// Команда, исполняемая в командной строке `bash`.
-#[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct CustomCommand {
   /// Команда.
   pub(crate) bash_c: String,

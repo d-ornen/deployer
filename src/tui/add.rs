@@ -22,8 +22,9 @@ use crate::entities::{
   custom_command::{CustomCommand, specify_bash_c},
   info::{ActionInfo, ContentInfo, PipelineInfo},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
+  requirements::Requirement,
   targets::{TargetDescription, OsVariant, OsVersionSpecification},
-  variables::{Variable, VarValue},
+  variables::{Variable, VarValue, FromEnvFile, Kv2Paths, VAULT_ADDR_ENV, VAULT_ADDR_TOKEN},
 };
 use crate::hmap;
 use crate::i18n;
@@ -110,43 +111,7 @@ impl DescribedAction {
         let command = CustomCommand::new_from_prompt()?;
         Action::Custom(command)
       },
-      "Check" => {
-        let bash_c = specify_bash_c(None)?;
-        
-        let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
-        let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
-        
-        let ignore_fails = !inquire::Confirm::new(i18n::CHECK_IGNORE_FAILS).with_default(true).prompt()?;
-        
-        let mut success_when_found = None;
-        let mut success_when_not_found = None;
-        loop {
-          if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
-            success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
-          }
-          
-          if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
-            success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
-          }
-          
-          if success_when_found.is_some() || success_when_not_found.is_some() { break }
-          else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
-        }
-        
-        Action::Check(CheckAction {
-          success_when_found,
-          success_when_not_found,
-          command: CustomCommand {
-            bash_c,
-            placeholders,
-            replacements: None,
-            ignore_fails,
-            show_success_output: true,
-            show_bash_c: false,
-            only_when_fresh: None,
-          },
-        })
-      },
+      "Check" => Action::Check(CheckAction::new_from_prompt()?),
       action_type @ ("Pre-build" | "Build" | "Post-build" | "Test") => {
         let supported_langs = specify_programming_languages()?;
         let commands = collect_multiple_commands()?;
@@ -222,12 +187,15 @@ impl DescribedAction {
       _ => unreachable!(),
     };
     
+    let requirements = collect_requirements()?;
+    
     let described_action = DescribedAction {
       title: name,
       desc,
       info,
       tags,
       action,
+      requirements,
     };
     
     if
@@ -256,6 +224,91 @@ pub(crate) fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> 
     first = false;
   }
   Ok(commands)
+}
+
+pub(crate) fn collect_requirements() -> anyhow::Result<Option<Vec<Requirement>>> {
+  use inquire::Confirm;
+  
+  let mut reqs = Vec::new();
+  while Confirm::new(i18n::ADD_REQ).with_default(false).prompt()? {
+    if let Ok(req) = Requirement::new_from_prompt() { reqs.push(req); }
+  }
+  Ok(if reqs.is_empty() { None } else { Some(reqs) })
+}
+
+impl CheckAction {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let bash_c = specify_bash_c(None)?;
+    
+    let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
+    let placeholders = if placeholders.is_empty() { None } else { Some(placeholders) };
+    
+    let ignore_fails = !inquire::Confirm::new(i18n::CHECK_IGNORE_FAILS).with_default(true).prompt()?;
+    
+    let mut success_when_found = None;
+    let mut success_when_not_found = None;
+    loop {
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
+        success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
+      }
+      
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
+        success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
+      }
+      
+      if success_when_found.is_some() || success_when_not_found.is_some() { break }
+      else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
+    }
+    
+    Ok(Self {
+      success_when_found,
+      success_when_not_found,
+      command: CustomCommand {
+        bash_c,
+        placeholders,
+        replacements: None,
+        ignore_fails,
+        show_success_output: true,
+        show_bash_c: false,
+        only_when_fresh: None,
+      },
+    })
+  }
+  
+  pub(crate) fn new_wop_from_prompt() -> anyhow::Result<Self> {
+    let bash_c = specify_bash_c(None)?;
+    
+    let ignore_fails = !inquire::Confirm::new(i18n::CHECK_IGNORE_FAILS).with_default(true).prompt()?;
+    
+    let mut success_when_found = None;
+    let mut success_when_not_found = None;
+    loop {
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
+        success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
+      }
+      
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
+        success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
+      }
+      
+      if success_when_found.is_some() || success_when_not_found.is_some() { break }
+      else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
+    }
+    
+    Ok(Self {
+      success_when_found,
+      success_when_not_found,
+      command: CustomCommand {
+        bash_c,
+        placeholders: None,
+        replacements: None,
+        ignore_fails,
+        show_success_output: true,
+        show_bash_c: false,
+        only_when_fresh: None,
+      },
+    })
+  }
 }
 
 impl DescribedPipeline {
@@ -407,6 +460,22 @@ pub(crate) fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
   Ok(v)
 }
 
+pub(crate) fn collect_path() -> anyhow::Result<PathBuf> {
+  Ok(PathBuf::from(inquire::Text::new(i18n::ABSOLUTE_PATH).prompt()?))
+}
+
+pub(crate) fn collect_paths() -> anyhow::Result<Vec<PathBuf>> {
+  let mut v = vec![];
+  let mut first = true;
+  
+  while inquire::Confirm::new(i18n::ADD_NEW_PATH).with_default(first).prompt()? {
+    v.push(collect_path()?);
+    first = false;
+  }
+  
+  Ok(v)
+}
+
 pub(crate) fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   let mut v = vec![];
   let mut first = true;
@@ -460,17 +529,67 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
 impl Variable {
   pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
     let title = inquire::Text::new(i18n::VAR_TITLE).prompt()?;
-    println!("{}: {}", i18n::NOTE.green().italic(), i18n::VAR_NOTE);
+    println!("{}: {} `{}`, `{}`.", i18n::NOTE.green().italic(), i18n::VAR_NOTE, VAULT_ADDR_ENV.green(), VAULT_ADDR_TOKEN.green());
     let is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?;
     
-    // TBD
-    let plain = inquire::Text::new(i18n::VAR_CONTENT).prompt()?;
+    let types = vec![i18n::VAR_PLAIN, i18n::VAR_ENV, i18n::VAR_KV2];
+    let r#type = inquire::Select::new(i18n::SPECIFY_VAR_TYPE, types).prompt()?;
+    let value = match r#type {
+      i18n::VAR_PLAIN => Variable::new_plain_from_prompt()?,
+      i18n::VAR_ENV => Variable::new_env_from_prompt()?,
+      i18n::VAR_KV2 => Variable::new_kv2_from_prompt()?,
+      _ => unreachable!(),
+    };
     
     Ok(Variable {
       title,
       is_secret,
-      value: VarValue::Plain(plain),
+      value,
     })
+  }
+  
+  pub(crate) fn new_plain_from_prompt() -> anyhow::Result<VarValue> {
+    Ok(VarValue::Plain(inquire::Text::new(i18n::VAR_PLAIN_CONTENT).prompt()?))
+  }
+  
+  pub(crate) fn new_env_from_prompt() -> anyhow::Result<VarValue> {
+    Ok(VarValue::FromEnvFile(FromEnvFile {
+      env_file_path: PathBuf::from(inquire::Text::new(i18n::VAR_ENV_FILE).prompt()?),
+      key: inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?,
+    }))
+  }
+  
+  pub(crate) fn new_kv2_from_prompt() -> anyhow::Result<VarValue> {
+    println!("{}: {}", i18n::NOTE.green().italic(), i18n::KV2_NOTE);
+    Ok(VarValue::FromHCVaultKv2(Kv2Paths {
+      mount_path: inquire::Text::new(i18n::VAR_MOUNT_PATH).prompt()?,
+      secret_path: inquire::Text::new(i18n::VAR_SECRET_PATH).prompt()?,
+    }))
+  }
+}
+
+impl Requirement {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK];
+    let r#type = inquire::Select::new(i18n::SELECT_REQ_TYPE, types).prompt()?;
+    match r#type {
+      i18n::REQ_TYPE_EX => Requirement::new_exists_from_prompt(),
+      i18n::REQ_TYPE_EX_ANY => Requirement::new_exists_any_from_prompt(),
+      i18n::REQ_TYPE_CHECK => Requirement::new_check_from_prompt(),
+      _ => unreachable!(),
+    }
+  }
+  
+  pub(crate) fn new_exists_from_prompt() -> anyhow::Result<Self> {
+    Ok(Self::Exists(collect_path()?))
+  }
+  
+  pub(crate) fn new_exists_any_from_prompt() -> anyhow::Result<Self> {
+    Ok(Self::ExistsAny(collect_paths()?))
+  }
+  
+  pub(crate) fn new_check_from_prompt() -> anyhow::Result<Self> {
+    Ok(Self::CheckSuccess(CheckAction::new_wop_from_prompt()?))
   }
 }
 

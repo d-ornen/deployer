@@ -23,6 +23,16 @@ pub(crate) struct CheckAction {
   pub(crate) success_when_not_found: Option<Regex>,
 }
 
+impl Eq for CheckAction {}
+
+impl std::hash::Hash for CheckAction {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.command.hash(state);
+    if let Some(succ_found) = &self.success_when_found { succ_found.as_str().hash(state); }
+    if let Some(succ_not_found) = &self.success_when_not_found { succ_not_found.as_str().hash(state); }
+  }
+}
+
 impl PartialEq for CheckAction {
   fn eq(&self, other: &Self) -> bool {
     self.command.eq(&other.command) &&

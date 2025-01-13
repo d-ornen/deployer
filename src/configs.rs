@@ -9,6 +9,7 @@ use crate::entities::{
   info::ActionInfo,
   targets::TargetDescription,
   programming_languages::ProgrammingLanguage,
+  requirements::Requirement,
   variables::Variable,
 };
 use crate::hmap;
@@ -79,7 +80,8 @@ impl Default for DeployerGlobalConfig {
           show_bash_c: true,
           only_when_fresh: None,
         }],
-      })
+      }),
+      requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
     });
     
     let pipelines_registry = hmap!();

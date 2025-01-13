@@ -5,7 +5,10 @@ use std::path::PathBuf;
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 use vaultrs::kv2;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone)]
+pub(crate) const VAULT_ADDR_ENV: &str = "DEPLOYER_VAULT_ADDR";
+pub(crate) const VAULT_ADDR_TOKEN: &str = "DEPLOYER_VAULT_TOKEN";
+
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Variable {
   pub(crate) title: String,
   pub(crate) is_secret: bool,
@@ -30,8 +33,8 @@ impl Variable {
         Ok(val.to_owned())
       },
       VarValue::FromHCVaultKv2(info) => {
-        let vault_addr = std::env::var("DEPLOYER_VAULT_ADDR")?;
-        let vault_token = std::env::var("DEPLOYER_VAULT_TOKEN")?;
+        let vault_addr = std::env::var(VAULT_ADDR_ENV)?;
+        let vault_token = std::env::var(VAULT_ADDR_TOKEN)?;
         
         let client = VaultClient::new(VaultClientSettingsBuilder::default().address(vault_addr).token(vault_token).build()?)?;
         
@@ -42,20 +45,20 @@ impl Variable {
   }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum VarValue {
   Plain(String),
   FromEnvFile(FromEnvFile),
   FromHCVaultKv2(Kv2Paths),
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct FromEnvFile {
   pub(crate) env_file_path: PathBuf,
   pub(crate) key: String,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) struct Kv2Paths {
   pub(crate) mount_path: String,
   pub(crate) secret_path: String,
