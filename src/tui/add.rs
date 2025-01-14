@@ -515,7 +515,6 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
   
   if artifacts.is_empty() { first = false; }
   
-  
   while Confirm::new(prompt).with_default(first).prompt()? {
     v.push(collect_af_inplacement(&artifacts)?);
     prompt = ANOTHER_PROMPT;
@@ -689,6 +688,8 @@ impl CustomCommand {
     let show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
     let only_when_fresh = Some(inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()?);
     
+    let remote_exec = collect_remote()?;
+    
     Ok(CustomCommand {
       bash_c,
       placeholders,
@@ -697,7 +698,7 @@ impl CustomCommand {
       show_success_output,
       only_when_fresh,
       replacements: None,
-      remote_exec: None,
+      remote_exec,
     })
   }
   
@@ -785,4 +786,19 @@ impl RemoteHost {
       ssh_private_key_file: ssh_key_path,
     })
   }
+}
+
+fn collect_remote() -> anyhow::Result<Option<Vec<ShortName>>> {
+  const PROMPT: &str = i18n::REMOTE_ADD_TO_CMD_FIRST;
+  const ANOTHER_PROMPT: &str = i18n::REMOTE_ADD_TO_CMD_ANOTHER;
+  
+  let mut v = vec![];
+  let mut prompt = PROMPT;
+  
+  while inquire::Confirm::new(prompt).with_default(false).prompt()? {
+    v.push(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?);
+    prompt = ANOTHER_PROMPT;
+  }
+  
+  Ok(if !v.is_empty() { Some(v) } else { None })
 }

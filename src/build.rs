@@ -209,7 +209,7 @@ pub(crate) fn build(
       
       execute_pipeline(config, env, pipeline)?;
       
-      enplace_artifacts(config, env, true)?;
+      enplace_artifacts(config, env, false)?;
     }
   } else {
     for pipeline_tag in &args.pipeline_tags {
@@ -233,7 +233,7 @@ pub(crate) fn build(
         
         execute_pipeline(config, env, pipeline)?;
         
-        enplace_artifacts(config, env, true)?;
+        enplace_artifacts(config, env, false)?;
       } else {
         panic!(
           "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",

@@ -23,22 +23,18 @@ impl RemoteHost {
     const PKG_NAME: &str = env!("CARGO_PKG_NAME");
     const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
     
+    let shell = match std::env::var("DEPLOYER_SH_PATH") {
+      Ok(path) => path,
+      Err(_) => "/bin/bash".to_string(),
+    };
+    
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
-      let (s1, o1) = session.call("which deployer").await?;
-      let (s2, o2) = session.call("deployer -V").await?;
+      let (s, o) = session.call(&format!(r#"{} -c "~/.cargo/bin/deployer -V""#, shell)).await?;
       session.close().await?;
-      if
-        s1 != 0 ||
-        o1.is_empty() &&
-        !o1.contains("deployer")
-      { bail!("Remote host doesn't contain `deployer` executable in PATH.") }
-      else if
-        s2 != 0 &&
-        o2.is_empty() &&
-        !o2.contains(&format!("{} {}", PKG_NAME, PKG_VERSION))
-      { bail!("Deployer version on remote host didn't match with this Deployer version.") }
+      if s != 0 || o.is_empty() || !o.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
+        bail!(r#"Deployer version on remote host didn't match with this Deployer version (out: "{}")"#, o.trim()) }
       else { Ok(()) }
     })
   }
