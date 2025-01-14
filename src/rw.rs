@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::sync::OnceLock;
 use std::path::{Path, PathBuf};
-use crate::{CACHE_DIR, LOGS_DIR, PROJECT_CONF};
+use crate::{CACHE_DIR, LOGS_DIR};
 
 pub(crate) static VERBOSE: OnceLock<bool> = OnceLock::new();
 const LOG_FILE_DELIMETER: &str = "================================================================";
