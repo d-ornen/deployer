@@ -30,14 +30,16 @@ impl RemoteHost {
       let (s2, o2) = session.call("deployer -V").await?;
       session.close().await?;
       if
-        s1 == 0 &&
-        !o1.is_empty() &&
-        o1.contains("deployer") &&
-        s2 == 0 &&
-        !o2.is_empty() &&
-        o2.contains(&format!("{} {}", PKG_NAME, PKG_VERSION))
-      { Ok(()) }
-      else { bail!("Remote host doesn't contains `deployer` executable in PATH.") }
+        s1 != 0 ||
+        o1.is_empty() &&
+        !o1.contains("deployer")
+      { bail!("Remote host doesn't contain `deployer` executable in PATH.") }
+      else if
+        s2 != 0 &&
+        o2.is_empty() &&
+        !o2.contains(&format!("{} {}", PKG_NAME, PKG_VERSION))
+      { bail!("Deployer version on remote host didn't match with this Deployer version.") }
+      else { Ok(()) }
     })
   }
   
@@ -61,7 +63,15 @@ impl RemoteHost {
 }
 
 struct Client {}
-impl russh::client::Handler for Client { type Error = anyhow::Error; }
+
+#[async_trait::async_trait]
+impl russh::client::Handler for Client {
+  type Error = anyhow::Error;
+  
+  async fn check_server_key(&mut self, _: &russh::keys::ssh_key::PublicKey) -> Result<bool, Self::Error> {
+    Ok(true)
+  }
+}
 
 pub(crate) struct Session {
   session: russh::client::Handle<Client>,
@@ -84,8 +94,11 @@ impl Session {
     let config = Arc::new(config);
     let sh = Client {};
 
-    let mut session = russh::client::connect(config, addrs, sh).await?;
-    let auth_res = session.authenticate_publickey(user, PrivateKeyWithHashAlg::new(Arc::new(key_pair), None)?).await?;
+    let mut session = match russh::client::connect(config, addrs, sh).await {
+      Ok(s) => s,
+      Err(e) => bail!("Client connect failed: {e:?}"),
+    };
+    let auth_res = session.authenticate_publickey(user, PrivateKeyWithHashAlg::new(Arc::new(key_pair), Some(russh::keys::HashAlg::Sha256))?).await?;
 
     if !auth_res { bail!("Authentication failed: {auth_res:?}"); }
 
