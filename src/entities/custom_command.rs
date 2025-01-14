@@ -156,6 +156,7 @@ impl CustomCommand {
         ));
         
         if !self.ignore_fails && !s {
+          RemoteHost::close_session(&mut session, &rt)?;
           return Ok((false, output))
         }
       }
