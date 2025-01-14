@@ -2,7 +2,7 @@ use clap::{Args, Subcommand, Parser};
 use std::path::PathBuf;
 
 /// Build and deploy your services as fast as you can.
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(version, about, long_about = None)]
 pub(crate) struct Cli {
   /// Command
@@ -22,7 +22,7 @@ pub(crate) struct Cli {
   pub(crate) storage_folder: Option<String>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub(crate) enum DeployerExecType {
   /// List inner Deployer's registries
   #[command(subcommand)]
@@ -53,7 +53,7 @@ pub(crate) enum DeployerExecType {
   Tests,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub(crate) enum ListType {
   /// List available Actions
   Actions,
@@ -61,17 +61,23 @@ pub(crate) enum ListType {
   Pipelines,
   /// List available content in Deployer's storage
   Content,
+  /// List available remote hosts
+  Remote,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub(crate) enum RemoveType {
   /// Remove an Action
   Action,
   /// Remove a Pipeline
   Pipeline,
+  /// Remove content
+  Content,
+  /// Remove remote host
+  Remote,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub(crate) enum CatType {
   /// Prints an Action
   Action(CatActionArgs),
@@ -79,9 +85,11 @@ pub(crate) enum CatType {
   Pipeline(CatPipelineArgs),
   /// Prints all Pipelines used by current Project
   Project,
+  /// Prints all information about remote host
+  Remote(CatRemoteArgs),
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub(crate) enum EditType {
   /// Edits an Action
   Action(CatActionArgs),
@@ -89,19 +97,26 @@ pub(crate) enum EditType {
   Pipeline(CatPipelineArgs),
   /// Edits Project settings
   Project,
+  /// Edits an information about remote hosts
+  Remote(CatRemoteArgs),
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
 pub(crate) struct CatActionArgs {
   pub(crate) action_short_info_and_version: String,
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
 pub(crate) struct CatPipelineArgs {
   pub(crate) pipeline_short_info_and_version: String,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Args)]
+pub(crate) struct CatRemoteArgs {
+  pub(crate) remote_host_short_info: String,
+}
+
+#[derive(Subcommand)]
 pub(crate) enum NewType {
   /// Add new Action to Deployer's registry
   Action(NewActionArgs),
@@ -109,9 +124,11 @@ pub(crate) enum NewType {
   Pipeline(NewPipelineArgs),
   /// Add new Content to Deployer's storage
   Content,
+  /// Add new remote host to Deployer's registry
+  Remote(NewRemoteArgs),
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
 pub(crate) struct NewActionArgs {
   /// From description in JSON
   #[arg(short, long)]
@@ -120,12 +137,24 @@ pub(crate) struct NewActionArgs {
 
 pub(crate) type NewPipelineArgs = NewActionArgs;
 
-#[derive(Args, Debug)]
-pub(crate) struct InitArgs {
-  
+#[derive(Args)]
+pub(crate) struct NewRemoteArgs {
+  #[arg(short, long)]
+  pub(crate) short_name: Option<String>,
+  #[arg(short, long)]
+  pub(crate) ip: Option<std::net::IpAddr>,
+  #[arg(short, long)]
+  pub(crate) port: Option<u16>,
+  #[arg(short, long)]
+  pub(crate) username: Option<String>,
+  #[arg(short, long)]
+  pub(crate) ssh_key_path: Option<PathBuf>,
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
+pub(crate) struct InitArgs {}
+
+#[derive(Args)]
 pub(crate) struct WithPipelineArgs {
   /// {short-name}@{version}
   pub(crate) tag: Option<String>,
@@ -134,14 +163,14 @@ pub(crate) struct WithPipelineArgs {
   pub(crate) r#as: Option<String>,
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
 pub(crate) struct CleanArgs {
   /// Clean current project artifacts
   #[arg(short, long)]
   pub(crate) include_artifacts: bool,
 }
 
-#[derive(Args, Debug)]
+#[derive(Args)]
 pub(crate) struct BuildArgs {
   /// {short-name} or {short-name1},{short-name2},..
   #[arg(required = false, value_delimiter(','))]

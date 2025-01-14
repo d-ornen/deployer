@@ -9,3 +9,4 @@ pub(crate) mod environment;
 pub(crate) mod auto_version;
 pub(crate) mod requirements;
 pub(crate) mod path_type;
+pub(crate) mod remote_host;
