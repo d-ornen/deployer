@@ -194,7 +194,7 @@ fn main() {
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     },
     DeployerExecType::Build(args) => {
-      build(&mut config, &mut builds, &cache_folder, &config_folder, &storage_folder, &args).unwrap();
+      build(&mut config, &globals, &mut builds, &cache_folder, &config_folder, &storage_folder, &args).unwrap();
       write(&cache_folder, BUILD_CACHE_LIST, &builds);
     },
     DeployerExecType::Clean(args) => {

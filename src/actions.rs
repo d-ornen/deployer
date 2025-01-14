@@ -24,7 +24,7 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::{ActionInfo, ContentInfo, StrToInfo, info2str, str2info},
+  info::{ActionInfo, ContentInfo, ShortName, StrToInfo, info2str, str2info},
   programming_languages::ProgrammingLanguage,
   requirements::Requirement,
   targets::TargetDescription,
@@ -54,7 +54,9 @@ pub(crate) enum Action {
   Interrupt,
   
   /// Действие синхронизации папки проекта с удалённым хостом
-  RemoteSync,
+  SyncToRemote(ShortName),
+  /// Действие синхронизации папки артефактов с удалённого хоста
+  SyncFromRemote(ShortName),
   
   /// Кастомные команды сборки
   Custom(CustomCommand),
@@ -214,7 +216,7 @@ impl DescribedAction {
       Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
       Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) | Action::RemoteSync => self.action.clone(),
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) | Action::SyncToRemote(_)  | Action::SyncFromRemote(_) => self.action.clone(),
     };
     
     let mut described_action = self.clone();

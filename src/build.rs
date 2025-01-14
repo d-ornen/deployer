@@ -10,13 +10,14 @@ use crate::actions::Action;
 use crate::{CACHE_DIR, ARTIFACTS_DIR, BUILD_CACHE_LIST};
 use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::environment::BuildEnvironment;
-use crate::entities::info::ContentInfo;
+use crate::entities::info::{ContentInfo, ShortName};
 use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
 use crate::entities::traits::Execute;
 use crate::cmd::{BuildArgs, CleanArgs};
-use crate::configs::DeployerProjectOptions;
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
+use crate::remote::{sync_to_remote, sync_from_remote};
 use crate::rw::{copy_all, write, symlink, log, generate_build_log_filepath, build_log};
 use crate::storage::{use_from_storage, add_to_storage};
 use crate::utils::get_current_working_dir;
@@ -154,6 +155,7 @@ fn prepare_build_folder(
 
 pub(crate) fn build(
   config: &mut DeployerProjectOptions,
+  globals: &DeployerGlobalConfig,
   builds: &mut Builds,
   cache_dir: &Path,
   config_dir: &Path,
@@ -180,6 +182,19 @@ pub(crate) fn build(
   if args.remote_build_folder.is_some() && args.pipeline_tags.is_empty() { panic!(
     "You always should specify Pipeline tags for executing while remote builds."
   ) }
+  if !args.remote_host_short_names.is_empty() && (
+    args.remote_build_folder.is_some() ||
+    args.pipeline_tags.is_empty() ||
+    args.link_cache ||
+    args.copy_cache ||
+    args.fresh ||
+    args.build_at.is_some() ||
+    args.current
+  ) { panic!(
+    "If you specify remote hosts to build on, you should specify only Pipelines list, `{}`/`{}` flags and nothing more.",
+    "silent".green(),
+    "no_pipe".green(),
+  ) }
   
   if let Some(build_dir) = &args.remote_build_folder && !args.pipeline_tags.is_empty() {
     let config = crate::rw::read::<DeployerProjectOptions>(build_dir, crate::PROJECT_CONF);
@@ -196,6 +211,8 @@ pub(crate) fn build(
           new_build: true,
           silent_build: false,
           no_pipe: true,
+          ignore: &config.cache_files,
+          remotes: &globals.remote_hosts,
         };
         
         execute_pipeline(&config, env, pipeline)?;
@@ -214,6 +231,38 @@ pub(crate) fn build(
   
   let curr_dir = std::env::current_dir().expect("Can't get current dir!");
   let artifacts_dir = prepare_artifacts_folder(&curr_dir)?;
+  
+  if !args.remote_host_short_names.is_empty() {
+    let mut remote = vec![];
+    for short_name in &args.remote_host_short_names {
+      if let Some(host) = globals.remote_hosts.get(&ShortName::new(short_name)?) {
+        remote.push(host.clone());
+      }
+    }
+    
+    for pipeline_tag in &args.pipeline_tags {
+      if let Some(pipeline) = config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
+        let (build_path, _) = prepare_build_folder(config, builds, pipeline, &curr_dir, cache_dir, args)?;
+        
+        for host in remote.iter() {
+          println!("{} `{}`...", i18n::START_BUILD_AT_REMOTE, host.short_name.as_str().green());
+          let now = std::time::Instant::now();
+          let generated_remote = sync_to_remote(&build_path, host, &config.cache_files)?;
+          if let Err(e) = host.call_deployer_to_build(&generated_remote, pipeline.title.as_str()) { println!("{}", e); };
+          sync_from_remote(&build_path, &artifacts_dir, host)?;
+          println!("{} `{}` ({}).", i18n::BUILT_AT_REMOTE, host.short_name.as_str().green(), format!("{:.2?}", now.elapsed()).green());
+        }
+      } else {
+        panic!(
+          "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",
+          pipeline_tag.green(),
+          "deployer with {pipeline-short-name-and-ver}".green(),
+        );
+      }
+    }
+    
+    return Ok(())
+  }
 
   if args.pipeline_tags.is_empty() {
     if config.pipelines.is_empty() {
@@ -239,10 +288,11 @@ pub(crate) fn build(
         new_build,
         silent_build: args.silent,
         no_pipe: args.no_pipe,
+        ignore: &config.cache_files,
+        remotes: &globals.remote_hosts,
       };
       
       execute_pipeline(config, env, pipeline)?;
-      
       enplace_artifacts(config, env, false)?;
     }
   } else {
@@ -263,10 +313,11 @@ pub(crate) fn build(
           new_build,
           silent_build: args.silent,
           no_pipe: args.no_pipe,
+          ignore: &config.cache_files,
+          remotes: &globals.remote_hosts,
         };
         
         execute_pipeline(config, env, pipeline)?;
-        
         enplace_artifacts(config, env, false)?;
       } else {
         panic!(
@@ -351,8 +402,20 @@ pub(crate) fn execute_pipeline(
     let now = Instant::now();
     
     let (status, output) = match &action.action {
-      #[allow(clippy::unimplemented)]
-      Action::RemoteSync => unimplemented!(),
+      Action::SyncToRemote(remote_name) => {
+        if let Some(remote) = env.remotes.get(remote_name) {
+          if let Err(e) = sync_to_remote(env.build_dir, remote, env.ignore) { (false, vec![e.to_string()]) } else { (true, vec![]) }
+        } else {
+          (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
+        }
+      },
+      Action::SyncFromRemote(remote_name) => {
+        if let Some(remote) = env.remotes.get(remote_name) {
+          if let Err(e) = sync_from_remote(env.build_dir, env.artifacts_dir, remote) { (false, vec![e.to_string()]) } else { (true, vec![]) }
+        } else {
+          (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
+        }
+      },
       Action::Custom(cmd) => cmd.execute(env)?,
       Action::Check(check) => check.execute(env)?,
       Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
@@ -426,7 +489,7 @@ pub(crate) fn execute_pipeline(
     if !env.silent_build {
       if !env.no_pipe {
         println!("{} ({}).", status_str, format!("{:.2?}", elapsed).green());
-        for line in output { println!("{}", line); }
+        for line in &output { println!("{}", line); }
       } else {
         println!("[{}/{}] {} -{} ({}).", cntr, total, i18n::STARTING_ACTION.replace("{}", &action.title.blue().italic()), status_str, format!("{:.2?}", elapsed).green());
       }

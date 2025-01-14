@@ -345,3 +345,5 @@ tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Select remote host for removing from Depl
 tr!(REMOTE_EXEC, "Executing at");
 tr!(REMOTE_ADD_TO_CMD_FIRST, "Do you want to execute this command remotely on one or many remote hosts? If yes, the command won't be executed on this host.");
 tr!(REMOTE_ADD_TO_CMD_ANOTHER, "Add one more remote host?");
+tr!(START_BUILD_AT_REMOTE, "Starting build on remote host");
+tr!(BUILT_AT_REMOTE, "Build at remote and got artifacts from host:");

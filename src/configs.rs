@@ -67,7 +67,7 @@ impl DeployerGlobalConfig {
       title: "Interrupt Pipeline".into(),
       desc: "Interrupt Pipeline execution until user press a button.".into(),
       info,
-      tags: vec!["interrupt".into()],
+      tags: vec![],
       action: Action::Interrupt,
       requirements: None,
     });
@@ -77,19 +77,9 @@ impl DeployerGlobalConfig {
       title: "Force artifacts enplace".into(),
       desc: "Enplace available artifacts from build directory during Pipeline execution.".into(),
       info,
-      tags: vec!["interrupt".into()],
+      tags: vec![],
       action: Action::ForceArtifactsEnplace,
       requirements: None,
-    });
-    
-    let info = Info::new("remote-sync", "0.1").unwrap();
-    actions_registry.insert(info.clone(), DescribedAction {
-      title: "Remote sync".into(),
-      desc: "Sync all files in project's folder with remote hosts.".into(),
-      info,
-      tags: vec!["interrupt".into()],
-      action: Action::RemoteSync,
-      requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/rsync"))]),
     });
   }
 }

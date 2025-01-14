@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::ToSocketAddrs;
 
 use crate::entities::info::ShortName;
@@ -35,6 +34,29 @@ impl RemoteHost {
       session.close().await?;
       if s != 0 || o.is_empty() || !o.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
         bail!(r#"Deployer version on remote host didn't match with this Deployer version (out: "{}")"#, o.trim()) }
+      else { Ok(()) }
+    })
+  }
+  
+  pub(crate) fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
+    let shell = match std::env::var("DEPLOYER_SH_PATH") {
+      Ok(path) => path,
+      Err(_) => "/bin/bash".to_string(),
+    };
+    
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+      let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
+      let (s, o) = session.call(
+        &format!(
+          r#"{} -c "~/.cargo/bin/deployer build -r {} {}""#,
+          shell,
+          remote_build_dir.to_string_lossy().as_str(),
+          pipeline,
+        )
+      ).await?;
+      session.close().await?;
+      if s != 0 { bail!("{}", o) }
       else { Ok(()) }
     })
   }
@@ -79,7 +101,6 @@ impl Session {
     
     let key_pair = load_secret_key(key_path, None)?;
     let config = russh::client::Config {
-      inactivity_timeout: Some(Duration::from_secs(5)),
       preferred: russh::Preferred {
         kex: Cow::Owned(vec![russh::kex::DH_G14_SHA256]),
         ..Default::default()
@@ -120,7 +141,7 @@ impl Session {
     }
     
     let out = String::from_utf8_lossy_owned(out_buf);
-    Ok((status.expect("Remote program did not exit cleanly."), out))
+    Ok((status.unwrap_or(0), out))
   }
 
   async fn close(&mut self) -> anyhow::Result<()> {
