@@ -4,9 +4,10 @@ use std::path::PathBuf;
 
 use crate::i18n;
 use crate::entities::environment::BuildEnvironment;
-use crate::entities::variables::{Variable, VarTraits};
 use crate::entities::info::{ActionInfo, ShortName};
+use crate::entities::remote_host::RemoteHost;
 use crate::entities::traits::Execute;
+use crate::entities::variables::{Variable, VarTraits};
 
 /// Команда, исполняемая в командной строке `bash`.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
@@ -98,23 +99,70 @@ impl CustomCommand {
   
   pub(crate) fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let hosts = self.remote_exec.as_ref().unwrap();
+    let mut output = vec![];
+    
+    let shell = match std::env::var("DEPLOYER_SH_PATH") {
+      Ok(path) => path,
+      Err(_) => "/bin/bash".to_string(),
+    };
+    
+    if !env.new_build && self.only_when_fresh.is_some_and(|v| v) {
+      if *crate::rw::VERBOSE.wait() {
+        output.push(i18n::CMD_SKIP_DUE_TO_NOT_FRESH.to_string());
+      }
+      return Ok((true, output))
+    }
+    
     let rt = tokio::runtime::Runtime::new()?;
     let globals = crate::rw::read::<crate::configs::DeployerGlobalConfig>(&env.config_dir, crate::GLOBAL_CONF);
-    let mut output = vec![];
-    let mut status = true;
+    
+    let mut cmds = vec![];
+    if self.placeholders.is_some() && let Some(replacements) = &self.replacements {
+      for every_start in replacements {
+        let mut bash_c = self.bash_c.to_owned();
+        
+        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?.as_str()); }
+        cmds.push(bash_c);
+      }
+    } else {
+      cmds.push(self.bash_c.to_owned());
+    }
     
     for hostname in hosts {
       output.push(format!("{}: `{}`", i18n::REMOTE_EXEC, hostname.as_str()));
       let remote = match globals.remote_hosts.get(hostname) {
-        None => { status = false; output.push(i18n::NO_SUCH_REMOTE.to_string()); continue },
+        None => {
+          output.push(i18n::NO_SUCH_REMOTE.to_string());
+          if !self.ignore_fails {
+            return Ok((false, output))
+          }
+          continue
+        },
         Some(remote) => remote,
       };
-      let (s, out) = remote.exec(&self.bash_c, &rt)?;
-      if !s { status = false; }
-      output.extend_from_slice(&out);
+      
+      let mut session = remote.open_session(&rt)?;
+      for bash_c in &cmds {
+        let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
+        let (s, out) = remote.exec(bash_c, &mut session, &rt)?;
+        
+        output.extend_from_slice(&compose_output(
+          bash_c_info.to_string(),
+          out,
+          String::new(),
+          s,
+          self.show_success_output,
+          self.show_bash_c,
+        ));
+        
+        if !self.ignore_fails && !s {
+          return Ok((false, output))
+        }
+      }
+      RemoteHost::close_session(&mut session, &rt)?;
     }
     
-    Ok((status, output))
+    Ok((true, output))
   }
 }
 
@@ -166,48 +214,23 @@ impl Execute for CustomCommand {
       Err(_) => "/bin/bash".to_string(),
     };
     
+    let mut cmds = vec![];
     if self.placeholders.is_some() && let Some(replacements) = &self.replacements {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
         
         for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?.as_str()); }
-        
-        let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
-        let mut cmd = std::process::Command::new(&shell);
-        cmd.current_dir(env.build_dir).arg("-c").arg(&bash_c);
-        
-        if !env.no_pipe { cmd.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()); }
-        
-        let mut child = cmd.spawn().map_err(|e| anyhow::anyhow!("Can't execute command due to: {}", e))?;
-        
-        let success = if env.no_pipe {
-          let res = child.wait().map_err(|e| anyhow::anyhow!("Can't wait for exit status due to: {}", e))?;
-          res.success()
-        } else {
-          let command_output = child.wait_with_output().map_err(|e| anyhow::anyhow!("Can't wait for output due to: {}", e))?;
-          
-          let stdout_strs = String::from_utf8_lossy_owned(command_output.stdout);
-          let stderr_strs = String::from_utf8_lossy_owned(command_output.stderr);
-          output.extend_from_slice(&compose_output(
-            bash_c_info.to_string(),
-            stdout_strs,
-            stderr_strs,
-            command_output.status.success(),
-            self.show_success_output,
-            self.show_bash_c,
-          ));
-          
-          command_output.status.success()
-        };
-        
-        if !self.ignore_fails && !success {
-          return Ok((false, output))
-        }
+        cmds.push(bash_c);
       }
     } else {
-      let bash_c_info = format!(r#"{} -c "{}""#, shell, self.bash_c.as_str()).green();
+      cmds.push(self.bash_c.to_owned());
+    }
+    
+    for bash_c in &cmds {
+      let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
+      
       let mut cmd = std::process::Command::new(&shell);
-      cmd.current_dir(env.build_dir).arg("-c").arg(&self.bash_c);
+      cmd.current_dir(env.build_dir).arg("-c").arg(bash_c);
       
       if !env.no_pipe { cmd.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()); }
       
