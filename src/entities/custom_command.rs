@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::i18n;
 use crate::entities::environment::BuildEnvironment;
 use crate::entities::variables::{Variable, VarTraits};
-use crate::entities::info::ActionInfo;
+use crate::entities::info::{ActionInfo, ShortName};
 use crate::entities::traits::Execute;
 
 /// Команда, исполняемая в командной строке `bash`.
@@ -31,7 +31,10 @@ pub(crate) struct CustomCommand {
   /// Их можно скрыть при сборке, если указать `false`.
   pub(crate) show_bash_c: bool,
   /// Запускать ли действие только при новых сборках.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub(crate) only_when_fresh: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub(crate) remote_exec: Option<Vec<ShortName>>,
 }
 
 impl CustomCommand {
@@ -92,6 +95,27 @@ impl CustomCommand {
     r.show_bash_c = if let Some(show) = explicitly_show_bash_c { show } else { r.show_bash_c };
     Ok(r)
   }
+  
+  pub(crate) fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    let hosts = self.remote_exec.as_ref().unwrap();
+    let rt = tokio::runtime::Runtime::new()?;
+    let globals = crate::rw::read::<crate::configs::DeployerGlobalConfig>(&env.config_dir, crate::GLOBAL_CONF);
+    let mut output = vec![];
+    let mut status = true;
+    
+    for hostname in hosts {
+      output.push(format!("{}: `{}`", i18n::REMOTE_EXEC, hostname.as_str()));
+      let remote = match globals.remote_hosts.get(hostname) {
+        None => { status = false; output.push(i18n::NO_SUCH_REMOTE.to_string()); continue },
+        Some(remote) => remote,
+      };
+      let (s, out) = remote.exec(&self.bash_c, &rt)?;
+      if !s { status = false; }
+      output.extend_from_slice(&out);
+    }
+    
+    Ok((status, output))
+  }
 }
 
 pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
@@ -126,6 +150,8 @@ pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
 
 impl Execute for CustomCommand {
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) { return self.remote_execute(env); }
+    
     let mut output = vec![];
     
     if !env.new_build && self.only_when_fresh.is_some_and(|v| v) {

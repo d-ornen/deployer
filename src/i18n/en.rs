@@ -290,6 +290,7 @@ tr!(CONTENT_GUIDE_5, "You will need this information to add a `UseFromStorage` A
 
 tr!(CONTENT_SPECIFY_PATH, "Specify content folder's path:");
 tr!(CONTENT_ADDED_SUCC, "Content `{1}` added to Deployer's storage successfully (path: {2})");
+tr!(CONTENT_SELECT_TO_REMOVE, "Select content version to remove:");
 tr!(PATH, "path");
 
 // Paths and resolver
@@ -322,3 +323,20 @@ tr!(REQ_TYPE_EX_ANY, "Check any of given paths exists");
 tr!(REQ_TYPE_CHECK, "Check the output of given command");
 tr!(SELECT_REQ_TYPE, "Select the requirement type:");
 tr!(ADD_NEW_PATH, "Add new path?");
+
+// Remote hosts
+tr!(REMOTE_SHORT_NAME, "Specify the remote host's short name:");
+tr!(NO_SUCH_REMOTE, "There is no such remote host in Deployer's Registry!");
+tr!(HOST_SHORT_NAME, "Remote host short name");
+tr!(HOST, "Host");
+tr!(HOST_IP, "IP-address");
+tr!(HOST_PORT, "Port");
+tr!(HOST_USERNAME, "Username");
+tr!(KNOWN_HOSTS, "Known remote hosts in Deployer's Registry:");
+tr!(SPECIFY_HOST_IP, "Specify the IP-address of a remote host's SSH server:");
+tr!(SPECIFY_HOST_PORT, "Specify the port of a remote host's SSH server:");
+tr!(SPECIFY_HOST_USERNAME, "Specify the remote username:");
+tr!(SPECIFY_SSH_KEY_PATH, "Specify the path to private SSH key for remote host:");
+tr!(NO_HOSTS, "There is no remote hosts in Registry.");
+tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Select remote host for removing from Deployer's Registry:");
+tr!(REMOTE_EXEC, "Executing at");

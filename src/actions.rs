@@ -24,7 +24,7 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::{ActionInfo, ContentInfo, info2str, str2info},
+  info::{ActionInfo, ContentInfo, StrToInfo, info2str, str2info},
   programming_languages::ProgrammingLanguage,
   requirements::Requirement,
   targets::TargetDescription,
@@ -250,9 +250,6 @@ pub(crate) fn remove_action(
     return Ok(())
   }
   
-  let mut actions = globals.actions_registry.values().collect::<Vec<_>>();
-  actions.sort_by_key(|a| a.info.to_str());
-  
   let (actions, keys) = {
     let mut h = hmap!();
     let mut k = vec![];
@@ -271,10 +268,11 @@ pub(crate) fn remove_action(
   
   let selected_action = Select::new(i18n::ACTION_REGISTRY_CHOOSE_TO_REMOVE, keys).prompt()?;
   let action = *actions.get(&selected_action).unwrap();
+  let info = action.info.clone();
   
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
-  globals.actions_registry.remove(&action.info.to_str());
+  globals.actions_registry.remove(&info);
   
   Ok(())
 }
@@ -290,7 +288,7 @@ pub(crate) fn new_action(
     let action = read_checked::<DescribedAction>(from_file).map_err(|e| {
       panic!("Can't read provided Action file due to: {}", e);
     }).unwrap();
-    actions.insert(action.info.to_str(), action.clone());
+    actions.insert(action.info.clone(), action.clone());
     return Ok(action)
   }
   
@@ -303,7 +301,7 @@ pub(crate) fn cat_action(
   globals: &DeployerGlobalConfig,
   args: &CatActionArgs,
 ) -> anyhow::Result<()> {
-  let action = match globals.actions_registry.get(&args.action_short_info_and_version) {
+  let action = match globals.actions_registry.get(&args.action_short_info_and_version.to_info()?) {
     None => exit(1),
     Some(action) => action,
   };
@@ -318,7 +316,7 @@ pub(crate) fn edit_action(
   globals: &mut DeployerGlobalConfig,
   args: &CatActionArgs,
 ) -> anyhow::Result<()> {
-  let described_action = match globals.actions_registry.get_mut(&args.action_short_info_and_version) {
+  let described_action = match globals.actions_registry.get_mut(&args.action_short_info_and_version.to_info()?) {
     None => exit(1),
     Some(action) => action,
   };

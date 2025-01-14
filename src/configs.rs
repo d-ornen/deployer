@@ -6,9 +6,10 @@ use crate::actions::{DescribedAction, Action, buildlike::BuildAction};
 use crate::pipelines::DescribedPipeline;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::ActionInfo,
+  info::{Info, ShortName},
   targets::TargetDescription,
   programming_languages::ProgrammingLanguage,
+  remote_host::RemoteHost,
   requirements::Requirement,
   variables::Variable,
 };
@@ -41,30 +42,30 @@ pub(crate) struct DeployerProjectOptions {
   pub(crate) inplace_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 }
 
-/// Глобальная конфигурация Деплойера.
+/// Global Deployer's configuration.
 #[derive(Deserialize, Serialize)]
 pub(crate) struct DeployerGlobalConfig {
-  /// Список ведомых проектов.
+  /// Project list.
   pub(crate) projects: Vec<String>,
-  /// Список доступных шаблонов проектов.
-  pub(crate) templates: Vec<String>,
-  /// Реестр доступных действий.
+  // /// List available project templates.
+  // pub(crate) templates: Vec<String>,
+  /// Available Actions Registry.
   #[serde(serialize_with = "ordered_map")]
-  pub(crate) actions_registry: HashMap<String, DescribedAction>,
-  /// Реестр доступных пайплайнов.
+  pub(crate) actions_registry: HashMap<Info, DescribedAction>,
+  /// Available Pipelines Registry.
   #[serde(serialize_with = "ordered_map")]
-  pub(crate) pipelines_registry: HashMap<String, DescribedPipeline>,
-  // /// Реестр доступных зависимостей.
-  // #[serde(serialize_with = "ordered_map")]
-  // pub(crate) dependencies_registry: HashMap<String, DescribedDependency>,
+  pub(crate) pipelines_registry: HashMap<Info, DescribedPipeline>,
+  /// Available remote hosts Registry.
+  #[serde(serialize_with = "ordered_map")]
+  pub(crate) remote_hosts: HashMap<ShortName, RemoteHost>,
 }
 
 impl Default for DeployerGlobalConfig {
   fn default() -> Self {
     let mut actions_registry = hmap!();
     
-    let info = ActionInfo::new("cargo-rel", "0.1").unwrap();
-    actions_registry.insert(info.to_str(), DescribedAction {
+    let info = Info::new("cargo-rel", "0.1").unwrap();
+    actions_registry.insert(info.clone(), DescribedAction {
       title: "Cargo Build (Release)".into(),
       desc: "Build the Rust project with Cargo default settings in release mode".into(),
       info,
@@ -79,6 +80,7 @@ impl Default for DeployerGlobalConfig {
           show_success_output: false,
           show_bash_c: true,
           only_when_fresh: None,
+          remote_exec: None,
         }],
       }),
       requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
@@ -89,9 +91,10 @@ impl Default for DeployerGlobalConfig {
     Self {
       // dependencies_registry: hmap!(),
       projects: vec![],
-      templates: vec![],
+      // templates: vec![],
       actions_registry,
       pipelines_registry,
+      remote_hosts: hmap!(),
     }
   }
 }

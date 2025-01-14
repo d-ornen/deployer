@@ -20,8 +20,9 @@ use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
   custom_command::{CustomCommand, specify_bash_c},
-  info::{ActionInfo, ContentInfo, PipelineInfo},
+  info::{ActionInfo, ContentInfo, PipelineInfo, ShortName},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
+  remote_host::RemoteHost,
   requirements::Requirement,
   targets::{TargetDescription, OsVariant, OsVersionSpecification},
   variables::{Variable, VarValue, FromEnvFile, Kv2Paths, VAULT_ADDR_ENV, VAULT_ADDR_TOKEN},
@@ -199,13 +200,13 @@ impl DescribedAction {
     };
     
     if
-      opts.actions_registry.contains_key(&described_action.info.to_str()) &&
+      opts.actions_registry.contains_key(&described_action.info) &&
       !inquire::Confirm::new(&i18n::ACTION_REG_ALREADY_HAVE.replace("{}", &described_action.info.to_str())).prompt()?
     {
       std::process::exit(0);
     }
     
-    opts.actions_registry.insert(described_action.info.to_str(), described_action.clone());
+    opts.actions_registry.insert(described_action.info.clone(), described_action.clone());
     
     Ok(described_action)
   }
@@ -271,6 +272,7 @@ impl CheckAction {
         show_success_output: true,
         show_bash_c: false,
         only_when_fresh: None,
+        remote_exec: None,
       },
     })
   }
@@ -306,6 +308,7 @@ impl CheckAction {
         show_success_output: true,
         show_bash_c: false,
         only_when_fresh: None,
+        remote_exec: None,
       },
     })
   }
@@ -693,6 +696,7 @@ impl CustomCommand {
       show_success_output,
       only_when_fresh,
       replacements: None,
+      remote_exec: None,
     })
   }
   
@@ -710,6 +714,7 @@ impl CustomCommand {
       show_bash_c: false,
       only_when_fresh: Some(false),
       replacements: None,
+      remote_exec: None,
     })
   }
 }
@@ -726,5 +731,57 @@ impl ProgrammingLanguage {
       s => Self::Other(s.to_owned()),
     };
     Ok(pl)
+  }
+}
+
+impl RemoteHost {
+  #[allow(unused)]
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let short_name = ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?;
+    let ip = inquire::Text::new(i18n::SPECIFY_HOST_IP).prompt()?.parse()?;
+    let port = inquire::Text::new(i18n::SPECIFY_HOST_PORT).prompt()?.parse()?;
+    let username = inquire::Text::new(i18n::SPECIFY_HOST_USERNAME).prompt()?;
+    let ssh_key_path = PathBuf::from(inquire::Text::new(i18n::SPECIFY_SSH_KEY_PATH).prompt()?);
+    if !ssh_key_path.exists() { bail!("Specified private SSH key doesn't exists.") }
+    
+    Ok(Self {
+      short_name,
+      ip,
+      port,
+      username,
+      ssh_private_key_file: ssh_key_path,
+    })
+  }
+  
+  pub(crate) fn new_with_args_from_prompt(args: crate::cmd::NewRemoteArgs) -> anyhow::Result<Self> {
+    let short_name = ShortName::new(match args.short_name {
+      Some(name) => name,
+      None => inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?,
+    })?;
+    let ip = match args.ip {
+      Some(ip) => ip,
+      None => inquire::Text::new(i18n::SPECIFY_HOST_IP).prompt()?.parse()?,
+    };
+    let port = match args.port {
+      Some(port) => port,
+      None => inquire::Text::new(i18n::SPECIFY_HOST_PORT).prompt()?.parse()?,
+    };
+    let username = match args.username {
+      Some(username) => username,
+      None => inquire::Text::new(i18n::SPECIFY_HOST_USERNAME).prompt()?,
+    };
+    let ssh_key_path = match args.ssh_key_path {
+      Some(path) => path,
+      None => PathBuf::from(inquire::Text::new(i18n::SPECIFY_SSH_KEY_PATH).prompt()?),
+    };
+    if !ssh_key_path.exists() { bail!("Specified private SSH key doesn't exists.") }
+    
+    Ok(Self {
+      short_name,
+      ip,
+      port,
+      username,
+      ssh_private_key_file: ssh_key_path,
+    })
   }
 }

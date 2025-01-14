@@ -2,7 +2,7 @@ use anyhow::bail;
 use colored::Colorize;
 use std::path::{Path, PathBuf};
 
-use crate::entities::info::ContentInfo;
+use crate::entities::info::{ContentInfo, ShortName};
 use crate::i18n;
 use crate::STORAGE_DIR;
 use crate::rw::copy_all;
@@ -102,6 +102,29 @@ pub(crate) fn add_to_storage(
   
   if content_path.exists() { return Ok(()) }
   copy_all(artifacts_dir, &content_path, &[""])?;
+  
+  Ok(())
+}
+
+pub(crate) fn remove_content(
+  storage_dir: &Path,
+) -> anyhow::Result<()> {
+  let content_short_name = ShortName::new(inquire::Text::new(i18n::CONTENT_INFO).prompt()?)?;
+  
+  let mut content_path = PathBuf::from(storage_dir);
+  content_path.push(STORAGE_DIR);
+  
+  let mut versions = vec![];
+  for entry in std::fs::read_dir(&content_path)? {
+    let entry = entry?;
+    let name = entry.file_name().to_str().unwrap().to_owned();
+    if name.starts_with(content_short_name.as_str()) { versions.push(name); }
+  }
+  
+  if versions.is_empty() { return Ok(()) }
+  
+  let variant = PathBuf::from(inquire::Select::new(i18n::CONTENT_SELECT_TO_REMOVE, versions).prompt()?);
+  if variant.exists() { std::fs::remove_dir_all(variant)?; }
   
   Ok(())
 }

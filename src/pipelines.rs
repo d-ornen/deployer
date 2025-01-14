@@ -5,7 +5,7 @@ use std::process::exit;
 use crate::actions::DescribedAction;
 use crate::cmd::{NewPipelineArgs, CatPipelineArgs, WithPipelineArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
-use crate::entities::info::{PipelineInfo, info2str, str2info};
+use crate::entities::info::{PipelineInfo, StrToInfo, info2str, str2info};
 use crate::hmap;
 use crate::i18n;
 use crate::rw::read_checked;
@@ -63,20 +63,20 @@ pub(crate) fn new_pipeline(
     let pipeline = read_checked::<DescribedPipeline>(from_file).map_err(|e| {
       panic!("Can't read provided Pipeline file due to: {}", e);
     }).unwrap();
-    globals.pipelines_registry.insert(pipeline.info.to_str(), pipeline);
+    globals.pipelines_registry.insert(pipeline.info.clone(), pipeline);
     return Ok(())
   }
   
   let described_pipeline = DescribedPipeline::new_from_prompt(globals)?;
   
   if
-    globals.pipelines_registry.contains_key(&described_pipeline.info.to_str()) &&
+    globals.pipelines_registry.contains_key(&described_pipeline.info) &&
     !inquire::Confirm::new(&i18n::PIPELINE_REG_ALREADY_HAVE.replace("{}", &described_pipeline.info.to_str())).prompt()?
   {
     return Ok(())
   }
   
-  globals.pipelines_registry.insert(described_pipeline.info.to_str(), described_pipeline);
+  globals.pipelines_registry.insert(described_pipeline.info.clone(), described_pipeline);
   
   Ok(())
 }
@@ -109,10 +109,11 @@ pub(crate) fn remove_pipeline(
   
   let selected_pipeline = Select::new(i18n::PIPELINE_REGISTRY_CHOOSE_TO_REMOVE, keys).prompt()?;
   let pipeline = *pipelines.get(&selected_pipeline).unwrap();
+  let info = pipeline.info.clone();
   
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
-  globals.pipelines_registry.remove(&pipeline.info.to_str());
+  globals.pipelines_registry.remove(&info);
   
   Ok(())
 }
@@ -121,7 +122,7 @@ pub(crate) fn cat_pipeline(
   globals: &DeployerGlobalConfig,
   args: &CatPipelineArgs,
 ) -> anyhow::Result<()> {
-  let pipeline = match globals.pipelines_registry.get(&args.pipeline_short_info_and_version) {
+  let pipeline = match globals.pipelines_registry.get(&args.pipeline_short_info_and_version.to_info()?) {
     None => exit(1),
     Some(pipeline) => pipeline,
   };
@@ -177,7 +178,7 @@ pub(crate) fn assign_pipeline_to_project(
   let mut pipeline = if let Some(tag) = &args.tag {
     globals
       .pipelines_registry
-      .get(tag)
+      .get(&tag.to_info()?)
       .ok_or_else(|| anyhow::anyhow!(i18n::NO_SUCH_PIPELINE))?
       .clone()
   } else if !globals.pipelines_registry.is_empty() {
@@ -189,7 +190,7 @@ pub(crate) fn assign_pipeline_to_project(
     globals
       .pipelines_registry
       .iter()
-      .map(|(k, v)| (format!("`{}` - {}", k.blue().bold(), v.title.green().bold()), v))
+      .map(|(k, v)| (format!("`{}` - {}", k.to_str().blue().bold(), v.title.green().bold()), v))
       .for_each(|(t, p)| { tags.push(t.clone()); ptags.insert(t, p); });
     tags.push(NEW_PIPELINE.to_string());
     
@@ -272,17 +273,19 @@ pub(crate) fn edit_pipeline(
   globals: &mut DeployerGlobalConfig,
   args: &CatPipelineArgs,
 ) -> anyhow::Result<()> {
-  let mut pipeline = match globals.pipelines_registry.contains_key(&args.pipeline_short_info_and_version) {
+  let info = args.pipeline_short_info_and_version.to_info()?;
+  
+  let mut pipeline = match globals.pipelines_registry.contains_key(&info) {
     false => panic!("There is no such Pipeline!"),
     true => {
-      let pipeline = globals.pipelines_registry.get(&args.pipeline_short_info_and_version).unwrap().clone();
-      globals.pipelines_registry.remove(&args.pipeline_short_info_and_version);
+      let pipeline = globals.pipelines_registry.get(&info).unwrap().clone();
+      globals.pipelines_registry.remove(&info);
       pipeline
     },
   };
   
   pipeline.edit_pipeline_from_prompt(globals)?;
-  globals.pipelines_registry.insert(pipeline.info.to_str(), pipeline);
+  globals.pipelines_registry.insert(pipeline.info.clone(), pipeline);
   
   Ok(())
 }
