@@ -569,12 +569,13 @@ impl Variable {
 
 impl Requirement {
   pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
-    let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK];
+    let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK, i18n::REQ_TYPE_REMOTE];
     let r#type = inquire::Select::new(i18n::SELECT_REQ_TYPE, types).prompt()?;
     match r#type {
       i18n::REQ_TYPE_EX => Requirement::new_exists_from_prompt(),
       i18n::REQ_TYPE_EX_ANY => Requirement::new_exists_any_from_prompt(),
       i18n::REQ_TYPE_CHECK => Requirement::new_check_from_prompt(),
+      i18n::REQ_TYPE_REMOTE => Requirement::new_remote_from_prompt(),
       _ => unreachable!(),
     }
   }
@@ -589,6 +590,10 @@ impl Requirement {
   
   pub(crate) fn new_check_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::CheckSuccess(CheckAction::new_wop_from_prompt()?))
+  }
+  
+  pub(crate) fn new_remote_from_prompt() -> anyhow::Result<Self> {
+    Ok(Self::RemoteAccessibleAndReady(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?))
   }
 }
 

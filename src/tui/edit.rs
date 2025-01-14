@@ -223,7 +223,7 @@ impl DescribedAction {
       },
       Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); },
       Action::AddToStorage(_) => { actions.push(i18n::EDIT_ATS); }
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) | Action::RemoteSync => {},
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
@@ -268,7 +268,7 @@ impl DescribedAction {
             Action::Check(a) => a.edit_check_from_prompt()?,
             Action::Observe(a) => a.command.edit_command_from_prompt()?,
             Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) => {},
+            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) | Action::RemoteSync => {},
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,

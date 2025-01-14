@@ -321,6 +321,7 @@ tr!(ADD_REQ, "Add any requirement (path check or any Check Action) for this Acti
 tr!(REQ_TYPE_EX, "Check some path exists");
 tr!(REQ_TYPE_EX_ANY, "Check any of given paths exists");
 tr!(REQ_TYPE_CHECK, "Check the output of given command");
+tr!(REQ_TYPE_REMOTE, "Check the remote host availability");
 tr!(SELECT_REQ_TYPE, "Select the requirement type:");
 tr!(ADD_NEW_PATH, "Add new path?");
 
