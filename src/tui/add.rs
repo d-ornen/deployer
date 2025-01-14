@@ -83,10 +83,8 @@ impl DescribedAction {
     let tags: Vec<String> = tags_custom_type(i18n::ACTION_TAGS, None).prompt()?;
     
     let action_types: Vec<&str> = vec![
-      "Interrupt",
       "Custom",
       "Check",
-      "Force artifacts enplace",
       "Use content from storage",
       "Patch",
       "Pre-build",
@@ -106,8 +104,6 @@ impl DescribedAction {
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
     
     let action = match selected_action_type {
-      "Interrupt" => Action::Interrupt,
-      "Force artifacts enplace" => Action::ForceArtifactsEnplace,
       "Custom" => {
         let command = CustomCommand::new_from_prompt()?;
         Action::Custom(command)

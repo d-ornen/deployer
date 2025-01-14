@@ -123,6 +123,7 @@ fn main() {
   
   // Чтение конфигов
   let mut globals = read::<DeployerGlobalConfig>(&config_folder, GLOBAL_CONF);
+  DeployerGlobalConfig::make_sure_contain_defaults(&mut globals.actions_registry);
   let mut config = read::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), PROJECT_CONF);
   if config == Default::default() { config = read::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), HIDDEN_PROJECT_CONF); }
   let mut builds = read::<Builds>(&cache_folder, BUILD_CACHE_LIST);
