@@ -239,6 +239,7 @@ tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
 tr!(BUILD_PATH, "Build path");
+tr!(DONE_IN, "Done in");
 
 tr!(DONE, " done");
 tr!(GOT_ERROR, " got an error!");
@@ -324,6 +325,7 @@ tr!(REQ_TYPE_CHECK, "Check the output of given command");
 tr!(REQ_TYPE_REMOTE, "Check the remote host availability");
 tr!(SELECT_REQ_TYPE, "Select the requirement type:");
 tr!(ADD_NEW_PATH, "Add new path?");
+tr!(REQ_CHECKS_TOOK, "Requirements checked in");
 
 // Remote hosts
 tr!(REMOTE_SHORT_NAME, "Specify the remote host's short name:");

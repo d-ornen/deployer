@@ -253,7 +253,24 @@ pub(crate) fn execute_pipeline(
   pipeline: &DescribedPipeline,
 ) -> anyhow::Result<()> {
   use std::io::{stdout, Write};
-  use std::time::Instant;
+  use std::time::{Instant, Duration};
+  
+  let mut total_time = Duration::from_secs(0);
+  let log_file = generate_build_log_filepath(
+    &config.project_name,
+    &pipeline.title,
+    env.cache_dir,
+  );
+  
+  if !env.silent_build { println!("{}", i18n::STARTING_PIPELINE.replace("{}", &pipeline.title)); }
+  build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
+  
+  let canonicalized = env.build_dir.canonicalize()?;
+  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
+  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
+  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
+  
+  let now = Instant::now();
   
   #[allow(clippy::mutable_key_type)]
   let mut requirements = HashSet::<Requirement>::new();
@@ -278,19 +295,12 @@ pub(crate) fn execute_pipeline(
     return Ok(())
   }
   
-  let log_file = generate_build_log_filepath(
-    &config.project_name,
-    &pipeline.title,
-    env.cache_dir,
-  );
-  
-  if !env.silent_build { println!("{}", i18n::STARTING_PIPELINE.replace("{}", &pipeline.title)); }
-  build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
-  
-  let canonicalized = env.build_dir.canonicalize()?;
-  let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
-  if !env.silent_build { println!("{}: {}", i18n::BUILD_PATH, canonicalized); }
-  build_log(&log_file, &[format!("{}: {}", i18n::BUILD_PATH, canonicalized)])?;
+  if !requirements.is_empty() {
+    let elapsed = now.elapsed();
+    println!("{} {}.", i18n::REQ_CHECKS_TOOK, format!("{:.2?}", elapsed).green());
+    build_log(&log_file, &[format!("{} {:.2?}.", i18n::REQ_CHECKS_TOOK, elapsed)])?;
+    total_time += elapsed;
+  }
   
   let mut cntr = 1usize;
   let total = pipeline.actions.len();
@@ -366,6 +376,7 @@ pub(crate) fn execute_pipeline(
     };
     
     let elapsed = now.elapsed();
+    total_time += elapsed;
     if !env.no_pipe { build_log(&log_file, &output)?; }
     build_log(&log_file, &[
       format!(
@@ -391,6 +402,9 @@ pub(crate) fn execute_pipeline(
     
     if !status { return Ok(()) }
   }
+  
+  println!("{} {}.", i18n::DONE_IN, format!("{:.2?}", total_time).green());
+  build_log(&log_file, &[format!("{} {:.2?}.", i18n::DONE_IN, total_time)])?;
   
   Ok(())
 }

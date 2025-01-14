@@ -129,7 +129,7 @@ impl CustomCommand {
     }
     
     for hostname in hosts {
-      output.push(format!("{}: `{}`", i18n::REMOTE_EXEC, hostname.as_str()));
+      output.push(format!("{}: `{}`", i18n::REMOTE_EXEC, hostname.as_str().green()));
       let remote = match globals.remote_hosts.get(hostname) {
         None => {
           output.push(i18n::NO_SUCH_REMOTE.to_string());
