@@ -339,3 +339,4 @@ tr!(SPECIFY_HOST_USERNAME, "Specify the remote username:");
 tr!(SPECIFY_SSH_KEY_PATH, "Specify the path to private SSH key for remote host:");
 tr!(NO_HOSTS, "There is no remote hosts in Registry.");
 tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Select remote host for removing from Deployer's Registry:");
+tr!(REMOTE_EXEC, "Executing at");

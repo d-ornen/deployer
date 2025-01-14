@@ -97,11 +97,24 @@ impl CustomCommand {
   }
   
   pub(crate) fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
-    let hosts = self.remote_exec.unwrap();
+    let hosts = self.remote_exec.as_ref().unwrap();
+    let rt = tokio::runtime::Runtime::new()?;
+    let globals = crate::rw::read::<crate::configs::DeployerGlobalConfig>(&env.config_dir, crate::GLOBAL_CONF);
+    let mut output = vec![];
+    let mut status = true;
     
-    for host in hosts {
-      
+    for hostname in hosts {
+      output.push(format!("{}: `{}`", i18n::REMOTE_EXEC, hostname.as_str()));
+      let remote = match globals.remote_hosts.get(hostname) {
+        None => { status = false; output.push(i18n::NO_SUCH_REMOTE.to_string()); continue },
+        Some(remote) => remote,
+      };
+      let (s, out) = remote.exec(&self.bash_c, &rt)?;
+      if !s { status = false; }
+      output.extend_from_slice(&out);
     }
+    
+    Ok((status, output))
   }
 }
 
@@ -137,7 +150,7 @@ pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
 
 impl Execute for CustomCommand {
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
-    if self.remote_exec.is_some_and(|rs| !rs.is_empty()) { return self.remote_execute(env); }
+    if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) { return self.remote_execute(env); }
     
     let mut output = vec![];
     

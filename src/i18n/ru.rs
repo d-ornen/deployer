@@ -339,3 +339,4 @@ tr!(SPECIFY_HOST_USERNAME, "Укажите имя пользователя уд�
 tr!(SPECIFY_SSH_KEY_PATH, "Укажите путь к приватному ключу SSH для удалённого хоста:");
 tr!(NO_HOSTS, "В Реестре нет удалённых хостов.");
 tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Выберите хост для удаления из Реестра Деплойера:");
+tr!(REMOTE_EXEC, "Выполнение на");

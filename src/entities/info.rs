@@ -23,6 +23,7 @@ impl ShortName {
 pub(crate) struct Version(String);
 
 impl Version {
+  #[allow(dead_code)]
   pub(crate) fn new(version: impl AsRef<str>) -> anyhow::Result<Self> {
     if !validate_version(version.as_ref()) {
       bail!(i18n::INCORRECT_VERSION)
@@ -30,6 +31,7 @@ impl Version {
     Ok(Self(version.as_ref().to_string()))
   }
   
+  #[allow(dead_code)]
   pub(crate) fn new_for_using(version: impl AsRef<str>) -> anyhow::Result<Self> {
     if !version.as_ref().eq("latest") && !validate_version(version.as_ref()) {
       bail!(i18n::INCORRECT_VERSION)

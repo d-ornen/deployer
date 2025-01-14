@@ -24,10 +24,22 @@ impl RemoteHost {
     rt.block_on(async {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
       let (status, out) = session.call("which deployer").await?;
+      session.close().await?;
       if status == 0 && !out.is_empty() && out.last().unwrap().contains("deployer") { Ok(()) }
       else { bail!("Remote host doesn't contains `deployer` executable in PATH.") }
-    });
-    Ok(())
+    })
+  }
+  
+  pub(crate) fn exec(&self, bash_c: &str, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, Vec<String>)> {
+    rt.block_on(async {
+      let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
+      let (status, out) = session.call(bash_c).await?;
+      session.close().await?;
+      match status {
+        0 => Ok((true, out)),
+        _ => Ok((false, out)),
+      }
+    })
   }
 }
 
