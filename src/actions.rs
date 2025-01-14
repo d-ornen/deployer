@@ -53,6 +53,9 @@ pub(crate) enum Action {
   /// Действие прерывания. Используется, когда пользователю необходимо выполнить действия самостоятельно.
   Interrupt,
   
+  /// Действие синхронизации папки проекта с удалённым хостом
+  RemoteSync,
+  
   /// Кастомные команды сборки
   Custom(CustomCommand),
   /// Команда проверки состояния (может прерывать пайплайн при проверке вывода)
@@ -211,7 +214,7 @@ impl DescribedAction {
       Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
       Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) => self.action.clone(),
+      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) | Action::RemoteSync => self.action.clone(),
     };
     
     let mut described_action = self.clone();

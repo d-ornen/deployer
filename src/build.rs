@@ -307,6 +307,8 @@ pub(crate) fn execute_pipeline(
     let now = Instant::now();
     
     let (status, output) = match &action.action {
+      #[allow(clippy::unimplemented)]
+      Action::RemoteSync => unimplemented!(),
       Action::Custom(cmd) => cmd.execute(env)?,
       Action::Check(check) => check.execute(env)?,
       Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,

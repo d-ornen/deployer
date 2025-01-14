@@ -81,6 +81,16 @@ impl DeployerGlobalConfig {
       action: Action::ForceArtifactsEnplace,
       requirements: None,
     });
+    
+    let info = Info::new("remote-sync", "0.1").unwrap();
+    actions_registry.insert(info.clone(), DescribedAction {
+      title: "Remote sync".into(),
+      desc: "Sync all files in project's folder with remote hosts.".into(),
+      info,
+      tags: vec!["interrupt".into()],
+      action: Action::RemoteSync,
+      requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/rsync"))]),
+    });
   }
 }
 
