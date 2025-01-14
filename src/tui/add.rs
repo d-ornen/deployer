@@ -87,9 +87,11 @@ impl DescribedAction {
       "Check",
       "Use content from storage",
       "Patch",
+      "Sync build folder to remote",
       "Pre-build",
       "Build",
       "Post-build",
+      "Sync build artifacts from remote",
       "Test",
       "Pack",
       "Deliver",
@@ -180,7 +182,9 @@ impl DescribedAction {
         let auto_version_rule = AutoVersionExtractFromRule::new_from_prompt()?;
         
         Action::AddToStorage(AddToStorageAction { short_name, auto_version_rule })
-      }
+      },
+      "Sync build folder to remote" => Action::SyncToRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?),
+      "Sync build artifacts from remote" => Action::SyncFromRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?),
       _ => unreachable!(),
     };
     

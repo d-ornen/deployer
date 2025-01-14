@@ -7,7 +7,7 @@ Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allow
 - configure actions for specific project
 - satisfy requirements for your system to run pipelines
 - check compatibility over actions and projects
-- run actions at remote hosts (you need to setup your remote with SSH key and install `deployer`)
+- run actions and pipelines at remote hosts (you need to setup your remote with SSH key and install `deployer`)
 - use variables for commands from `env`-files and HashiCorp Vault KV2-storage
 - run pipelines with different cache requirements in different build folders
 - store common content in Deployer's storage, add and patch additional files for build on the fly

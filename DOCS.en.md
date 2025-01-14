@@ -66,7 +66,7 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
 ```json,ignore
 [
   {
-    // if one of these paths will be found, the request will be considered satisfied
+    // if one of these paths will be found, the requirement will be considered satisfied
     "ExistsAny": [
       "path-1",
       "path-2"
@@ -77,7 +77,7 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
     "Exists": "path"
   },
   {
-    // if this check is passed, the request will be considered satisfied (for details, see below - Action `Check`)
+    // if this check is passed, the requirement will be considered satisfied (for details, see below - Action `Check`)
     "CheckSuccess": {
       "command": {
         "bash_c": "/usr/bin/python -V",
@@ -89,11 +89,16 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
       "success_when_found": "Python 3.",
       "success_when_not_found": null
     }
+  },
+  {
+    // if a given remote host exists in the Registry, is accessible, and its Deployer version is identical to the version of the running Deployer,
+    // the requirement will be considered satisfied
+    "RemoteAccessibleAndReady": "short-name"
   }
 ]
 ```
 
-There are 3 categories of basic Actions and 7 additional types of Actions:
+There are 3 categories of basic Actions and 10 additional types of Actions:
 
 1. Build Actions (`PreBuild`, `Build`, `PostBuild` and `Test`)
 2. Install Actions (`Pack`, `Deliver`, `Install`)
@@ -105,6 +110,7 @@ There are 3 categories of basic Actions and 7 additional types of Actions:
 8. Action of checking the output of the custom command `Check`
 9. Action of adding content to the Deployer's storage `AddToStorage` and using this content `UseFromStorage`
 10. The action of applying a `Patch`
+11. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
 
 The concept of a custom command, a command for the terminal shell, is fundamental. The `Custom`, `Observe`, and the three main categories of Actions contain one or more custom commands inside.
 
@@ -442,7 +448,23 @@ The patch *should be located in the build folder* when you run Pipeline. A very 
 
 When a patch is applied, Deployer displays the number of times it has been applied in the project. If the patch has not been applied once during the Pipeline process, *Deployer will generate an error*.
 
-#### 1.6. Other actions - `Interrupt`, `ForceArtifactsEnplace`, `Observe` and `Check`
+#### 1.6. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
+
+Sometimes you need to synchronize build files between remote hosts and the current host. For example, when some actions must be performed on one host, and some on another. To do this, you can use the built-in Actions `SyncToRemote` and `SyncFromRemote`:
+
+```json
+{
+  "title": "Send build folder to remote",
+  "desc": "",
+  "info": "send-to-remote@0.1.0",
+  "tags": [],
+  "action": {
+    "SyncToRemote": "remote-pc"
+  }
+}
+```
+
+#### 1.7. Other actions - `Interrupt`, `ForceArtifactsEnplace`, `Observe` and `Check`
 
 > NOTE: Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
 
@@ -711,6 +733,20 @@ Examples:
 
 Note that you must specify two environment variables before using `FromHCVaultKv2` variables: the `DEPLOYER_VAULT_ADDR` (Vault URL) and `DEPLOYER_VAULT_TOKEN` (Vault token).
 
+Another important entity is the remote host. The deployer stores all hosts in the Registry (global configuration file - list `remote_hosts`). The host structure looks like this:
+
+```json
+{
+  "short_name": "localhost",
+  "ip": "127.0.0.1",
+  "port": 22,
+  "username": "username",
+  "ssh_private_key_file": "/path/to/id_rsa"
+}
+```
+
+To be able to use a host, before adding it, you must create a key and allow authorization on the remote host using the key.
+
 ## CLI Utility Description
 
 Deployer is primarily a CLI utility. You can see help for any Deployer command by specifying the `-h` option. Here are some examples of the most common commands:
@@ -725,6 +761,7 @@ deployer with                                  # check compatibility and assign 
 deployer build                                 # run default Pipeline
 deployer build my-pipe                         # run specified `my-pipe` Pipeline
 deployer build configure,build -o build-folder # run `configure` and `build` Pipelines in a `build-folder`
+deployer build -R my-remote my-pipe            # run `my-pipe` Pipeline on remote host `my-remote`
 ```
 
 ### Console Interface (TUI)

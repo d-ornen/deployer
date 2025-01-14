@@ -17,7 +17,7 @@ use crate::cmd::{BuildArgs, CleanArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
-use crate::remote::{sync_to_remote, sync_from_remote};
+use crate::remote::{sync_to_remote, sync_from_remote, sync_artifacts_from_remote};
 use crate::rw::{copy_all, write, symlink, log, generate_build_log_filepath, build_log};
 use crate::storage::{use_from_storage, add_to_storage};
 use crate::utils::get_current_working_dir;
@@ -249,7 +249,7 @@ pub(crate) fn build(
           let now = std::time::Instant::now();
           let generated_remote = sync_to_remote(&build_path, host, &config.cache_files)?;
           if let Err(e) = host.call_deployer_to_build(&generated_remote, pipeline.title.as_str()) { println!("{}", e); };
-          sync_from_remote(&build_path, &artifacts_dir, host)?;
+          sync_artifacts_from_remote(&generated_remote, &artifacts_dir, host)?;
           println!("{} `{}` ({}).", i18n::BUILT_AT_REMOTE, host.short_name.as_str().green(), format!("{:.2?}", now.elapsed()).green());
         }
       } else {
@@ -411,7 +411,7 @@ pub(crate) fn execute_pipeline(
       },
       Action::SyncFromRemote(remote_name) => {
         if let Some(remote) = env.remotes.get(remote_name) {
-          if let Err(e) = sync_from_remote(env.build_dir, env.artifacts_dir, remote) { (false, vec![e.to_string()]) } else { (true, vec![]) }
+          if let Err(e) = sync_from_remote(env.build_dir, remote) { (false, vec![e.to_string()]) } else { (true, vec![]) }
         } else {
           (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
         }

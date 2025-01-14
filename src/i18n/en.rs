@@ -183,6 +183,7 @@ tr!(EDIT_DEFAULT, "Select default Pipeline");
 tr!(EDIT_PATCH, "Edit patch");
 tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
 tr!(EDIT_REQS, "Edit Action requirements");
+tr!(EDIT_REMOTE_SHORT_NAME, "Edit remote host short name");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
