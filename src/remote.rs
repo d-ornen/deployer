@@ -195,7 +195,7 @@ pub(crate) fn sync_artifacts_from_remote(
     remote.port,
     remote.username,
     remote.ip,
-    remote_build_dir.to_string_lossy(),
+    remote_build_dir.join(crate::ARTIFACTS_DIR).to_string_lossy(),
     artifacts_pathbuf,
   );
   
