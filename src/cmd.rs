@@ -193,6 +193,10 @@ pub(crate) struct BuildArgs {
   #[arg(short('C'), long)]
   pub(crate) copy_cache: bool,
   
+  /// Assume that build folder is prepared (only for remote builds)
+  #[arg(short('r'), long)]
+  pub(crate) remote_build_folder: Option<PathBuf>,
+  
   /// Force disable output from Actions
   #[arg(short('s'), long)]
   pub(crate) silent: bool,

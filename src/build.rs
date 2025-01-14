@@ -160,7 +160,7 @@ pub(crate) fn build(
   storage_dir: &Path,
   args: &BuildArgs,
 ) -> anyhow::Result<()> {
-  if *config == Default::default() { panic!("{}", i18n::CFG_INVALID); }
+  if *config == Default::default() && args.remote_build_folder.is_none() { panic!("{}", i18n::CFG_INVALID); }
   
   if args.link_cache && args.copy_cache { panic!(
     "Select only one option from `{}` and `{}`. See help via `{}`.", "c".green(), "C".green(), "deployer build -h".green()
@@ -177,7 +177,41 @@ pub(crate) fn build(
   if args.silent && args.no_pipe { panic!(
     "Select only one option from `{}` and `{}`. See help via `{}`.", "s".green(), "t".green(), "deployer build -h".green()
   ); }
-
+  if args.remote_build_folder.is_some() && args.pipeline_tags.is_empty() { panic!(
+    "You always should specify Pipeline tags for executing while remote builds."
+  ) }
+  
+  if let Some(build_dir) = &args.remote_build_folder && !args.pipeline_tags.is_empty() {
+    let config = crate::rw::read::<DeployerProjectOptions>(build_dir, crate::PROJECT_CONF);
+    let artifacts_dir = prepare_artifacts_folder(build_dir)?;
+    
+    for pipeline_tag in &args.pipeline_tags {
+      if let Some(pipeline) = &config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
+        let env = BuildEnvironment {
+          build_dir,
+          cache_dir,
+          config_dir,
+          storage_dir,
+          artifacts_dir: &artifacts_dir,
+          new_build: true,
+          silent_build: false,
+          no_pipe: true,
+        };
+        
+        execute_pipeline(&config, env, pipeline)?;
+        enplace_artifacts(&config, env, false)?;
+      } else {
+        panic!(
+          "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",
+          pipeline_tag.green(),
+          "deployer with {pipeline-short-name-and-ver}".green(),
+        );
+      }
+    }
+    
+    return Ok(())
+  }
+  
   let curr_dir = std::env::current_dir().expect("Can't get current dir!");
   let artifacts_dir = prepare_artifacts_folder(&curr_dir)?;
 
