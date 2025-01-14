@@ -121,7 +121,8 @@ The command description for Deployer is as follows:
   "ignore_fails": false,
   "show_success_output": false,
   "show_bash_c": false,
-  "only_when_fresh": false
+  "only_when_fresh": false,
+  "remote_exec": []
 }
 ```
 
@@ -129,8 +130,9 @@ The command description for Deployer is as follows:
 - `placeholders` contains a list of`placeholders` that can be replaced with project variables and artifacts to perform necessary actions with them
 - `ignore_fails` tells Deployer whether to qualify a process output status not equal to zero as normal command behavior or not; if not, Deployer will abort Pipeline execution and exit with status `1`
 - `show_success_output` tells Deployer whether to print the command output always (including when the process exit status is `0`), or whether to print only on error
-- `show_bash_c` tells the Deployer whether to print the full command text on the screen; this can be useful when the command contains vulnerable variables.
-- `only_when_fresh` tells Deployer that this action should only be performed on a fresh build (either on the first build, or when explicitly instructed to rebuild from scratch with the `-f` option).
+- `show_bash_c` tells the Deployer whether to print the full command text on the screen; this can be useful when the command contains vulnerable variables
+- `only_when_fresh` tells Deployer that this action should only be performed on a fresh build (either on the first build, or when explicitly instructed to rebuild from scratch with the `-f` option)
+- `remote_exec` contains a list of short hostnames on which this command will need to be executed
 
 When a command is specialized for a particular project, it gains an additional property - `replacements`:
 
@@ -714,14 +716,15 @@ Note that you must specify two environment variables before using `FromHCVaultKv
 Deployer is primarily a CLI utility. You can see help for any Deployer command by specifying the `-h` option. Here are some examples of the most common commands:
 
 ```bash
-deployer new action                            # создать Действие и поместить в Реестр
-deployer new pipeline                          # создать Пайплайн и поместить в Реестр
-deployer init                                  # инициализировать проект, указать все свойства
-deployer with                                  # проверить совместимость и назначить Пайплайн для проекта,
-                                               # а также указать необходимые переменные и артефакты вместо плейсхолдеров
-deployer build                                 # запустить Пайплайн, назначенный по умолчанию
-deployer build my-pipe                         # запустить Пайплайн по короткому имени
-deployer build configure,build -o build-folder # запустить Пайплайны `configure` и `build` в папке `build-folder`
+deployer new action                            # create an Action and put in Registry
+deployer new pipeline                          # create a Pipeline and put in Registry
+deployer new remote                            # add new remote host to Registry
+deployer init                                  # init project, fill all attributes
+deployer with                                  # check compatibility and assign Pipeline to project,
+                                               # also specify needed variables and artifacts
+deployer build                                 # run default Pipeline
+deployer build my-pipe                         # run specified `my-pipe` Pipeline
+deployer build configure,build -o build-folder # run `configure` and `build` Pipelines in a `build-folder`
 ```
 
 ### Console Interface (TUI)
