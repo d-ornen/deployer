@@ -20,12 +20,23 @@ pub(crate) struct RemoteHost {
 
 impl RemoteHost {
   pub(crate) fn check(&self) -> anyhow::Result<()> {
+    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+    const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
-      let (status, out) = session.call("which deployer").await?;
+      let (s1, o1) = session.call("which deployer").await?;
+      let (s2, o2) = session.call("deployer -V").await?;
       session.close().await?;
-      if status == 0 && !out.is_empty() && out.contains("deployer") { Ok(()) }
+      if
+        s1 == 0 &&
+        !o1.is_empty() &&
+        o1.contains("deployer") &&
+        s2 == 0 &&
+        !o2.is_empty() &&
+        o2.contains(&format!("{} {}", PKG_NAME, PKG_VERSION))
+      { Ok(()) }
       else { bail!("Remote host doesn't contains `deployer` executable in PATH.") }
     })
   }
