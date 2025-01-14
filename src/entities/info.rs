@@ -24,7 +24,7 @@ impl PartialOrd for Info {
 }
 
 static SHORT_NAME_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new("^[a-zA-Z_-]*$").unwrap()
+  Regex::new("^[a-zA-Z_0-9-]*$").unwrap()
 });
 
 static VERSION_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
