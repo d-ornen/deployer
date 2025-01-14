@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::entities::custom_command::CustomCommand;
 use crate::i18n;
 
+/// Rule to extract version from the project automatically.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 #[serde(rename_all="snake_case")]
 pub(crate) enum AutoVersionExtractFromRule {

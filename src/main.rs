@@ -30,8 +30,9 @@ use crate::cmd::{Cli, DeployerExecType, ListType, NewType, RemoveType, CatType, 
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::pipelines::{list_pipelines, new_pipeline, remove_pipeline, cat_pipeline, cat_project_pipelines, assign_pipeline_to_project, edit_pipeline};
 use crate::project::{init_project, edit_project};
+use crate::remote::{list_remote, cat_remote, new_remote, edit_remote, remove_remote};
 use crate::rw::{read, write, VERBOSE};
-use crate::storage::{list_content, new_content};
+use crate::storage::{list_content, new_content, remove_content};
 use crate::utils::get_current_working_dir;
 
 #[cfg(feature = "tests")]
@@ -159,6 +160,22 @@ fn main() {
     
     DeployerExecType::Ls(ListType::Content) => list_content(&storage_folder).unwrap(),
     DeployerExecType::New(NewType::Content) => new_content(&storage_folder).unwrap(),
+    DeployerExecType::Rm(RemoveType::Content) => remove_content(&storage_folder).unwrap(),
+    
+    DeployerExecType::Ls(ListType::Remote) => list_remote(&globals),
+    DeployerExecType::New(NewType::Remote(args)) => {
+      let _ = new_remote(&mut globals, args).unwrap();
+      write(&config_folder, GLOBAL_CONF, &globals);
+    },
+    DeployerExecType::Cat(CatType::Remote(args)) => cat_remote(&globals, args).unwrap(),
+    DeployerExecType::Edit(EditType::Remote(args)) => {
+      edit_remote(&mut globals, args).unwrap();
+      write(&config_folder, GLOBAL_CONF, &globals);
+    },
+    DeployerExecType::Rm(RemoveType::Remote) => {
+      remove_remote(&mut globals).unwrap();
+      write(&config_folder, GLOBAL_CONF, &globals);
+    },
     
     DeployerExecType::Init(args) => {
       init_project(&mut globals, &mut config, &args).unwrap();
@@ -176,7 +193,7 @@ fn main() {
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     },
     DeployerExecType::Build(args) => {
-      build(&mut config, &mut builds, &cache_folder, &storage_folder, &args).unwrap();
+      build(&mut config, &mut builds, &cache_folder, &config_folder, &storage_folder, &args).unwrap();
       write(&cache_folder, BUILD_CACHE_LIST, &builds);
     },
     DeployerExecType::Clean(args) => {

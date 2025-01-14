@@ -156,6 +156,7 @@ pub(crate) fn build(
   config: &mut DeployerProjectOptions,
   builds: &mut Builds,
   cache_dir: &Path,
+  config_dir: &Path,
   storage_dir: &Path,
   args: &BuildArgs,
 ) -> anyhow::Result<()> {
@@ -198,6 +199,7 @@ pub(crate) fn build(
       let env = BuildEnvironment {
         build_dir: &build_path,
         cache_dir,
+        config_dir,
         storage_dir,
         artifacts_dir: &artifacts_dir,
         new_build,
@@ -221,6 +223,7 @@ pub(crate) fn build(
         let env = BuildEnvironment {
           build_dir: &build_path,
           cache_dir,
+          config_dir,
           storage_dir,
           artifacts_dir: &artifacts_dir,
           new_build,
@@ -270,6 +273,7 @@ pub(crate) fn execute_pipeline(
         println!("{}", i18n::REQ_CMD_NOT_SATISFIED);
         for line in output { println!("{}", line); }
       }
+      SatisfyErr::Remote(e) => println!("{}", e),
     }
     return Ok(())
   }

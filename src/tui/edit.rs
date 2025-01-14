@@ -5,8 +5,10 @@ use std::path::PathBuf;
 use crate::actions::{Action, DescribedAction};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::custom_command::{CustomCommand, specify_bash_c};
+use crate::entities::info::ShortName;
 use crate::entities::path_type::PathType;
 use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
+use crate::entities::remote_host::RemoteHost;
 use crate::entities::requirements::Requirement;
 use crate::entities::targets::{TargetDescription, OsVariant, OsVersionSpecification};
 use crate::entities::traits::{Edit, EditExtended};
@@ -451,13 +453,16 @@ impl Requirement {
   pub(crate) fn edit_requirement_from_prompt(&mut self) -> anyhow::Result<()> {
     match self {
       Self::Exists(path) => { *path = PathBuf::from(
-        inquire::Text::new(i18n::ABSOLUTE_PATH).with_default(path.to_str().unwrap()).prompt()?
+        inquire::Text::new(i18n::ABSOLUTE_PATH).with_initial_value(path.to_str().unwrap()).prompt()?
       )},
       Self::ExistsAny(paths) => {
         let mut path_type = PathType::Absolute;
         paths.edit_from_prompt(&mut path_type)?;
       },
       Self::CheckSuccess(check_action) => check_action.edit_check_from_prompt()?,
+      Self::RemoteAccessibleAndReady(remote) => *remote = ShortName::new(inquire::Text::new(
+        i18n::REMOTE_SHORT_NAME
+      ).with_initial_value(remote.as_str()).prompt()?)?,
     }
     Ok(())
   }
@@ -787,7 +792,7 @@ impl Variable {
         i18n::EDIT_TITLE => self.title = inquire::Text::new(i18n::VAR_TITLE).prompt()?,
         i18n::EDIT_VAR_SECRET => self.is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?,
         i18n::EDIT_VALUE => match &mut self.value {
-          VarValue::Plain(plain) => *plain = inquire::Text::new(i18n::VAR_PLAIN_CONTENT).with_default(plain).prompt()?,
+          VarValue::Plain(plain) => *plain = inquire::Text::new(i18n::VAR_PLAIN_CONTENT).with_initial_value(plain).prompt()?,
           VarValue::FromEnvFile(_) => self.value = Variable::new_env_from_prompt()?,
           VarValue::FromHCVaultKv2(_) => self.value = Variable::new_kv2_from_prompt()?,
         },
@@ -1112,6 +1117,32 @@ impl Edit for Vec<ProgrammingLanguage> {
     }
     
     *self = commands;
+    Ok(())
+  }
+}
+
+impl RemoteHost {
+  pub(crate) fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    self.short_name = ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME)
+      .with_initial_value(self.short_name.as_str())
+      .prompt()?
+    )?;
+    self.ip = inquire::Text::new(i18n::SPECIFY_HOST_IP)
+      .with_initial_value(self.ip.to_string().as_str())
+      .prompt()?
+      .parse()?;
+    self.port = inquire::Text::new(i18n::SPECIFY_HOST_PORT)
+      .with_initial_value(self.port.to_string().as_str())
+      .prompt()?
+      .parse()?;
+    self.username = inquire::Text::new(i18n::SPECIFY_HOST_USERNAME)
+      .with_initial_value(self.username.as_str())
+      .prompt()?;
+    self.ssh_private_key_file = PathBuf::from(inquire::Text::new(i18n::SPECIFY_SSH_KEY_PATH)
+      .with_initial_value(self.ssh_private_key_file.to_string_lossy().as_str())
+      .prompt()?
+    );
+    
     Ok(())
   }
 }
