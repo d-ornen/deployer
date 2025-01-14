@@ -25,16 +25,22 @@ impl RemoteHost {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
       let (status, out) = session.call("which deployer").await?;
       session.close().await?;
-      if status == 0 && !out.is_empty() && out.last().unwrap().contains("deployer") { Ok(()) }
+      if status == 0 && !out.is_empty() && out.contains("deployer") { Ok(()) }
       else { bail!("Remote host doesn't contains `deployer` executable in PATH.") }
     })
   }
   
-  pub(crate) fn exec(&self, bash_c: &str, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, Vec<String>)> {
+  pub(crate) fn open_session(&self, rt: &tokio::runtime::Runtime) -> anyhow::Result<Session> {
+    rt.block_on(Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)))
+  }
+  
+  pub(crate) fn close_session(session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<()> {
+    rt.block_on(session.close())
+  }
+  
+  pub(crate) fn exec(&self, bash_c: &str, session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, String)> {
     rt.block_on(async {
-      let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
       let (status, out) = session.call(bash_c).await?;
-      session.close().await?;
       match status {
         0 => Ok((true, out)),
         _ => Ok((false, out)),
@@ -46,7 +52,7 @@ impl RemoteHost {
 struct Client {}
 impl russh::client::Handler for Client { type Error = anyhow::Error; }
 
-struct Session {
+pub(crate) struct Session {
   session: russh::client::Handle<Client>,
 }
 
@@ -75,14 +81,13 @@ impl Session {
     Ok(Self { session })
   }
 
-  async fn call(&mut self, command: &str) -> anyhow::Result<(u32, Vec<String>)> {
+  async fn call(&mut self, command: &str) -> anyhow::Result<(u32, String)> {
     use russh::ChannelMsg;
     
     let mut channel = self.session.channel_open_session().await?;
     channel.exec(true, command).await?;
 
     let mut status = None;
-    let mut out = vec![];
     let mut out_buf = vec![];
 
     loop {
@@ -94,7 +99,7 @@ impl Session {
       }
     }
     
-    out.extend_from_slice(String::from_utf8_lossy_owned(out_buf).split('\n').map(|s| s.to_string()).collect::<Vec<_>>().as_slice());
+    let out = String::from_utf8_lossy_owned(out_buf);
     Ok((status.expect("Remote program did not exit cleanly."), out))
   }
 
