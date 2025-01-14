@@ -60,9 +60,35 @@ pub(crate) struct DeployerGlobalConfig {
   pub(crate) remote_hosts: HashMap<ShortName, RemoteHost>,
 }
 
+impl DeployerGlobalConfig {
+  pub(crate) fn make_sure_contain_defaults(actions_registry: &mut HashMap<Info, DescribedAction>) {
+    let info = Info::new("interrupt", "0.1").unwrap();
+    actions_registry.insert(info.clone(), DescribedAction {
+      title: "Interrupt Pipeline".into(),
+      desc: "Interrupt Pipeline execution until user press a button.".into(),
+      info,
+      tags: vec![],
+      action: Action::Interrupt,
+      requirements: None,
+    });
+    
+    let info = Info::new("force-artifacts-enplace", "0.1").unwrap();
+    actions_registry.insert(info.clone(), DescribedAction {
+      title: "Force artifacts enplace".into(),
+      desc: "Enplace available artifacts from build directory during Pipeline execution.".into(),
+      info,
+      tags: vec![],
+      action: Action::ForceArtifactsEnplace,
+      requirements: None,
+    });
+  }
+}
+
 impl Default for DeployerGlobalConfig {
   fn default() -> Self {
     let mut actions_registry = hmap!();
+    let pipelines_registry = hmap!();
+    DeployerGlobalConfig::make_sure_contain_defaults(&mut actions_registry);
     
     let info = Info::new("cargo-rel", "0.1").unwrap();
     actions_registry.insert(info.clone(), DescribedAction {
@@ -86,12 +112,8 @@ impl Default for DeployerGlobalConfig {
       requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
     });
     
-    let pipelines_registry = hmap!();
-    
     Self {
-      // dependencies_registry: hmap!(),
       projects: vec![],
-      // templates: vec![],
       actions_registry,
       pipelines_registry,
       remote_hosts: hmap!(),

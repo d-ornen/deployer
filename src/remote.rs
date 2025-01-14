@@ -1,4 +1,7 @@
+use anyhow::bail;
 use colored::Colorize;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 
 use crate::cmd::{CatRemoteArgs, NewRemoteArgs};
@@ -91,6 +94,124 @@ pub(crate) fn remove_remote(globals: &mut DeployerGlobalConfig) -> anyhow::Resul
   if !Confirm::new(i18n::ARE_YOU_SURE).prompt()? { return Ok(()) }
   
   globals.remote_hosts.remove(&short_name);
+  
+  Ok(())
+}
+
+pub(crate) fn sync_to_remote(
+  build_dir: &Path,
+  remote: &RemoteHost,
+  ignore: &HashSet<PathBuf>,
+) -> anyhow::Result<PathBuf> {
+  let ignore = ignore
+    .iter()
+    .map(|p| format!("--exclude='{}'", p.to_string_lossy()))
+    .collect::<Vec<_>>()
+    .join(" ");
+  
+  let mut remote_build_folder = PathBuf::from("~");
+  remote_build_folder.push(".cache");
+  remote_build_folder.push(crate::CACHE_DIR);
+  
+  let build_pathbuf = build_dir.to_path_buf();
+  let folder_name = build_pathbuf.file_name().unwrap().to_string_lossy();
+  remote_build_folder.push(folder_name.as_str());
+  
+  let bash_c = format!(
+    r#"rsync -avz {} --rsh='ssh -p{}' . "{}@{}:{}""#,
+    ignore,
+    remote.port,
+    remote.username,
+    remote.ip,
+    remote_build_folder.to_string_lossy(),
+  );
+  
+  let shell = match std::env::var("DEPLOYER_SH_PATH") {
+    Ok(path) => path,
+    Err(_) => "/bin/bash".to_string(),
+  };
+  
+  let mut cmd = std::process::Command::new(&shell);
+  cmd.current_dir(build_dir).arg("-c").arg(bash_c).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+  let res = cmd.spawn()?.wait_with_output()?;
+  if !res.status.success() {
+    let stdout_strs = String::from_utf8_lossy_owned(res.stdout);
+    let stderr_strs = String::from_utf8_lossy_owned(res.stderr);
+    bail!("{}{}", stdout_strs, stderr_strs)
+  }
+  
+  Ok(remote_build_folder)
+}
+
+pub(crate) fn sync_from_remote(
+  build_dir: &Path,
+  remote: &RemoteHost,
+) -> anyhow::Result<()> {
+  let mut remote_build_folder = PathBuf::from("~");
+  remote_build_folder.push(".cache");
+  remote_build_folder.push(crate::CACHE_DIR);
+  
+  let build_pathbuf = build_dir.to_path_buf();
+  let folder_name = build_pathbuf.file_name().unwrap().to_string_lossy();
+  remote_build_folder.push(folder_name.as_str());
+  
+  let bash_c = format!(
+    r#"rsync -avz --rsh='ssh -p{}' "{}@{}:{}" {:?}"#,
+    remote.port,
+    remote.username,
+    remote.ip,
+    remote_build_folder.to_string_lossy(),
+    build_dir,
+  );
+  
+  let shell = match std::env::var("DEPLOYER_SH_PATH") {
+    Ok(path) => path,
+    Err(_) => "/bin/bash".to_string(),
+  };
+  
+  let mut cmd = std::process::Command::new(&shell);
+  cmd.current_dir(build_dir).arg("-c").arg(bash_c).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+  let res = cmd.spawn()?.wait_with_output()?;
+  if !res.status.success() {
+    let stdout_strs = String::from_utf8_lossy_owned(res.stdout);
+    let stderr_strs = String::from_utf8_lossy_owned(res.stderr);
+    bail!("{}{}", stdout_strs, stderr_strs)
+  }
+  
+  Ok(())
+}
+
+pub(crate) fn sync_artifacts_from_remote(
+  remote_build_dir: &Path,
+  artifacts_dir: &Path,
+  remote: &RemoteHost,
+) -> anyhow::Result<()> {
+  let mut artifacts_pathbuf = artifacts_dir.to_path_buf();
+  artifacts_pathbuf.push(remote.short_name.as_str());
+  std::fs::create_dir_all(&artifacts_pathbuf)?;
+  
+  let bash_c = format!(
+    r#"rsync -avz --rsh='ssh -p{}' "{}@{}:{}" {:?}"#,
+    remote.port,
+    remote.username,
+    remote.ip,
+    remote_build_dir.to_string_lossy(),
+    artifacts_pathbuf,
+  );
+  
+  let shell = match std::env::var("DEPLOYER_SH_PATH") {
+    Ok(path) => path,
+    Err(_) => "/bin/bash".to_string(),
+  };
+  
+  let mut cmd = std::process::Command::new(&shell);
+  cmd.arg("-c").arg(bash_c).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+  let res = cmd.spawn()?.wait_with_output()?;
+  if !res.status.success() {
+    let stdout_strs = String::from_utf8_lossy_owned(res.stdout);
+    let stderr_strs = String::from_utf8_lossy_owned(res.stderr);
+    bail!("{}{}", stdout_strs, stderr_strs)
+  }
   
   Ok(())
 }

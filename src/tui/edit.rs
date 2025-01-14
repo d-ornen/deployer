@@ -222,7 +222,8 @@ impl DescribedAction {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_DEPL_TOOLKIT]);
       },
       Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); },
-      Action::AddToStorage(_) => { actions.push(i18n::EDIT_ATS); }
+      Action::AddToStorage(_) => { actions.push(i18n::EDIT_ATS); },
+      Action::SyncToRemote(_) | Action::SyncFromRemote(_) => { actions.push(i18n::EDIT_REMOTE_SHORT_NAME); },
       Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
     }
     actions.extend_from_slice(&[
@@ -268,7 +269,7 @@ impl DescribedAction {
             Action::Check(a) => a.edit_check_from_prompt()?,
             Action::Observe(a) => a.command.edit_command_from_prompt()?,
             Action::Custom(a) => a.edit_command_from_prompt()?,
-            Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) => {},
+            _ => {},
           }
         },
         i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => c_action.change_regexes_from_prompt()?,
@@ -298,6 +299,15 @@ impl DescribedAction {
         },
         i18n::EDIT_PATCH if let Action::Patch(patch) = &mut self.action => { patch.edit_from_prompt()?; },
         i18n::EDIT_REQS => self.requirements.edit_from_prompt()?,
+        i18n::EDIT_REMOTE_SHORT_NAME => match &mut self.action {
+          Action::SyncToRemote(a) => *a = ShortName::new(
+            inquire::Text::new(i18n::REMOTE_SHORT_NAME).with_initial_value(a.as_str()).prompt()?
+          )?,
+          Action::SyncFromRemote(a) => *a = ShortName::new(
+            inquire::Text::new(i18n::REMOTE_SHORT_NAME).with_initial_value(a.as_str()).prompt()?
+          )?,
+          _ => {},
+        }
         _ => {},
       }
     }

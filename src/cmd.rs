@@ -193,6 +193,14 @@ pub(crate) struct BuildArgs {
   #[arg(short('C'), long)]
   pub(crate) copy_cache: bool,
   
+  /// Build as remote host (as worker)
+  #[arg(short('r'), long)]
+  pub(crate) remote_build_folder: Option<PathBuf>,
+  
+  /// Build remotely on specified hosts (as boss-node)
+  #[arg(short('R'), long, value_delimiter(','))]
+  pub(crate) remote_host_short_names: Vec<String>,
+  
   /// Force disable output from Actions
   #[arg(short('s'), long)]
   pub(crate) silent: bool,

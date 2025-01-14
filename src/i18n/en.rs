@@ -183,6 +183,7 @@ tr!(EDIT_DEFAULT, "Select default Pipeline");
 tr!(EDIT_PATCH, "Edit patch");
 tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
 tr!(EDIT_REQS, "Edit Action requirements");
+tr!(EDIT_REMOTE_SHORT_NAME, "Edit remote host short name");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -239,6 +240,7 @@ tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
 tr!(BUILD_PATH, "Build path");
+tr!(DONE_IN, "Done in");
 
 tr!(DONE, " done");
 tr!(GOT_ERROR, " got an error!");
@@ -321,8 +323,10 @@ tr!(ADD_REQ, "Add any requirement (path check or any Check Action) for this Acti
 tr!(REQ_TYPE_EX, "Check some path exists");
 tr!(REQ_TYPE_EX_ANY, "Check any of given paths exists");
 tr!(REQ_TYPE_CHECK, "Check the output of given command");
+tr!(REQ_TYPE_REMOTE, "Check the remote host availability");
 tr!(SELECT_REQ_TYPE, "Select the requirement type:");
 tr!(ADD_NEW_PATH, "Add new path?");
+tr!(REQ_CHECKS_TOOK, "Requirements checked in");
 
 // Remote hosts
 tr!(REMOTE_SHORT_NAME, "Specify the remote host's short name:");
@@ -340,3 +344,7 @@ tr!(SPECIFY_SSH_KEY_PATH, "Specify the path to private SSH key for remote host:"
 tr!(NO_HOSTS, "There is no remote hosts in Registry.");
 tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Select remote host for removing from Deployer's Registry:");
 tr!(REMOTE_EXEC, "Executing at");
+tr!(REMOTE_ADD_TO_CMD_FIRST, "Do you want to execute this command remotely on one or many remote hosts? If yes, the command won't be executed on this host.");
+tr!(REMOTE_ADD_TO_CMD_ANOTHER, "Add one more remote host?");
+tr!(START_BUILD_AT_REMOTE, "Starting build on remote host");
+tr!(BUILT_AT_REMOTE, "Build at remote and got artifacts from host:");

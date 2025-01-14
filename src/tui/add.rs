@@ -83,15 +83,15 @@ impl DescribedAction {
     let tags: Vec<String> = tags_custom_type(i18n::ACTION_TAGS, None).prompt()?;
     
     let action_types: Vec<&str> = vec![
-      "Interrupt",
       "Custom",
       "Check",
-      "Force artifacts enplace",
       "Use content from storage",
       "Patch",
+      "Sync build folder to remote",
       "Pre-build",
       "Build",
       "Post-build",
+      "Sync build artifacts from remote",
       "Test",
       "Pack",
       "Deliver",
@@ -106,8 +106,6 @@ impl DescribedAction {
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
     
     let action = match selected_action_type {
-      "Interrupt" => Action::Interrupt,
-      "Force artifacts enplace" => Action::ForceArtifactsEnplace,
       "Custom" => {
         let command = CustomCommand::new_from_prompt()?;
         Action::Custom(command)
@@ -184,7 +182,9 @@ impl DescribedAction {
         let auto_version_rule = AutoVersionExtractFromRule::new_from_prompt()?;
         
         Action::AddToStorage(AddToStorageAction { short_name, auto_version_rule })
-      }
+      },
+      "Sync build folder to remote" => Action::SyncToRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?),
+      "Sync build artifacts from remote" => Action::SyncFromRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?),
       _ => unreachable!(),
     };
     
@@ -519,7 +519,6 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
   
   if artifacts.is_empty() { first = false; }
   
-  
   while Confirm::new(prompt).with_default(first).prompt()? {
     v.push(collect_af_inplacement(&artifacts)?);
     prompt = ANOTHER_PROMPT;
@@ -573,12 +572,13 @@ impl Variable {
 
 impl Requirement {
   pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
-    let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK];
+    let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK, i18n::REQ_TYPE_REMOTE];
     let r#type = inquire::Select::new(i18n::SELECT_REQ_TYPE, types).prompt()?;
     match r#type {
       i18n::REQ_TYPE_EX => Requirement::new_exists_from_prompt(),
       i18n::REQ_TYPE_EX_ANY => Requirement::new_exists_any_from_prompt(),
       i18n::REQ_TYPE_CHECK => Requirement::new_check_from_prompt(),
+      i18n::REQ_TYPE_REMOTE => Requirement::new_remote_from_prompt(),
       _ => unreachable!(),
     }
   }
@@ -593,6 +593,10 @@ impl Requirement {
   
   pub(crate) fn new_check_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::CheckSuccess(CheckAction::new_wop_from_prompt()?))
+  }
+  
+  pub(crate) fn new_remote_from_prompt() -> anyhow::Result<Self> {
+    Ok(Self::RemoteAccessibleAndReady(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?))
   }
 }
 
@@ -688,6 +692,8 @@ impl CustomCommand {
     let show_success_output = inquire::Confirm::new(i18n::CMD_SHOW_SUCC_OUT).with_default(false).prompt()?;
     let only_when_fresh = Some(inquire::Confirm::new(i18n::CMD_ONLY_WHEN_FRESH).with_default(false).prompt()?);
     
+    let remote_exec = collect_remote()?;
+    
     Ok(CustomCommand {
       bash_c,
       placeholders,
@@ -696,7 +702,7 @@ impl CustomCommand {
       show_success_output,
       only_when_fresh,
       replacements: None,
-      remote_exec: None,
+      remote_exec,
     })
   }
   
@@ -784,4 +790,19 @@ impl RemoteHost {
       ssh_private_key_file: ssh_key_path,
     })
   }
+}
+
+fn collect_remote() -> anyhow::Result<Option<Vec<ShortName>>> {
+  const PROMPT: &str = i18n::REMOTE_ADD_TO_CMD_FIRST;
+  const ANOTHER_PROMPT: &str = i18n::REMOTE_ADD_TO_CMD_ANOTHER;
+  
+  let mut v = vec![];
+  let mut prompt = PROMPT;
+  
+  while inquire::Confirm::new(prompt).with_default(false).prompt()? {
+    v.push(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?);
+    prompt = ANOTHER_PROMPT;
+  }
+  
+  Ok(if !v.is_empty() { Some(v) } else { None })
 }

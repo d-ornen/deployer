@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::sync::OnceLock;
 use std::path::{Path, PathBuf};
-use crate::{CACHE_DIR, LOGS_DIR, PROJECT_CONF};
+use crate::{CACHE_DIR, LOGS_DIR};
 
 pub(crate) static VERBOSE: OnceLock<bool> = OnceLock::new();
 const LOG_FILE_DELIMETER: &str = "================================================================";
@@ -93,9 +93,6 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[i
     let d = dst.as_ref().join(entry.file_name());
     if ty.is_dir() {
       copy_all(entry.path(), d, ignore)?;
-    } else if name == PROJECT_CONF {
-      log(format!("Symlinking `{:?}` from {:?} to {:?}", name, entry.path(), d));
-      symlink(std::fs::canonicalize(entry.path())?, d);
     } else if ty.is_file() {
       copy_if_different(entry.path(), d)?;
     } else if ty.is_symlink() {

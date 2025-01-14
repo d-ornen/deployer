@@ -13,9 +13,9 @@
   ],
   "deploy_toolkit": null,
   "cache_files": [
+    "Cargo.lock",
     ".git",
-    "target",
-    "Cargo.lock"
+    "target"
   ],
   "pipelines": [
     {
@@ -47,8 +47,7 @@
                   "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": true,
-                  "show_bash_c": true,
-                  "only_when_fresh": null
+                  "show_bash_c": true
                 }
               ]
             }
@@ -77,8 +76,7 @@
                   "bash_c": "cargo build --release --no-default-features --features=python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": true,
-                  "only_when_fresh": null
+                  "show_bash_c": true
                 }
               ]
             }
@@ -130,8 +128,7 @@
                   ],
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": false,
-                  "only_when_fresh": null
+                  "show_bash_c": false
                 }
               ]
             }
@@ -182,8 +179,7 @@
                   ],
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": false,
-                  "only_when_fresh": null
+                  "show_bash_c": false
                 }
               ]
             }
@@ -221,8 +217,7 @@
                   "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": true,
-                  "show_bash_c": true,
-                  "only_when_fresh": null
+                  "show_bash_c": true
                 }
               ]
             }
@@ -251,8 +246,7 @@
                   "bash_c": "cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai",
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": true,
-                  "only_when_fresh": null
+                  "show_bash_c": true
                 }
               ]
             }
@@ -304,8 +298,7 @@
                   ],
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": false,
-                  "only_when_fresh": null
+                  "show_bash_c": false
                 }
               ]
             }
@@ -356,8 +349,7 @@
                   ],
                   "ignore_fails": false,
                   "show_success_output": false,
-                  "show_bash_c": false,
-                  "only_when_fresh": null
+                  "show_bash_c": false
                 }
               ]
             }
@@ -366,6 +358,37 @@
       ],
       "default": false,
       "exclusive_exec_tag": "ru"
+    },
+    {
+      "title": "test",
+      "desc": "",
+      "info": "deployer-test@0.1.0",
+      "tags": [],
+      "actions": [
+        {
+          "title": "Test remote checkup and execution",
+          "desc": "Got from `Simple action with remote requirement`. Make sure that you've added any remote host to Deployer's Registry as `remote-pc`.",
+          "info": "simple-action-with-remote-requirement@0.1.0",
+          "tags": [],
+          "action": {
+            "Custom": {
+              "bash_c": "ls",
+              "ignore_fails": false,
+              "show_success_output": true,
+              "show_bash_c": true,
+              "only_when_fresh": false,
+              "remote_exec": [
+                "remote-pc"
+              ]
+            }
+          },
+          "requirements": [
+            {
+              "RemoteAccessibleAndReady": "remote-pc"
+            }
+          ]
+        }
+      ]
     }
   ],
   "artifacts": [
