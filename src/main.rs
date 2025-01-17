@@ -50,6 +50,7 @@ use crate::project::{init_project, edit_project};
 use crate::remote::{list_remote, cat_remote, new_remote, edit_remote, remove_remote};
 use crate::rw::{read, write, VERBOSE};
 use crate::storage::{list_content, new_content, remove_content};
+use crate::tui::docs;
 use crate::utils::get_current_working_dir;
 
 #[cfg(feature = "tests")]
@@ -216,6 +217,8 @@ fn main() {
       clean_builds(&config, &mut builds, &cache_folder, &args).unwrap();
       write(&cache_folder, BUILD_CACHE_LIST, &builds);
     },
+    
+    DeployerExecType::Docs => docs::read_docs().unwrap(),
     
     #[cfg(feature = "tests")]
     DeployerExecType::Tests => tests().unwrap(),

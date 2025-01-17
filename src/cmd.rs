@@ -55,6 +55,9 @@ pub(crate) enum DeployerExecType {
   
   #[cfg(feature = "tests")]
   Tests,
+  
+  /// Read the docs.
+  Docs,
 }
 
 #[derive(Subcommand)]

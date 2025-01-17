@@ -168,7 +168,7 @@ When a command is specialized for a particular project, it gains an additional p
 }
 ```
 
-`replacements` contains a list of replacements of placeholders in the command with the specified artifacts or [variables](#other-entities). Note that the same command can be executed multiple times for different sets of variables, even if specified once in an Action:
+`replacements` contains a list of replacements of placeholders in the command with the specified artifacts or variables (see p.3). Note that the same command can be executed multiple times for different sets of variables, even if specified once in an Action:
 
 ```json
 {
