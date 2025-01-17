@@ -1,8 +1,14 @@
+//! Programming languages module.
+
 use serde::{Deserialize, Serialize};
 
 use crate::i18n;
 use crate::utils::tags_custom_type;
 
+/// Programming language.
+/// 
+/// Canonically represents most well-known by `deployer` author languages,
+/// but you always specify yours.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub(crate) enum ProgrammingLanguage {
   Rust,
@@ -13,22 +19,7 @@ pub(crate) enum ProgrammingLanguage {
   Other(String),
 }
 
-impl std::fmt::Display for ProgrammingLanguage {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let lang = match self {
-      Self::Rust => "Rust".to_string(),
-      Self::Go => "Go".to_string(),
-      Self::C => "C".to_string(),
-      Self::Cpp => "C++".to_string(),
-      Self::Python => "Python".to_string(),
-      Self::Other(s) => s.to_owned(),
-    };
-    
-    f.write_str(&lang)
-  }
-}
-
-/// Парсит вводимые языки программирования.
+/// Parses specified programming languages.
 pub(crate) fn specify_programming_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
   use inquire::MultiSelect;
   
@@ -56,6 +47,7 @@ pub(crate) fn specify_programming_languages() -> anyhow::Result<Vec<ProgrammingL
   Ok(result)
 }
 
+/// Collects multiple languages.
 fn collect_multiple_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
   let langs = tags_custom_type(i18n::PL_COLLECT, None).prompt()?;
   let mut v = vec![];
@@ -68,4 +60,19 @@ fn collect_multiple_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
   }
   
   Ok(v)
+}
+
+impl std::fmt::Display for ProgrammingLanguage {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let lang = match self {
+      Self::Rust => "Rust".to_string(),
+      Self::Go => "Go".to_string(),
+      Self::C => "C".to_string(),
+      Self::Cpp => "C++".to_string(),
+      Self::Python => "Python".to_string(),
+      Self::Other(s) => s.to_owned(),
+    };
+    
+    f.write_str(&lang)
+  }
 }

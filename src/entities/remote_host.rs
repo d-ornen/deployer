@@ -1,3 +1,7 @@
+//! Remote host module.
+//! 
+//! Any remote host struct is a set of properties needed to connect and authenticate by `ssh`.
+
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -7,17 +11,25 @@ use std::sync::Arc;
 use tokio::net::ToSocketAddrs;
 
 use crate::entities::info::ShortName;
+use crate::i18n;
 
+/// Remote host.
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct RemoteHost {
+  /// Short name (remote host identifier inside Deployer's Registry).
   pub(crate) short_name: ShortName,
+  /// IP address of SSH server.
   pub(crate) ip: IpAddr,
+  /// Port of SSH server.
   pub(crate) port: u16,
+  /// Username under which you plan to perform operations on the host.
   pub(crate) username: String,
+  /// Path to private SSH key file.
   pub(crate) ssh_private_key_file: PathBuf,
 }
 
 impl RemoteHost {
+  /// Checks the remote host connectivity, authorization and Deployer installation existence.
   pub(crate) fn check(&self) -> anyhow::Result<()> {
     const PKG_NAME: &str = env!("CARGO_PKG_NAME");
     const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,12 +44,18 @@ impl RemoteHost {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
       let (s, o) = session.call(&format!(r#"{} -c "~/.cargo/bin/deployer -V""#, shell)).await?;
       session.close().await?;
-      if s != 0 || o.is_empty() || !o.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
-        bail!(r#"Deployer version on remote host didn't match with this Deployer version (out: "{}")"#, o.trim()) }
-      else { Ok(()) }
+      if s != 0 || o.is_empty() || !o.contains(PKG_NAME) {
+        bail!(i18n::REMOTE_NO_DEPLOYER)
+      } else {
+        if !o.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
+          println!(r#"{} (out: "{}")"#, i18n::REMOTE_CONSIDER_UPGRADE, o.trim());
+        }
+        Ok(())
+      }
     })
   }
   
+  /// Starts Deployer's Pipeline execution on the remote host with given remote build folder.
   pub(crate) fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
     let shell = match std::env::var("DEPLOYER_SH_PATH") {
       Ok(path) => path,
@@ -61,14 +79,17 @@ impl RemoteHost {
     })
   }
   
+  /// Opens the session with given runtime.
   pub(crate) fn open_session(&self, rt: &tokio::runtime::Runtime) -> anyhow::Result<Session> {
     rt.block_on(Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)))
   }
   
+  /// Closes the session with given runtime.
   pub(crate) fn close_session(session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<()> {
     rt.block_on(session.close())
   }
   
+  /// Executes single shell command with given session and runtime.
   pub(crate) fn exec(&self, bash_c: &str, session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, String)> {
     rt.block_on(async {
       let (status, out) = session.call(bash_c).await?;
@@ -86,6 +107,9 @@ struct Client {}
 impl russh::client::Handler for Client {
   type Error = anyhow::Error;
   
+  /// WARNING: allows any server keys without authorization.
+  /// 
+  /// May lead to any security consequences, but simplifies remote host setup.
   async fn check_server_key(&mut self, _: &russh::keys::ssh_key::PublicKey) -> Result<bool, Self::Error> {
     Ok(true)
   }

@@ -1,10 +1,17 @@
+//! `Edit` menus.
+
+use anyhow::bail;
 use colored::Colorize;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use crate::actions::check::CheckAction;
+use crate::actions::patch::PatchAction;
+use crate::actions::storage_add::AddToStorageAction;
 use crate::actions::{Action, DescribedAction};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
-use crate::entities::custom_command::{CustomCommand, specify_bash_c};
+use crate::entities::auto_version::AutoVersionExtractFromRule;
+use crate::entities::custom_command::CustomCommand;
 use crate::entities::info::ShortName;
 use crate::entities::path_type::PathType;
 use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
@@ -16,11 +23,11 @@ use crate::entities::variables::{Variable, VarValue};
 use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
-use crate::tui::add::{collect_af_inplacement, collect_path, collect_artifact};
+use crate::tui::add::{collect_af_inplacement, collect_path, collect_artifact, specify_regex, specify_bash_c};
 use crate::utils::tags_custom_type;
 
-impl DeployerProjectOptions {
-  pub(crate) fn edit_project_from_prompt(&mut self, globals: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
+impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
+  fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
     let actions = vec![
       i18n::EDIT_PROJECT_PIPELINES,
       i18n::EDIT_DEFAULT,
@@ -53,8 +60,8 @@ impl DeployerProjectOptions {
           let mut path_type = PathType::Relative;
           self.artifacts.edit_from_prompt(&mut path_type)?
         },
-        i18n::EDIT_AF_INPLACE => self.inplace_artifacts_into_project_root.edit_from_prompt(&mut self.artifacts)?,
-        i18n::EDIT_PROJECT_PIPELINES => self.pipelines.edit_from_prompt(globals)?,
+        i18n::EDIT_AF_INPLACE => self.place_artifacts_into_project_root.edit_from_prompt(&mut self.artifacts)?,
+        i18n::EDIT_PROJECT_PIPELINES => self.pipelines.edit_from_prompt(opts)?,
         i18n::EDIT_PROJECT_REASSIGN => for pipeline in &mut self.pipelines {
           for action in &mut pipeline.actions {
             *action = action.prompt_setup_for_project(&self.langs, &self.deploy_toolkit, &self.targets, &self.variables, &self.artifacts)?;
@@ -66,7 +73,9 @@ impl DeployerProjectOptions {
     
     Ok(())
   }
-  
+}
+
+impl DeployerProjectOptions {
   pub(crate) fn select_default_pipeline(&mut self) -> anyhow::Result<()> {
     match self.pipelines.len() {
       0 => {
@@ -224,13 +233,14 @@ impl DescribedAction {
       Action::Patch(_) => { actions.push(i18n::EDIT_PATCH); },
       Action::AddToStorage(_) => { actions.push(i18n::EDIT_ATS); },
       Action::SyncToRemote(_) | Action::SyncFromRemote(_) => { actions.push(i18n::EDIT_REMOTE_SHORT_NAME); },
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::UseFromStorage(_) => {},
+      Action::Interrupt | Action::UseFromStorage(_) => {},
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
       i18n::EDIT_DESC,
       i18n::EDIT_TAGS,
       i18n::EDIT_REQS,
+      i18n::EDIT_EXEC_IN_PROJECT_DIR,
     ]);
     
     while let Some(action) = inquire::Select::new(
@@ -246,11 +256,11 @@ impl DescribedAction {
         },
         i18n::EDIT_COMMAND => {
           if let Action::Custom(cmd) = &mut self.action {
-            cmd.edit_command_from_prompt()?;
+            cmd.edit_from_prompt()?;
           } else if let Action::Observe(o_command) = &mut self.action {
-            o_command.command.edit_command_from_prompt()?;
+            o_command.command.edit_from_prompt()?;
           } else if let Action::Check(c_command) = &mut self.action {
-            c_command.command.edit_command_from_prompt()?;
+            c_command.command.edit_from_prompt()?;
           }
         },
         i18n::EDIT_ATS if let Action::AddToStorage(a) = &mut self.action => a.edit_from_prompt()?,
@@ -266,9 +276,9 @@ impl DescribedAction {
             Action::ConfigureDeploy(a) => a.commands.edit_from_prompt()?,
             Action::Deploy(a) => a.commands.edit_from_prompt()?,
             Action::PostDeploy(a) => a.commands.edit_from_prompt()?,
-            Action::Check(a) => a.edit_check_from_prompt()?,
-            Action::Observe(a) => a.command.edit_command_from_prompt()?,
-            Action::Custom(a) => a.edit_command_from_prompt()?,
+            Action::Check(a) => a.edit_from_prompt()?,
+            Action::Observe(a) => a.command.edit_from_prompt()?,
+            Action::Custom(a) => a.edit_from_prompt()?,
             _ => {},
           }
         },
@@ -307,7 +317,13 @@ impl DescribedAction {
             inquire::Text::new(i18n::REMOTE_SHORT_NAME).with_initial_value(a.as_str()).prompt()?
           )?,
           _ => {},
-        }
+        },
+        i18n::EDIT_EXEC_IN_PROJECT_DIR => {
+          self.exec_in_project_dir = if let Ok(Some(exec_in_project_dir)) = inquire::Confirm::new(i18n::EXEC_IN_PROJECT_DIR)
+            .with_default(self.exec_in_project_dir.unwrap_or(false))
+            .prompt_skippable()
+          { Some(exec_in_project_dir) } else { None };
+        },
         _ => {},
       }
     }
@@ -469,7 +485,7 @@ impl Requirement {
         let mut path_type = PathType::Absolute;
         paths.edit_from_prompt(&mut path_type)?;
       },
-      Self::CheckSuccess(check_action) => check_action.edit_check_from_prompt()?,
+      Self::CheckSuccess(check_action) => check_action.edit_from_prompt()?,
       Self::RemoteAccessibleAndReady(remote) => *remote = ShortName::new(inquire::Text::new(
         i18n::REMOTE_SHORT_NAME
       ).with_initial_value(remote.as_str()).prompt()?)?,
@@ -803,8 +819,9 @@ impl Variable {
         i18n::EDIT_VAR_SECRET => self.is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?,
         i18n::EDIT_VALUE => match &mut self.value {
           VarValue::Plain(plain) => *plain = inquire::Text::new(i18n::VAR_PLAIN_CONTENT).with_initial_value(plain).prompt()?,
-          VarValue::FromEnvFile(_) => self.value = Variable::new_env_from_prompt()?,
+          VarValue::FromEnvFile(_) => self.value = Variable::new_env_file_from_prompt()?,
           VarValue::FromHCVaultKv2(_) => self.value = Variable::new_kv2_from_prompt()?,
+          VarValue::FromEnvVar(_) => self.value = Variable::new_env_from_prompt()?,
         },
         _ => {},
       }
@@ -939,8 +956,8 @@ impl TargetDescription {
   }
 }
 
-impl CustomCommand {
-  pub(crate) fn edit_command_from_prompt(&mut self) -> anyhow::Result<()> {
+impl Edit for CustomCommand {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
     while let Some(action) = inquire::Select::new(
       &format!("{} {}:", i18n::CMD_SELECT_TO_CHANGE.replace("{}", &self.bash_c.green()), i18n::HIT_ESC),
       vec![
@@ -1009,7 +1026,7 @@ impl Edit for Vec<CustomCommand> {
           i18n::CUSTOM_CMD_REORDER => self.reorder()?,
           i18n::CUSTOM_CMD_ADD => self.add_item()?,
           i18n::CUSTOM_CMD_RM => self.remove_item()?,
-          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_command_from_prompt()?,
+          s if cmap.contains_key(s) => cmap.get_mut(s).unwrap().edit_from_prompt()?,
           _ => {},
         }
       } else { break }
@@ -1131,8 +1148,90 @@ impl Edit for Vec<ProgrammingLanguage> {
   }
 }
 
-impl RemoteHost {
-  pub(crate) fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+impl CheckAction {
+  pub(crate) fn change_regexes_from_prompt(&mut self) -> anyhow::Result<()> {
+    println!("{}", i18n::CHECK_CURR_REGEX);
+    println!("`success_when_found` = {:?}", self.success_when_found);
+    println!("`success_when_not_found` = {:?}", self.success_when_not_found);
+    
+    loop {
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
+        self.success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
+      }
+      
+      if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
+        self.success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
+      }
+      
+      if self.success_when_found.is_some() || self.success_when_not_found.is_some() { break }
+      else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
+    }
+    
+    Ok(())
+  }
+}
+
+impl Edit for CheckAction {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    while let Some(selected) = inquire::Select::new(
+      i18n::CHECK_SPECIFY_WHAT,
+      vec![i18n::CHECK_EDIT_CMD, i18n::CHECK_EDIT_REGEXES],
+    ).prompt_skippable()? {
+      match selected {
+        i18n::CHECK_EDIT_CMD => self.command.edit_from_prompt()?,
+        i18n::CHECK_EDIT_REGEXES => self.change_regexes_from_prompt()?,
+        _ => {},
+      }
+    }
+    
+    Ok(())
+  }
+}
+
+impl Edit for PatchAction {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    self.patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).with_default(&self.patch.to_string_lossy()).prompt()?);
+    Ok(())
+  }
+}
+
+impl Edit for AddToStorageAction {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
+    loop {
+      let short_name = inquire::Text::new(i18n::SPECIFY_SHORT_NAME_FOR_ADD_TO_STORAGE).with_default(&self.short_name).prompt()?;
+      if crate::entities::info::validate_short_name(&short_name) { self.short_name = short_name; break }
+      println!("{}", i18n::INCORRECT_SHORT_NAME);
+    }
+    
+    if inquire::Confirm::new(&format!(
+      "{} {}",
+      i18n::IF_NEEDED_TO_CHANGE_AUTOVER,
+      self.auto_version_rule.type_str(),
+    )).with_default(false).prompt()? {
+      let new_autover_rule = inquire::Select::new(
+        i18n::SPECIFY_AUTO_VER,
+        vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+      ).prompt()?;
+      self.auto_version_rule = match new_autover_rule {
+        i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({
+          let mut cmd = CustomCommand::new_from_prompt_unspecified()?;
+          cmd.show_success_output = true;
+          cmd
+        }),
+        i18n::AUTO_VER_PLAIN_FILE => AutoVersionExtractFromRule::PlainFile({
+          let path = inquire::Text::new(i18n::SPECIFY_AUTO_VER_RELATIVE_FILEPATH).prompt()?;
+          PathBuf::from(path)
+        }),
+        _ => bail!("There is no such type"),
+      };
+    }
+    
+    Ok(())
+  }
+}
+
+impl Edit for RemoteHost {
+  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
     self.short_name = ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME)
       .with_initial_value(self.short_name.as_str())
       .prompt()?

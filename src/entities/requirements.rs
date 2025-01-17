@@ -1,3 +1,5 @@
+//! Requirements module.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -8,23 +10,20 @@ use crate::entities::info::ShortName;
 use crate::entities::traits::Execute;
 use crate::i18n;
 
+/// Requirement.
+/// 
+/// Deployer tries to satisfy Pipeline's Actions requirements before every Pipeline execution.
+/// If a single requirement fails to satisfy, Deployer exits.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Requirement {
+  /// Requirement of path existence.
   Exists(PathBuf),
+  /// Requirement of at least single path of a given list existence.
   ExistsAny(Vec<PathBuf>),
+  /// Requirement that executes some Check Action to be satisfied.
   CheckSuccess(CheckAction),
+  /// Requirement that checks the given remote host. See `RemoteHost::check`.
   RemoteAccessibleAndReady(ShortName),
-}
-
-impl std::fmt::Display for Requirement {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::Exists(path) => write!(f, "{:?}", path),
-      Self::ExistsAny(paths) => if !paths.is_empty() { write!(f, "{:?}", paths) } else { write!(f, "[]") },
-      Self::CheckSuccess(check_action) => write!(f, "`{}`", check_action.command.bash_c),
-      Self::RemoteAccessibleAndReady(host_info) => write!(f, "`{}`", host_info.as_str()),
-    }
-  }
 }
 
 trait ResolveExists {
@@ -44,6 +43,7 @@ impl ResolveExists for PathBuf {
   }
 }
 
+/// Satisfy errors type.
 pub(crate) enum SatisfyErr<'a> {
   Exists(&'a PathBuf),
   ExistsAny(&'a Vec<PathBuf>),
@@ -56,6 +56,7 @@ pub(crate) trait Satisfy<'a> {
 }
 
 impl<'a> Satisfy<'a> for Requirement {
+  /// Tries to satisfy the given requirement.
   fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>> {
     match self {
       Self::Exists(path) => if path.resolve_exists() { Ok(()) } else { Err(SatisfyErr::Exists(path)) },
@@ -74,8 +75,20 @@ impl<'a> Satisfy<'a> for Requirement {
 }
 
 impl<'a> Satisfy<'a> for HashSet<Requirement> {
+  /// Tries to satisfy all unique requirements (because of `HashSet`).
   fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>> {
     for req in self.iter() { req.satisfy(env)?; }
     Ok(())
+  }
+}
+
+impl std::fmt::Display for Requirement {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Exists(path) => write!(f, "{:?}", path),
+      Self::ExistsAny(paths) => if !paths.is_empty() { write!(f, "{:?}", paths) } else { write!(f, "[]") },
+      Self::CheckSuccess(check_action) => write!(f, "`{}`", check_action.command.bash_c),
+      Self::RemoteAccessibleAndReady(host_info) => write!(f, "`{}`", host_info.as_str()),
+    }
   }
 }

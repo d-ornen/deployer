@@ -13,6 +13,10 @@ Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allow
 - store common content in Deployer's storage, add and patch additional files for build on the fly
 - and share your project build/deploy settings very quickly and without any dependencies.
 
+## Migration guide
+
+If you encounter problems after updating Deployer, please read [Migration Guide](MIGRATIONS.md).
+
 ## Build
 
 Well, the building process is very easy. You need to install Rust first:

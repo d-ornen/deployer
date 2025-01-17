@@ -1,3 +1,7 @@
+//! Russian internalization module.
+//! 
+//! Disabled by default, enabled when `i18n-ru` feature is enabled.
+
 use crate::tr;
 
 // Check
@@ -76,9 +80,6 @@ tr!(OR_HIT_ESC, "(или нажмите `esc`)");
 
 tr!(CUSTOM_CMD_EDIT_PROMPT, "Выберите команду для правки");
 
-// Observe
-tr!(OBSERVE_TAGS, "Введите теги для наблюдений:");
-
 // PL
 tr!(PL_INPUT_PROMPT, "Введите название языка(ов) программирования:");
 tr!(LANGUAGE, "Язык");
@@ -121,7 +122,8 @@ tr!(KV2_NOTE, "перед сборкой необходимо указать д�
 tr!(VAR_IS_SECRET, "Является ли переменная секретом?");
 tr!(SPECIFY_VAR_TYPE, "Выберите тип переменной:");
 tr!(VAR_PLAIN, "Простая переменная");
-tr!(VAR_ENV, "Переменная из ENV-файла");
+tr!(VAR_ENVF, "Переменная из ENV-файла");
+tr!(VAR_ENV, "Переменная из окружения");
 tr!(VAR_KV2, "Переменная из HashiCorp Vault KV2-хранилища");
 tr!(VAR_PLAIN_CONTENT, "Введите содержимое переменной:");
 tr!(VAR_ENV_FILE, "Введите путь до файла ENV:");
@@ -184,6 +186,7 @@ tr!(EDIT_PATCH, "Редактировать патч");
 tr!(EDIT_ATS, "Редактировать правила автоматического размещения артефактов в хранилище");
 tr!(EDIT_REQS, "Редактировать требования Действия");
 tr!(EDIT_REMOTE_SHORT_NAME, "Редактировать короткое имя удалённого хоста");
+tr!(EDIT_EXEC_IN_PROJECT_DIR, "Изменить путь выполнения Действия (папка проекта или папка сборки)");
 
 tr!(DEPL_TOOLKIT, "Введите название инструментария развёртывания");
 
@@ -191,6 +194,8 @@ tr!(ACTIONS_AVAILABLE, "Доступные Действия в реестре Д
 tr!(NO_ACTIONS, "В реестре Деплойера нет Действий.");
 
 tr!(TAGS, "теги");
+
+tr!(EXEC_IN_PROJECT_DIR, "Нужно ли вам выполнять это Действие в папке проекта, а не в папке для сборки?");
 
 // Pipelines
 tr!(PIPELINE_SHORT_NAME, "Укажите короткое название Пайплайна:");
@@ -235,7 +240,6 @@ tr!(PIPELINE_REMOVE, "Удалить Пайплайн `{1}` - `{2}`");
 
 tr!(STARTING_PIPELINE, "Запуск Пайплайна `{}`...");
 tr!(STARTING_ACTION, "Действие");
-tr!(ARTIFACTS_ENPLACED, "Артефакты размещены успешно.");
 tr!(ARTIFACT_ENPLACE_FAIL, "Такого артефакта не существует");
 tr!(INTERRUPT, "Пайплайн прерван. Нажмите `Enter` для продолжения");
 
@@ -348,3 +352,5 @@ tr!(REMOTE_ADD_TO_CMD_FIRST, "Хотите ли вы выполнять эту �
 tr!(REMOTE_ADD_TO_CMD_ANOTHER, "Добавить ещё один удалённый хост?");
 tr!(START_BUILD_AT_REMOTE, "Начинается сборка на удалённом хосте");
 tr!(BUILT_AT_REMOTE, "Завершены удалённая сборка и получение артефактов с хоста:");
+tr!(REMOTE_NO_DEPLOYER, "Деплойер не установлен на хосте.");
+tr!(REMOTE_CONSIDER_UPGRADE, "Версии Деплойера не совпадают. Позаботьтесь об обновлении Деплойера на ваших хостах.");

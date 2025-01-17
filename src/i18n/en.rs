@@ -1,3 +1,7 @@
+//! English internalization module.
+//! 
+//! Enabled by default, disabled when `i18n-ru` feature is enabled.
+
 use crate::tr;
 
 // Check
@@ -76,9 +80,6 @@ tr!(OR_HIT_ESC, "(or hit `esc`)");
 
 tr!(CUSTOM_CMD_EDIT_PROMPT, "Select a concrete command to change (hit `esc` when done):");
 
-// Observe
-tr!(OBSERVE_TAGS, "Enter observe tags:");
-
 // PL
 tr!(PL_INPUT_PROMPT, "Input the programming language name:");
 tr!(LANGUAGE, "Language");
@@ -121,7 +122,8 @@ tr!(KV2_NOTE, "before assembly, you must specify two environment variables for t
 tr!(VAR_IS_SECRET, "Is this variable a secret?");
 tr!(SPECIFY_VAR_TYPE, "Select the variable type:");
 tr!(VAR_PLAIN, "Simple variable");
-tr!(VAR_ENV, "Variable from ENV file");
+tr!(VAR_ENVF, "Variable from ENV file");
+tr!(VAR_ENV, "Variable from environment");
 tr!(VAR_KV2, "Variable from HashiCorp Vault KV2 storage");
 tr!(VAR_PLAIN_CONTENT, "Enter the variable's content:");
 tr!(VAR_ENV_FILE, "Enter the ENV file path:");
@@ -184,6 +186,7 @@ tr!(EDIT_PATCH, "Edit patch");
 tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
 tr!(EDIT_REQS, "Edit Action requirements");
 tr!(EDIT_REMOTE_SHORT_NAME, "Edit remote host short name");
+tr!(EDIT_EXEC_IN_PROJECT_DIR, "Change Action's execution path (build or project folder)");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -191,6 +194,8 @@ tr!(ACTIONS_AVAILABLE, "Available Actions in Deployer's Registry:");
 tr!(NO_ACTIONS, "There is no Actions in Registry.");
 
 tr!(TAGS, "tags");
+
+tr!(EXEC_IN_PROJECT_DIR, "Do you need execute this Action in project's directory instead of build directory?");
 
 // Pipelines
 tr!(PIPELINE_SHORT_NAME, "Write the Pipeline's short name:");
@@ -235,7 +240,6 @@ tr!(PIPELINE_REMOVE, "Remove Pipeline `{1}` - `{2}`");
 
 tr!(STARTING_PIPELINE, "Starting the `{}` Pipeline...");
 tr!(STARTING_ACTION, "Action");
-tr!(ARTIFACTS_ENPLACED, "Artifacts are enplaced successfully.");
 tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
@@ -348,3 +352,5 @@ tr!(REMOTE_ADD_TO_CMD_FIRST, "Do you want to execute this command remotely on on
 tr!(REMOTE_ADD_TO_CMD_ANOTHER, "Add one more remote host?");
 tr!(START_BUILD_AT_REMOTE, "Starting build on remote host");
 tr!(BUILT_AT_REMOTE, "Build at remote and got artifacts from host:");
+tr!(REMOTE_NO_DEPLOYER, "There is no Deployer installed remotely.");
+tr!(REMOTE_CONSIDER_UPGRADE, "Deployer versions aren't the same. Consider to update Deployer on your hosts.");

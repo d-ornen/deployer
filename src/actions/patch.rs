@@ -1,3 +1,15 @@
+//! Patch Action.
+//! 
+//! JSON example:
+//! 
+//! ```json
+//! {
+//!   "patch": "path/to/patch/file.json"
+//! }
+//! ```
+//! 
+//! This Action calls `PatchFile::patch` from `smart-patcher` library.
+
 use safe_path::scoped_join;
 use serde::{Serialize, Deserialize};
 use smart_patcher::patch::PatchFile;
@@ -5,23 +17,21 @@ use std::path::PathBuf;
 
 use crate::entities::{
   environment::BuildEnvironment,
-  traits::{Execute, Edit},
+  traits::Execute,
 };
 use crate::i18n;
 
+/// Patch Action.
+/// 
+/// This Action type allows you to patch any files, including binaries and archives, based on rules.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub(crate) struct PatchAction {
+  /// Path to patch file.
   pub(crate) patch: PathBuf,
 }
 
-impl PatchAction {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
-    let patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).prompt()?);
-    Ok(Self { patch })
-  }
-}
-
 impl Execute for PatchAction {
+  /// Performs the patch in the build folder.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let patch_file = scoped_join(env.build_dir, &self.patch)?;
     
@@ -34,12 +44,5 @@ impl Execute for PatchAction {
       Ok(0) => Ok((false, vec![format!("{}", i18n::PATCH_DONE_ZERO_TIMES)])),
       Ok(num) => Ok((true, vec![format!("{}", i18n::PATCH_DONE.replace("{}", format!("{}", num).as_str()))])),
     }
-  }
-}
-
-impl Edit for PatchAction {
-  fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    self.patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).with_default(&self.patch.to_string_lossy()).prompt()?);
-    Ok(())
   }
 }

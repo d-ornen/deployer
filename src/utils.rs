@@ -1,3 +1,5 @@
+//! Other Deployer utils.
+
 use inquire::CustomType;
 use regex::Regex;
 use serde::Deserialize;
@@ -31,30 +33,9 @@ pub(crate) fn tags_custom_type<'a>(message: &'a str, default: Option<&'a str>) -
   }
 }
 
-// pub(crate) fn str2target_simple(t: impl AsRef<str>) -> Result<TargetDescription> {
-//   
-// }
-
-// pub(crate) fn str2regex<'de, D>(deserializer: D) -> Result<Regex, D::Error>
-// where
-//   D: serde::Deserializer<'de>,
-// {
-//   use serde::de::Error;
-//   String::deserialize(deserializer).and_then(|string| {
-//     Regex::new(string.as_str()).map_err(|err| Error::custom(err.to_string()))
-//   })
-// }
-
 pub(crate) fn str2regex_simple(s: &str) -> anyhow::Result<Regex> {
   Ok(Regex::new(s)?)
 }
-
-// pub(crate) fn regex2str<S>(v: &Regex, serializer: S) -> Result<S::Ok, S::Error>
-// where
-//   S: serde::Serializer,
-// {
-//   serializer.serialize_str(v.as_str())
-// }
 
 pub(crate) fn str2regexopt<'de, D>(deserializer: D) -> Result<Option<Regex>, D::Error>
 where
@@ -79,12 +60,22 @@ where
   }
 }
 
-pub(crate) fn ordered_map<S, K: Ord + serde::Serialize, V: serde::Serialize>(value: &std::collections::HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
+pub(crate) fn ordered_map<
+  S, K: Ord + serde::Serialize, V: serde::Serialize
+>(value: &std::collections::HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
+  where S: serde::Serializer,
 {
   use serde::Serialize;
-  
   let ordered: std::collections::BTreeMap<_, _> = value.iter().collect();
+  ordered.serialize(serializer)
+}
+
+pub(crate) fn ordered_set<
+  S, V: Ord + serde::Serialize
+>(value: &std::collections::HashSet<V>, serializer: S) -> Result<S::Ok, S::Error>
+  where S: serde::Serializer,
+{
+  use serde::Serialize;
+  let ordered: std::collections::BTreeSet<_> = value.iter().collect();
   ordered.serialize(serializer)
 }

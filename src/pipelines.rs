@@ -1,40 +1,56 @@
+//! Pipelines module.
+//! 
+//! Pipeline is a list of Actions.
+
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::process::exit;
 
-use crate::actions::DescribedAction;
-use crate::cmd::{NewPipelineArgs, CatPipelineArgs, WithPipelineArgs};
+use crate::actions::{DescribedAction, Action};
+use crate::cmd::{NewPipelineArgs, CatPipelineArgs, CatProjectArgs, WithPipelineArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::info::{PipelineInfo, StrToInfo, info2str, str2info};
 use crate::hmap;
 use crate::i18n;
 use crate::rw::read_checked;
+use crate::tui::setup::specify_pipeline_short_name;
 
+/// Described Pipeline.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct DescribedPipeline {
-  /// Заголовок Пайплайна.
+  /// Pipeline name.
+  /// 
+  /// When you're using project's assigned Pipelines, make sure that
+  /// title is simple enough to use it as argument to `deployer build name1,name2,name3,..`.
   pub(crate) title: String,
-  /// Описание Пайплайна.
+  
+  /// Pipeline description.
   pub(crate) desc: String,
-  /// Короткое имя и версия.
+  
+  /// Short name and version.
   #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
   pub(crate) info: PipelineInfo,
-  /// Список меток для фильтрации Действий при выборе из Реестра.
+  
+  /// List of tags (to use with `grep` when searching through `deployer ls pipelines`).
   pub(crate) tags: Vec<String>,
+  
+  /// Used Actions with execution order.
   pub(crate) actions: Vec<DescribedAction>,
-  /// Информация для проекта: запускать ли Пайплайн по умолчанию.
+  
+  /// This field is used only in projects.
   /// 
-  /// Если не установлен, считается как `false`.
+  /// If set to `true`, and no Pipeline specified to `deployer build`, runs automatically.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub(crate) default: Option<bool>,
-  /// Информация для проекта: должен ли пайплайн выполняться в определённой среде (например, в отдельных папках сборки).
+  
+  /// Specify exclusive execution tag to save unique cache.
   /// 
-  /// Если зависит, то пайплайн будет выполняться в папках с указанным тегом сборки.
+  /// If set to any string, Deployer will perform this Pipeline only in special build folder.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub(crate) exclusive_exec_tag: Option<String>,
 }
 
-/// Перечисляет все доступные пайплайны.
+/// Lists all available Pipelines.
 pub(crate) fn list_pipelines(
   globals: &DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
@@ -54,7 +70,7 @@ pub(crate) fn list_pipelines(
   Ok(())
 }
 
-/// Создаёт новый пайплайн.
+/// Creates a new Pipeline.
 pub(crate) fn new_pipeline(
   globals: &mut DeployerGlobalConfig,
   args: &NewPipelineArgs,
@@ -81,6 +97,7 @@ pub(crate) fn new_pipeline(
   Ok(())
 }
 
+/// Removes a Pipeline.
 pub(crate) fn remove_pipeline(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
@@ -118,6 +135,7 @@ pub(crate) fn remove_pipeline(
   Ok(())
 }
 
+/// Prints a Pipeline as JSON.
 pub(crate) fn cat_pipeline(
   globals: &DeployerGlobalConfig,
   args: &CatPipelineArgs,
@@ -133,17 +151,52 @@ pub(crate) fn cat_pipeline(
   Ok(())
 }
 
+/// Prints all project Pipelines as JSON.
+/// 
+/// If you specify `cat_all_shell_commands` option (`deployer cat project -n`),
+/// Deployer will print all shell commands of all project Pipelines.
 pub(crate) fn cat_project_pipelines(
   config: &DeployerProjectOptions,
+  args: CatProjectArgs,
 ) -> anyhow::Result<()> {
   for pipeline in &config.pipelines {
-    let pipeline_json = serde_json::to_string_pretty(&pipeline).unwrap();
-    println!("{}", pipeline_json);
+    if !args.cat_all_shell_commands {
+      let pipeline_json = serde_json::to_string_pretty(&pipeline).unwrap();
+      println!("{}", pipeline_json);
+    } else {
+      let mut cmds = vec![];
+      for action in &pipeline.actions {
+        match &action.action {
+          Action::Interrupt => {},
+          Action::SyncToRemote(_) => cmds.push("<sync-to-remote>".to_string()),
+          Action::SyncFromRemote(_) => cmds.push("<sync-from-remote>".to_string()),
+          Action::Custom(cmd) => cmds.push(cmd.bash_c.to_owned()),
+          Action::Check(check) => cmds.push(format!("<check> {}", check.command.bash_c)),
+          Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => cmds.extend_from_slice(
+            a.commands.iter().map(|c| c.bash_c.to_owned()).collect::<Vec<_>>().as_slice()
+          ),
+          Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => cmds.extend_from_slice(
+            a.commands.iter().map(|c| c.bash_c.to_owned()).collect::<Vec<_>>().as_slice()
+          ),
+          Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => cmds.extend_from_slice(
+            a.commands.iter().map(|c| c.bash_c.to_owned()).collect::<Vec<_>>().as_slice()
+          ),
+          Action::Observe(a) => cmds.push(format!("<observe> {}", a.command.bash_c)),
+          Action::UseFromStorage(_) => cmds.push("<use-from-storage>".to_string()),
+          Action::AddToStorage(_) => cmds.push("<add-to-storage>".to_string()),
+          Action::Patch(p) => cmds.push(format!("<patch-with-file> {:?}", p.patch)),
+        }
+      }
+      
+      println!("{} `{}`:", i18n::PIPELINE, pipeline.title.blue().italic());
+      for cmd in cmds { println!(">>> {}", cmd.green()); }
+    }
   }
   
   Ok(())
 }
 
+/// Reorders Pipelines.
 fn reorder_pipelines_in_project(
   pipelines_unordered: Vec<DescribedPipeline>,
 ) -> anyhow::Result<Vec<DescribedPipeline>> {
@@ -168,6 +221,10 @@ fn reorder_pipelines_in_project(
   Ok(pipelines_ordered)
 }
 
+/// Tries to assign and setup the Pipeline from Registry.
+/// 
+/// While setup, Deployer checks programming languages, target specs and
+/// deploy toolkit to make sure that Pipeline is compatible with your project.
 pub(crate) fn assign_pipeline_to_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
@@ -221,7 +278,7 @@ pub(crate) fn assign_pipeline_to_project(
   pipeline.desc = format!(r#"{} `{}`.{}{}"#, i18n::GOT_FROM, pipeline.title, if pipeline.desc.is_empty() { "" } else { " " }, pipeline.desc);
   pipeline.title = short_name.clone();
   
-  if specify_short_name(config, &mut pipeline.title).is_err() { return Ok(()) };
+  if specify_pipeline_short_name(config, &mut pipeline.title).is_err() { return Ok(()) };
   
   if let Some(old_default) = config.pipelines.iter_mut().find(|p| p.default.is_some_and(|v| v)) {
     if inquire::Confirm::new(&i18n::PIPELINE_NEW_DEFAULT_REPLACE.replace("{}", old_default.title.as_str())).prompt()? {
@@ -232,7 +289,7 @@ pub(crate) fn assign_pipeline_to_project(
     pipeline.default = Some(true);
   }
   
-  remove_old_pipeline(config, &short_name);
+  if let Some(i) = config.pipelines.iter().position(|p| p.title.as_str() == short_name) { config.pipelines.remove(i); }
   config.pipelines.push(pipeline);
   
   if config.pipelines.len() >= 2 {
@@ -244,35 +301,8 @@ pub(crate) fn assign_pipeline_to_project(
   Ok(())
 }
 
-fn specify_short_name(
-  config: &mut DeployerProjectOptions,
-  short_name: &mut String,
-) -> anyhow::Result<()> {
-  while
-    config.pipelines.iter().any(|p| p.title.as_str() == short_name) &&
-    !inquire::Confirm::new(&i18n::PIPELINE_SHORT_NAME_FOR_PROJECT_OVERRIDE.replace("{}", short_name.as_str())).prompt()?
-  {
-    *short_name = inquire::Text::new(&format!("{} {}:", i18n::PIPELINE_SHORT_NAME_FOR_PROJECT, i18n::HIT_ESC))
-      .prompt_skippable()?
-      .ok_or_else(|| anyhow::anyhow!("Hitted Escape."))?;
-  }
-  
-  Ok(())
-}
-
-fn remove_old_pipeline(
-  config: &mut DeployerProjectOptions,
-  short_name: &str,
-) {
-  if let Some(i) = config.pipelines.iter().position(|p| p.title.as_str() == short_name) {
-    config.pipelines.remove(i);
-  }
-}
-
-pub(crate) fn edit_pipeline(
-  globals: &mut DeployerGlobalConfig,
-  args: &CatPipelineArgs,
-) -> anyhow::Result<()> {
+/// Edits the Pipeline.
+pub(crate) fn edit_pipeline(globals: &mut DeployerGlobalConfig, args: &CatPipelineArgs) -> anyhow::Result<()> {
   let info = args.pipeline_short_info_and_version.to_info()?;
   
   let mut pipeline = match globals.pipelines_registry.contains_key(&info) {

@@ -1,3 +1,7 @@
+//! CMD module.
+//! 
+//! Defines the Deployer's command-line interface.
+
 use clap::{Args, Subcommand, Parser};
 use std::path::PathBuf;
 
@@ -84,7 +88,7 @@ pub(crate) enum CatType {
   /// Prints a Pipeline
   Pipeline(CatPipelineArgs),
   /// Prints all Pipelines used by current Project
-  Project,
+  Project(CatProjectArgs),
   /// Prints all information about remote host
   Remote(CatRemoteArgs),
 }
@@ -109,6 +113,12 @@ pub(crate) struct CatActionArgs {
 #[derive(Args)]
 pub(crate) struct CatPipelineArgs {
   pub(crate) pipeline_short_info_and_version: String,
+}
+
+#[derive(Args)]
+pub(crate) struct CatProjectArgs {
+  #[arg(short('n'), long)]
+  pub(crate) cat_all_shell_commands: bool,
 }
 
 #[derive(Args)]

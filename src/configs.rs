@@ -1,3 +1,7 @@
+//! Configurations module.
+//! 
+//! Defines global and project configurations.
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -14,32 +18,47 @@ use crate::entities::{
   variables::Variable,
 };
 use crate::hmap;
-use crate::utils::ordered_map;
+use crate::utils::{ordered_map, ordered_set};
 
-/// Конфигурация проекта.
+/// Project configuration.
 #[derive(Deserialize, Serialize, PartialEq, Default)]
 pub(crate) struct DeployerProjectOptions {
-  /// Название проекта.
+  /// Project name.
   pub(crate) project_name: String,
-  /// Языки
+  
+  /// Programming languages used by project.
   pub(crate) langs: Vec<ProgrammingLanguage>,
-  /// Таргеты
+  
+  /// Targets of the project.
   pub(crate) targets: Vec<TargetDescription>,
-  /// Тулкит для развёртывания
+  
+  /// Deploy toolkit (if needed).
   pub(crate) deploy_toolkit: Option<String>,
   
-  /// Метки кэша
+  /// Cache files and folders' relative paths.
+  /// 
+  /// Cache files are ignored by default when creating new build foler;
+  /// but you can copy or symlink any cache files from project's folder
+  /// by build options (see `crate::build::build` function).
+  #[serde(serialize_with = "ordered_set")]
   pub(crate) cache_files: HashSet<PathBuf>,
   
-  /// Пайплайны
+  /// Project Pipelines.
   pub(crate) pipelines: Vec<DescribedPipeline>,
   
-  /// Артефакты
+  /// Project artifacts' relative paths.
+  /// 
+  /// After every Pipeline artifacts are placing inside project's folder.
   pub(crate) artifacts: Vec<PathBuf>,
-  /// Переменные
+  
+  /// Project variables.
+  /// 
+  /// This is how you can change your shell commands on the fly.
   pub(crate) variables: Vec<Variable>,
-  /// Правила размещения артефактов
-  pub(crate) inplace_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
+  
+  /// Relative artifacts sources inside build folder and destinations inside
+  /// `artifacts` folder in project's directory.
+  pub(crate) place_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 }
 
 /// Global Deployer's configuration.
@@ -47,20 +66,22 @@ pub(crate) struct DeployerProjectOptions {
 pub(crate) struct DeployerGlobalConfig {
   /// Project list.
   pub(crate) projects: Vec<String>,
-  // /// List available project templates.
-  // pub(crate) templates: Vec<String>,
+  
   /// Available Actions Registry.
   #[serde(serialize_with = "ordered_map")]
   pub(crate) actions_registry: HashMap<Info, DescribedAction>,
+  
   /// Available Pipelines Registry.
   #[serde(serialize_with = "ordered_map")]
   pub(crate) pipelines_registry: HashMap<Info, DescribedPipeline>,
+  
   /// Available remote hosts Registry.
   #[serde(serialize_with = "ordered_map")]
   pub(crate) remote_hosts: HashMap<ShortName, RemoteHost>,
 }
 
 impl DeployerGlobalConfig {
+  /// Appends global configuration by Actions that can't be added by TUI.
   pub(crate) fn make_sure_contain_defaults(actions_registry: &mut HashMap<Info, DescribedAction>) {
     let info = Info::new("interrupt", "0.1").unwrap();
     actions_registry.insert(info.clone(), DescribedAction {
@@ -70,16 +91,7 @@ impl DeployerGlobalConfig {
       tags: vec![],
       action: Action::Interrupt,
       requirements: None,
-    });
-    
-    let info = Info::new("force-artifacts-enplace", "0.1").unwrap();
-    actions_registry.insert(info.clone(), DescribedAction {
-      title: "Force artifacts enplace".into(),
-      desc: "Enplace available artifacts from build directory during Pipeline execution.".into(),
-      info,
-      tags: vec![],
-      action: Action::ForceArtifactsEnplace,
-      requirements: None,
+      exec_in_project_dir: None,
     });
   }
 }
@@ -110,6 +122,7 @@ impl Default for DeployerGlobalConfig {
         }],
       }),
       requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
+      exec_in_project_dir: None,
     });
     
     Self {

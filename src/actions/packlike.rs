@@ -1,3 +1,35 @@
+//! Pack-like Action.
+//! 
+//! JSON example:
+//! 
+//! ```json
+//! {
+//!   "target": {
+//!     "arch": "x86_64",
+//!     "os": "Linux",
+//!     "derivative": "any",
+//!     "version": "No"
+//!   },
+//!   "commands": [
+//!     {
+//!       "bash_c": "upx <af>",
+//!       "placeholders": [
+//!         "<af>"
+//!       ],
+//!       "ignore_fails": false,
+//!       "show_success_output": false,
+//!       "show_bash_c": false,
+//!       "only_when_fresh": false
+//!     }
+//!   ]
+//! }
+//! ```
+//! 
+//! For pack-like Actions, specialization in targets is specific:
+//! depending on whether target aimed by the project matches the target
+//! aimed by the pack-like Action, Deployer will warn you about using Actions
+//! that are incompatible with the project.
+
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
@@ -7,9 +39,14 @@ use crate::entities::{
   traits::Execute,
 };
 
+/// Pack-like Action.
+/// 
+/// This Action type depends on aimed installation target.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub(crate) struct PackAction {
+  /// Target (combination of CPU arch, OS and its version or derivative).
   pub(crate) target: Option<TargetDescription>,
+  /// Commands to pack-like Action.
   pub(crate) commands: Vec<CustomCommand>,
 }
 
@@ -17,6 +54,7 @@ pub(crate) type DeliveryAction = PackAction;
 pub(crate) type InstallAction = PackAction;
 
 impl Execute for PackAction {
+  /// Executes commands with given build environment.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
     
