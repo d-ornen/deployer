@@ -1,7 +1,11 @@
+//! Project module.
+
 use crate::cmd::InitArgs;
 use crate::configs::{DeployerProjectOptions, DeployerGlobalConfig};
+use crate::entities::traits::EditExtended;
 use crate::i18n;
 
+/// Inits the project.
 pub(crate) fn init_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
@@ -21,12 +25,13 @@ pub(crate) fn init_project(
   Ok(())
 }
 
+/// Edits the project.
 pub(crate) fn edit_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
 ) -> anyhow::Result<()> {
   if *config == Default::default() { panic!("{}", i18n::CFG_INVALID); }
   
-  config.edit_project_from_prompt(globals)?;
+  config.edit_from_prompt(globals)?;
   Ok(())
 }

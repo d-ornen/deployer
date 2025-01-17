@@ -1,3 +1,6 @@
+//! I18n module.
+
+/// Stores the given value as `const &str`.
 #[macro_export]
 macro_rules! tr {
   ($k:ident, $v:expr) => {

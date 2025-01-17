@@ -7,6 +7,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-01-17
+
+### Added
+
+- Migration Guide and Security Policy.
+- `VarValue::FromEnvVar` variable type.
+
+### Changed
+
+- Added and fixed module documentation.
+- All setup TUI moved to `crate::tui::setup` module.
+
+### Fixed
+
+- Added artifacts placement just before `AddToStorage` Action.
+
+### Removed
+
+- `ForceArtifactsEnplace` Action.
+- Tags from deploy-like and `Observe` Actions.
+
 ## [1.2.1] - 2025-01-14
 
 ### Fixed

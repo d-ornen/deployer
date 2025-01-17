@@ -1,3 +1,5 @@
+//! Remote module.
+
 use anyhow::bail;
 use colored::Colorize;
 use std::collections::HashSet;
@@ -8,9 +10,11 @@ use crate::cmd::{CatRemoteArgs, NewRemoteArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
+use crate::entities::traits::Edit;
 use crate::hmap;
 use crate::i18n;
 
+/// List available remote hosts.
 pub(crate) fn list_remote(globals: &DeployerGlobalConfig) {
   println!("{}", i18n::KNOWN_HOSTS);
   
@@ -22,6 +26,7 @@ pub(crate) fn list_remote(globals: &DeployerGlobalConfig) {
   }
 }
 
+/// Creates a new remote host info.
 pub(crate) fn new_remote(
   globals: &mut DeployerGlobalConfig,
   args: NewRemoteArgs,
@@ -32,6 +37,7 @@ pub(crate) fn new_remote(
   Ok(remote)
 }
 
+/// Prints remote host info.
 pub(crate) fn cat_remote(
   globals: &DeployerGlobalConfig,
   args: CatRemoteArgs,
@@ -49,6 +55,7 @@ pub(crate) fn cat_remote(
   Ok(())
 }
 
+/// Edits remote host info.
 pub(crate) fn edit_remote(
   globals: &mut DeployerGlobalConfig,
   args: CatRemoteArgs,
@@ -63,6 +70,7 @@ pub(crate) fn edit_remote(
   Ok(())
 }
 
+/// Removes remote host info.
 pub(crate) fn remove_remote(globals: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
   use inquire::{Select, Confirm};
   
@@ -98,6 +106,7 @@ pub(crate) fn remove_remote(globals: &mut DeployerGlobalConfig) -> anyhow::Resul
   Ok(())
 }
 
+/// Sends build dir without `ignore` files to the remote host.
 pub(crate) fn sync_to_remote(
   build_dir: &Path,
   remote: &RemoteHost,
@@ -143,6 +152,7 @@ pub(crate) fn sync_to_remote(
   Ok(remote_build_folder)
 }
 
+/// Gets the build folder from the remote host to this.
 pub(crate) fn sync_from_remote(
   build_dir: &Path,
   remote: &RemoteHost,
@@ -181,6 +191,7 @@ pub(crate) fn sync_from_remote(
   Ok(())
 }
 
+/// Gets build artifacts from the remote host to this host.
 pub(crate) fn sync_artifacts_from_remote(
   remote_build_dir: &Path,
   artifacts_dir: &Path,

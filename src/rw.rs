@@ -1,3 +1,5 @@
+//! R/W utils module.
+
 use serde::{de::DeserializeOwned, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -8,10 +10,7 @@ use crate::{CACHE_DIR, LOGS_DIR};
 pub(crate) static VERBOSE: OnceLock<bool> = OnceLock::new();
 const LOG_FILE_DELIMETER: &str = "================================================================";
 
-/// Считывает содержимое файла или предоставляет `Default::default()`, если не может.
-/// 
-/// Например, если файла не существует, или его содержимое не является валидным JSON'ом, то будет
-/// возвращён `Default::default()`.
+/// Reads the contents of the file or provides `Default::default()` if it cannot.
 pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file: impl AsRef<Path>) -> T {
   let mut path = PathBuf::new();
   path.push(folder);
@@ -26,7 +25,7 @@ pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file
   }
 }
 
-/// Считывает содержимое файла как тип `T`.
+/// Reads the contents of a file as type `T`.
 pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
   let file = File::open(filepath.as_ref())?;
   let reader = BufReader::new(file);
@@ -37,9 +36,9 @@ pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> a
   }
 }
 
-/// Записывает `T` в файл, игнорируя ошибки записи и сериализации.
+/// Writes `T` to a file, ignoring write and serialization errors.
 /// 
-/// Все ошибки записываются только в лог, который можно увидеть с флагом `-V`.
+/// All errors are written only to the log, which can be seen with the `-V` flag.
 pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, config: &T) {
   let mut path = PathBuf::new();
   path.push(folder);
@@ -62,15 +61,15 @@ pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Pat
   }
 }
 
-/// Функция рекурсивного копирования содержимого.
+/// Function of recursive copying of contents.
 /// 
-/// Если `src` - это папка, то:
-/// - сначала создаются все отсутствующие подпапки для `dst` и сама папка `dst`, если их нет;
-/// - затем файлы копируются с перезаписью, симлинки - создаются, папки - копируются через вызов этой же функции.
+/// If `src` is a folder, then:
+/// - first, all missing subfolders for `dst` and the `dst` folder itself are created if they do not exist;
+/// - then files are copied and overwritten, symlinks are created, folders are copied by calling the same function.
 /// 
-/// Если `src` - это файл, то до `dst` создаются все подпапки, а потом файл копируется с перезаписью.
+/// If `src` is a file, then all subfolders up to `dst` are created, and then the file is copied and overwritten.
 /// 
-/// Ранее имеющиеся папки и файлы, - если не перезаписываются, - не изменяются и сохраняются на своих местах.
+/// Previously existing folders and files, unless overwritten, are not changed and are stored in their places.
 pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
@@ -103,7 +102,7 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[i
   Ok(())
 }
 
-/// Создаёт ссылку UNIX.
+/// Creates UNIX symlink.
 pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   use std::os::unix::fs::symlink as os_symlink;
   
@@ -115,7 +114,7 @@ pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   }
 }
 
-/// Копирует, только если файлы отличаются друг от друга.
+/// Copies only if the files are different from each other.
 fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Result<()> {
   use std::io::Read;
   
@@ -149,14 +148,13 @@ fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Re
   Ok(())
 }
 
-/// Используется для логгирования ошибок.
 pub(crate) fn log(s: impl AsRef<str>) {
   if *VERBOSE.wait() {
     println!("{}", s.as_ref());
   }
 }
 
-/// Генерирует путь до лога сборки в зависимости от проекта и пайплайна.
+/// Generates the path to the build log depending on the project and Pipeline.
 pub(crate) fn generate_build_log_filepath(
   project_name: &str,
   pipeline_short_name: &str,
@@ -178,7 +176,7 @@ pub(crate) fn generate_build_log_filepath(
   log_path
 }
 
-/// Записывает лог сборки в файл.
+/// Writes a build log message to a file.
 pub(crate) fn build_log(
   path: &Path,
   output: &[String],

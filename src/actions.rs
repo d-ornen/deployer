@@ -1,6 +1,9 @@
+//! Actions module.
+//! 
+//! Action is the main entity of Deployer. Actions as part of Pipelines are used to build, install, and deploy processes.
+
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::process::exit;
 
 pub(crate) mod check;
@@ -13,9 +16,9 @@ pub(crate) mod storage_add;
 
 use crate::actions::{
   check::CheckAction,
-  buildlike::*,
-  packlike::*,
-  deploylike::*,
+  buildlike::{PreBuildAction, BuildAction, PostBuildAction, TestAction},
+  packlike::{PackAction, DeliveryAction, InstallAction},
+  deploylike::{ConfigureDeployAction, DeployAction, PostDeployAction},
   observe::ObserveAction,
   patch::PatchAction,
   storage_add::AddToStorageAction,
@@ -24,209 +27,102 @@ use crate::cmd::{NewActionArgs, CatActionArgs};
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::{ActionInfo, ContentInfo, ShortName, StrToInfo, info2str, str2info},
-  programming_languages::ProgrammingLanguage,
+  info::{ActionInfo, ContentInfo, ShortName, StrToInfo, info2str, str2info, str2info_wl},
   requirements::Requirement,
-  targets::TargetDescription,
-  variables::Variable,
 };
 use crate::hmap;
 use crate::i18n;
 use crate::rw::read_checked;
 
+/// Described Action.
+/// 
+/// Represents common info about Action, some properties such as requirements, and
+/// Action definition.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) struct DescribedAction {
+  /// Name of the Action.
   pub(crate) title: String,
+  
+  /// Description.
   pub(crate) desc: String,
-  /// Короткое имя и версия
+  
+  /// Short name and version.
   #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
   pub(crate) info: ActionInfo,
-  /// Список меток для фильтрации действий при выборе из реестра
+  
+  /// List of tags (to use with `grep` when searching through `deployer ls actions`).
   pub(crate) tags: Vec<String>,
+  
+  /// Action definition.
   pub(crate) action: Action,
+  
+  /// Requirements list.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub(crate) requirements: Option<Vec<Requirement>>,
+  
+  /// Flag of execution inside project folder.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub(crate) exec_in_project_dir: Option<bool>,
 }
 
+/// Action types.
+/// 
+/// See [DOCS.en.md](/DOCS.en.md) and [DOCS.ru.md](/DOCS.ru.md).
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
 pub(crate) enum Action {
-  /// Действие прерывания. Используется, когда пользователю необходимо выполнить действия самостоятельно.
+  /// Used when the user needs to perform actions independently.
   Interrupt,
   
-  /// Действие синхронизации папки сборки с удалённым хостом
+  /// Action to synchronize build folder with remote host.
   SyncToRemote(ShortName),
-  /// Действие синхронизации папки сборки с удалённого хоста
+  /// Action to synchronize build folder from remote host.
   SyncFromRemote(ShortName),
   
-  /// Кастомные команды сборки
+  /// Custom Pipeline commands.
   Custom(CustomCommand),
-  /// Команда проверки состояния (может прерывать пайплайн при проверке вывода)
+  /// Used to check output of custom command.
   Check(CheckAction),
   
-  /// Принудительно размещает доступные артефакты
-  ForceArtifactsEnplace,
-  
-  /// Действие перед сборкой
+  /// Action to prepare project files to build.
   PreBuild(PreBuildAction),
-  /// Действие сборки
+  /// Action to build the project.
   Build(BuildAction),
-  /// Действие после сборки
+  /// Action to do something after successful build.
   PostBuild(PostBuildAction),
-  
-  /// Тесты
+  /// Action to run tests.
   Test(TestAction),
   
-  /// Упаковка артефактов
+  /// Action to pack code into packages
+  /// (`.msi`, `.deb`, `.rpm`, `.apk`/`.aab`, `.ipa`, `.dmg`, etc.).
   Pack(PackAction),
-  /// Доставка артефактов
+  /// Action do deliver the packages (upload to repositories/sites/markets, etc.).
   Deliver(DeliveryAction),
-  /// Установка артефактов
+  /// Action to install (on this or any remote host, via ADB, etc.).
   Install(InstallAction),
   
-  /// Действие перед развёртыванием
+  /// Action to prepare deploy environment
+  /// (for example, to start podman's QEMU machine, etc.).
   ConfigureDeploy(ConfigureDeployAction),
-  /// Развёртывание
+  /// Action to deploy your application (run `docker compose up -d`, etc.).
   Deploy(DeployAction),
-  /// Действие после развёртывания
+  /// Action to update some states or run tests on deployment.
   PostDeploy(PostDeployAction),
   
-  /// Действие наблюдения за состоянием
+  /// Action to run observers (`btop`, Jaeger, Prometheus, Grafana, etc.).
   Observe(ObserveAction),
   
-  /// Действие добавления содержимого из хранилища.
-  /// Это могут быть любые файлы и папки, сохраняющие структуру расположения
-  #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
+  /// Action to copy content with given info from Deployer's storage.
+  #[serde(serialize_with = "info2str", deserialize_with = "str2info_wl")]
   UseFromStorage(ContentInfo),
-  
-  /// Действие автоматического добавления артефактов в хранилище
+  /// Action to add all available artifacts to Deployer's storage.
   AddToStorage(AddToStorageAction),
   
-  /// Действие применения патча
+  /// Action to apply `smart-patcher` patches
+  /// (see [`smart-patcher` repository](https://github.com/impulse-sw/smart-patcher)).
   Patch(PatchAction),
 }
 
-impl DescribedAction {
-  fn setup_buildlike_action(
-    &self,
-    action: &BuildAction,
-    langs: &Vec<ProgrammingLanguage>,
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<BuildAction> {
-    let mut action = action.clone();
-    if 
-      !langs.iter().any(|l| action.supported_langs.contains(l)) && 
-      !inquire::Confirm::new(
-        &i18n::ACTION_COMPAT_PLS
-          .replace("{1}", &self.info.to_str())
-          .replace("{2}", &format!("{:?}", action.supported_langs))
-          .replace("{3}", &format!("{:?}", langs))
-      ).prompt()?
-    {
-      return Ok(BuildAction::default())
-    }
-    
-    for cmd in &mut action.commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
-    
-    Ok(action)
-  }
-  
-  fn setup_packlike_action(
-    &self,
-    action: &PackAction,
-    targets: &[TargetDescription],
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<PackAction> {
-    let mut action = action.clone();
-    
-    if
-      action.target.as_ref().is_some_and(|t| !targets.contains(t)) &&
-      !inquire::Confirm::new(
-        &i18n::ACTION_COMPAT_TARGETS
-          .replace("{1}", &self.info.to_str())
-          .replace("{2}", &format!("{}", action.target.as_ref().unwrap()))
-          .replace("{3}", &format!("{:?}", targets.iter().map(TargetDescription::to_string).collect::<Vec<_>>()))
-      ).prompt()?
-    {
-      return Ok(PackAction::default())
-    }
-    
-    for cmd in &mut action.commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
-    Ok(action)
-  }
-  
-  fn setup_deploylike_action(
-    &self,
-    action: &DeployAction,
-    deploy_toolkit: &Option<String>,
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<DeployAction> {
-    let mut action = action.clone();
-    if
-      action.deploy_toolkit.as_ref().is_some_and(|l| deploy_toolkit.as_ref().is_some_and(|r| l.as_str() != r.as_str())) &&
-      !inquire::Confirm::new(
-        &i18n::ACTION_COMPAT_DEPL_TOOLKIT
-          .replace("{1}", &self.info.to_str())
-          .replace("{2}", action.deploy_toolkit.as_ref().unwrap())
-          .replace("{3}", deploy_toolkit.as_ref().unwrap())
-      ).prompt()?
-    {
-      return Ok(DeployAction::default())
-    }
-    
-    for cmd in &mut action.commands { *cmd = cmd.prompt_setup_for_project(&self.info, variables, artifacts)?; }
-    
-    Ok(action)
-  }
-  
-  fn setup_observe_action(
-    &self,
-    action: &ObserveAction,
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<ObserveAction> {
-    let mut action = action.clone();
-    
-    action.command = action.command.prompt_setup_for_project(&self.info, variables, artifacts)?;
-    
-    Ok(action)
-  }
-  
-  pub(crate) fn prompt_setup_for_project(
-    &self,
-    langs: &Vec<ProgrammingLanguage>,
-    deploy_toolkit: &Option<String>,
-    targets: &[TargetDescription],
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<Self> {
-    let action = match &self.action {
-      Action::Custom(cmd) => Action::Custom(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
-      Action::Check(cmd) => Action::Check(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
-      Action::PreBuild(pb_action) => Action::PreBuild(self.setup_buildlike_action(pb_action, langs, variables, artifacts)?),
-      Action::Build(b_action) => Action::Build(self.setup_buildlike_action(b_action, langs, variables, artifacts)?),
-      Action::PostBuild(pb_action) => Action::PostBuild(self.setup_buildlike_action(pb_action, langs, variables, artifacts)?),
-      Action::Test(t_action) => Action::Test(self.setup_buildlike_action(t_action, langs, variables, artifacts)?),
-      Action::Pack(p_action) => Action::Pack(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
-      Action::Deliver(p_action) => Action::Deliver(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
-      Action::Install(p_action) => Action::Install(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
-      Action::ConfigureDeploy(cd_action) => Action::ConfigureDeploy(self.setup_deploylike_action(cd_action, deploy_toolkit, variables, artifacts)?),
-      Action::Deploy(d_action) => Action::Deploy(self.setup_deploylike_action(d_action, deploy_toolkit, variables, artifacts)?),
-      Action::PostDeploy(pd_action) => Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?),
-      Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
-      Action::Interrupt | Action::ForceArtifactsEnplace | Action::Patch(_) | Action::UseFromStorage(_) | Action::AddToStorage(_) | Action::SyncToRemote(_)  | Action::SyncFromRemote(_) => self.action.clone(),
-    };
-    
-    let mut described_action = self.clone();
-    described_action.action = action;
-    
-    Ok(described_action)
-  }
-}
-
-/// Перечисляет все доступные действия.
+/// Prints all available Actions on the screen.
 pub(crate) fn list_actions(
   globals: &DeployerGlobalConfig,
 ) {
@@ -244,7 +140,7 @@ pub(crate) fn list_actions(
   }
 }
 
-/// Удаляет выбранное действие.
+/// Removes selected Action.
 pub(crate) fn remove_action(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
@@ -282,7 +178,7 @@ pub(crate) fn remove_action(
   Ok(())
 }
 
-/// Добавляет новое действие.
+/// Adds new Action.
 pub(crate) fn new_action(
   globals: &mut DeployerGlobalConfig,
   args: &NewActionArgs,
@@ -302,6 +198,7 @@ pub(crate) fn new_action(
   Ok(described_action)
 }
 
+/// Prints Action as JSON.
 pub(crate) fn cat_action(
   globals: &DeployerGlobalConfig,
   args: &CatActionArgs,
@@ -317,6 +214,7 @@ pub(crate) fn cat_action(
   Ok(())
 }
 
+/// Edits the Action.
 pub(crate) fn edit_action(
   globals: &mut DeployerGlobalConfig,
   args: &CatActionArgs,

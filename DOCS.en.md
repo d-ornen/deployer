@@ -98,19 +98,18 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
 ]
 ```
 
-There are 3 categories of basic Actions and 10 additional types of Actions:
+There are 3 categories of basic Actions and 9 additional types of Actions:
 
 1. Build Actions (`PreBuild`, `Build`, `PostBuild` and `Test`)
 2. Install Actions (`Pack`, `Deliver`, `Install`)
 3. `Deploy` Actions (`ConfigureDeploy`, `Deploy`, `PostDeploy`)
 4. `Observe` action
 5. `Interrupt` action
-6. `ForceArtifactsEnplace` action to force synchronization of ready `artifacts`
-7. Action with custom command `Custom`
-8. Action of checking the output of the custom command `Check`
-9. Action of adding content to the Deployer's storage `AddToStorage` and using this content `UseFromStorage`
-10. The action of applying a `Patch`
-11. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
+6. Action with custom command `Custom`
+7. Action of checking the output of the custom command `Check`
+8. Action of adding content to the Deployer's storage `AddToStorage` and using this content `UseFromStorage`
+9. The action of applying a `Patch`
+10. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
 
 The concept of a custom command, a command for the terminal shell, is fundamental. The `Custom`, `Observe`, and the three main categories of Actions contain one or more custom commands inside.
 
@@ -236,7 +235,10 @@ Accordingly, if you just want to execute commands that cannot be assigned to one
 
 For Build Actions, specialization in programming languages is specific: depending on whether the set of languages used in the project matches the set specified in the Build Action, Deployer will warn you about using Actions that are incompatible with the project.
 
-In the above example, we see an action that should be executed after the build:
+> [!NOTE]
+> Specializations only work when assigning Actions or Pipelines from the TUI. If you manually edit the configuration by adding an incompatible Pipeline, the Deployer will not issue any warnings. This reflects the loose and advisory nature of such warnings, in contrast to `requirements`.
+
+In the below example, we see an action that should be executed after the build:
 
 ```json
 {
@@ -464,27 +466,15 @@ Sometimes you need to synchronize build files between remote hosts and the curre
 }
 ```
 
-#### 1.7. Other actions - `Interrupt`, `ForceArtifactsEnplace`, `Observe` and `Check`
+#### 1.7. Other actions - `Interrupt` `Observe` and `Check`
 
 > NOTE: Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
 
 `Interrupt` is used to manually interrupt the build/deployment of a project. When Deployer reaches this action, it waits for user input to continue when you perform the necessary manual actions.
 
-`ForceArtifactsEnplace` is used to force artifacts to be synchronized, even when not all artifacts are generated. By default, the artifacts specified in the project configuration are moved to the `artifacts` folder, but with this action it can be done a little earlier, for example, when the project is recursively built with Deployer:
+`Observe` is an action that is almost identical to `Custom`. It is used, for example, to start Prometheus, Jaeger or anything else. The distinctive feature is that it runs without I/O redirection, i.e. you can interact with programs in it.
 
-```json
-{
-  "title": "Force enplace",
-  "desc": "",
-  "info": "force-enplace@0.1.0",
-  "tags": [],
-  "action": "ForceArtifactsEnplace"
-}
-```
-
-`Observe` - An action that is almost identical to `Custom`. It is used, for example, to start Prometheus, Jaeger or anything else.
-
-And `Check` - A special action that allows you to check what the command outputs to `stdout/stderr` `:`
+And `Check` is a special action that allows you to check what the command outputs to `stdout/stderr`:
 
 ```json
 {
@@ -700,15 +690,16 @@ One of the most important entities are variables. They are both the keepers of y
 There are three types of variables supported now:
 
 1. `Plain` - the content of the string is the variable
-2. `FromEnvFile` - the variable will be taken from the specified `env-file` with the specified key.
-3. `FromHCVaultKv2` - the variable will be taken from the HashiCorp Vault KV2 repository with the specified `mount_path` and `secret_path`
+2. `FromEnvVar` - the variable will be taken from Deployer's shell environment
+3. `FromEnvFile` - the variable will be taken from the specified `env-file` with the specified key.
+4. `FromHCVaultKv2` - the variable will be taken from the HashiCorp Vault KV2 repository with the specified `mount_path` and `secret_path`
 
 Examples:
 
 ```json
 {
   "title": "Grafana token",
-  "is_secret": false,
+  "is_secret": true,
   "value": {
     "FromEnvFile": {
       "env_file_path": ".env",
@@ -720,8 +711,18 @@ Examples:
 
 ```json
 {
-  "title": "target/release/deployer",
+  "title": "Simple env var",
   "is_secret": false,
+  "value": {
+    "FromEnvVar": "variable-key"
+  }
+}
+```
+
+```json
+{
+  "title": "Secret!",
+  "is_secret": true,
   "value": {
     "FromHCVaultKv2": {
       "mount_path": "The mount path where your KV2 secrets engine is mounted",

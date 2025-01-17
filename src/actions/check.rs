@@ -1,102 +1,58 @@
+//! Check Action.
+//! 
+//! JSON example:
+//! ```json
+//! {
+//!   "Check": {
+//!     "command": {
+//!       "bash_c": "<af>",
+//!       "placeholders": [
+//!         "<af>"
+//!       ],
+//!       "ignore_fails": true,
+//!       "show_success_output": false,
+//!       "show_bash_c": false,
+//!       "only_when_fresh": false
+//!     },
+//!     "success_when_found": "some rust regex",
+//!     "success_when_not_found": null
+//!   }
+//! }
+//! ```
+//! 
+//! Allows you to automatically check output of your command by given regular expressions `success_when_found` and `success_when_not_found`.
+//! 
+//! If both regular expressions specified, the Action will be considered successful if the first matches and the second does not match the command output.
+
 use colored::Colorize;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 use crate::entities::{
   environment::BuildEnvironment,
   custom_command::CustomCommand,
-  info::ActionInfo,
   traits::Execute,
-  variables::Variable,
 };
 use crate::i18n;
-use crate::utils::{regexopt2str, str2regexopt, str2regex_simple};
+use crate::utils::{regexopt2str, str2regexopt};
 
-/// Команда, проверяющая вывод на определённое условие.
+/// Check Action.
+/// 
+/// Checks your command output by given regular expressions.
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct CheckAction {
+  /// Command to execute.
   pub(crate) command: CustomCommand,
+  /// Regular expression that means successful check if it matches the command's output.
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
   pub(crate) success_when_found: Option<Regex>,
+  /// Regular expression that means successful check if it doesn't match the command's output.
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
   pub(crate) success_when_not_found: Option<Regex>,
 }
 
-impl Eq for CheckAction {}
-
-impl std::hash::Hash for CheckAction {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.command.hash(state);
-    if let Some(succ_found) = &self.success_when_found { succ_found.as_str().hash(state); }
-    if let Some(succ_not_found) = &self.success_when_not_found { succ_not_found.as_str().hash(state); }
-  }
-}
-
-impl PartialEq for CheckAction {
-  fn eq(&self, other: &Self) -> bool {
-    self.command.eq(&other.command) &&
-    (
-      (self.success_when_found.is_none() && other.success_when_found.is_none()) ||
-      (self.success_when_found.as_ref().is_some_and(|a| other.success_when_found.as_ref().is_some_and(|b| a.as_str().eq(b.as_str()))))
-    ) &&
-    (
-      (self.success_when_not_found.is_none() && other.success_when_not_found.is_none()) ||
-      (self.success_when_not_found.as_ref().is_some_and(|a| other.success_when_not_found.as_ref().is_some_and(|b| a.as_str().eq(b.as_str()))))
-    )
-  }
-}
-
-impl CheckAction {
-  pub(crate) fn change_regexes_from_prompt(&mut self) -> anyhow::Result<()> {
-    println!("{}", i18n::CHECK_CURR_REGEX);
-    println!("`success_when_found` = {:?}", self.success_when_found);
-    println!("`success_when_not_found` = {:?}", self.success_when_not_found);
-    
-    loop {
-      if inquire::Confirm::new(i18n::SPECIFY_REGEX_SUCC).with_default(true).prompt()? {
-        self.success_when_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_SUCC)?);
-      }
-      
-      if inquire::Confirm::new(i18n::SPECIFY_REGEX_FAIL).with_default(true).prompt()? {
-        self.success_when_not_found = Some(specify_regex(i18n::SPECIFY_REGEX_FOR_FAIL)?);
-      }
-      
-      if self.success_when_found.is_some() || self.success_when_not_found.is_some() { break }
-      else { println!("{}", i18n::CHECK_NEED_TO_AT_LEAST); }
-    }
-    
-    Ok(())
-  }
-  
-  pub(crate) fn edit_check_from_prompt(&mut self) -> anyhow::Result<()> {
-    while let Some(selected) = inquire::Select::new(
-      i18n::CHECK_SPECIFY_WHAT,
-      vec![i18n::CHECK_EDIT_CMD, i18n::CHECK_EDIT_REGEXES],
-    ).prompt_skippable()? {
-      match selected {
-        i18n::CHECK_EDIT_CMD => self.command.edit_command_from_prompt()?,
-        i18n::CHECK_EDIT_REGEXES => self.change_regexes_from_prompt()?,
-        _ => {},
-      }
-    }
-    
-    Ok(())
-  }
-  
-  pub(crate) fn prompt_setup_for_project(
-    &self,
-    info: &ActionInfo,
-    variables: &[Variable],
-    artifacts: &[PathBuf],
-  ) -> anyhow::Result<Self> {
-    let mut r = self.clone();
-    r.command = r.command.prompt_setup_for_project(info, variables, artifacts)?;
-    Ok(r)
-  }
-}
-
 impl Execute for CheckAction {
+  /// Executes commands with given build environment and checks its output.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut output = vec![];
     
@@ -127,27 +83,26 @@ impl Execute for CheckAction {
   }
 }
 
-pub(crate) fn specify_regex(for_what: &str) -> anyhow::Result<Regex> {
-  let mut regex_str;
-  
-  loop {
-    regex_str = inquire::Text::new(
-      &format!("{} {} {}:", i18n::CHECK_ENTER_REGEX, for_what, i18n::CHECK_HELP)
-    ).prompt()?;
-    
-    if let Err(e) = Regex::new(&regex_str) {
-      println!("{}: {:?}.", i18n::CHECK_REGEX_INVALID_DUE, e);
-      continue
-    }
-    
-    if regex_str.as_str() != "/h" { break }
-    println!("{}: `{}`", i18n::GUIDE, i18n::CHECK_GUIDE_TITLE.blue());
-    println!(">>> {}", i18n::CHECK_GUIDE_1);
-    println!(">>> {}", i18n::CHECK_GUIDE_2);
-    println!(">>> ");
-    println!(">>> {}: {}", i18n::CHECK_GUIDE_3, "https://docs.rs/regex/latest/regex/".blue());
-    println!(">>> {}: {} ({})", i18n::CHECK_GUIDE_4, "https://regex101.com/".blue(), i18n::CHECK_GUIDE_5);
+impl Eq for CheckAction {}
+
+impl std::hash::Hash for CheckAction {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.command.hash(state);
+    if let Some(succ_found) = &self.success_when_found { succ_found.as_str().hash(state); }
+    if let Some(succ_not_found) = &self.success_when_not_found { succ_not_found.as_str().hash(state); }
   }
-  
-  str2regex_simple(regex_str.as_str())
+}
+
+impl PartialEq for CheckAction {
+  fn eq(&self, other: &Self) -> bool {
+    self.command.eq(&other.command) &&
+    (
+      (self.success_when_found.is_none() && other.success_when_found.is_none()) ||
+      (self.success_when_found.as_ref().is_some_and(|a| other.success_when_found.as_ref().is_some_and(|b| a.as_str().eq(b.as_str()))))
+    ) &&
+    (
+      (self.success_when_not_found.is_none() && other.success_when_not_found.is_none()) ||
+      (self.success_when_not_found.as_ref().is_some_and(|a| other.success_when_not_found.as_ref().is_some_and(|b| a.as_str().eq(b.as_str()))))
+    )
+  }
 }

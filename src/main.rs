@@ -1,3 +1,20 @@
+//! Deployer
+//! 
+//! Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allows you to:
+//! 
+//! - have your own actions and pipelines repositories (`Actions Registry` and `Pipelines Registry`) in a single JSON file
+//! - create actions and pipelines from TUI or JSON configuration files
+//! - configure actions for specific project
+//! - satisfy requirements for your system to run pipelines
+//! - check compatibility over actions and projects
+//! - run actions and pipelines at remote hosts (you need to setup your remote with SSH key and install `deployer`)
+//! - use variables for commands from `env`-files and HashiCorp Vault KV2-storage
+//! - run pipelines with different cache requirements in different build folders
+//! - store common content in Deployer's storage, add and patch additional files for build on the fly
+//! - and share your project build/deploy settings very quickly and without any dependencies.
+//! 
+//! For further reading, check `README.md`, `DOCS.en.md` and `DOCS.ru.md`.
+
 #![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
 #![deny(warnings, clippy::todo, clippy::unimplemented)]
 
@@ -86,7 +103,6 @@ fn main() {
     VERBOSE.set(false).unwrap();
   }
   
-  // Определение рабочих директорий
   let cache_folder = if let Some(cache_folder) = &args.cache_folder {
     let cf = PathBuf::from(cache_folder);
     if cf.is_absolute() {
@@ -121,7 +137,6 @@ fn main() {
     data_local_dir().expect("Can't get `storage` directory's location automatically, please specify one.")
   };
   
-  // Чтение конфигов
   let mut globals = read::<DeployerGlobalConfig>(&config_folder, GLOBAL_CONF);
   DeployerGlobalConfig::make_sure_contain_defaults(&mut globals.actions_registry);
   let mut config = read::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), PROJECT_CONF);
@@ -187,7 +202,7 @@ fn main() {
       write(&config_folder, GLOBAL_CONF, &globals);
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     },
-    DeployerExecType::Cat(CatType::Project) => cat_project_pipelines(&config).unwrap(),
+    DeployerExecType::Cat(CatType::Project(args)) => cat_project_pipelines(&config, args).unwrap(),
     DeployerExecType::Edit(EditType::Project) => {
       edit_project(&mut globals, &mut config).unwrap();
       write(&config_folder, GLOBAL_CONF, &globals);

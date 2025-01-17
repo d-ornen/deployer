@@ -1,3 +1,5 @@
+//! Storage module.
+
 use anyhow::bail;
 use colored::Colorize;
 use std::path::{Path, PathBuf};
@@ -7,6 +9,7 @@ use crate::i18n;
 use crate::STORAGE_DIR;
 use crate::rw::copy_all;
 
+/// Lists all available content in Deployer's storage.
 pub(crate) fn list_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {
@@ -15,18 +18,22 @@ pub(crate) fn list_content(
   
   println!("{}", i18n::CONTENT_AVAILABLE);
   
-  for entry in std::fs::read_dir(content_path)? {
-    let entry = entry?;
-    if !entry.path().is_dir() { continue }
-    
-    if let Ok(name) = entry.file_name().into_string() && let Ok(info) = ContentInfo::from_str(name.as_str()) {
-      println!("• {} ({}: {:?})", info.to_str().blue().bold(), i18n::PATH, entry.path());
+  match std::fs::read_dir(content_path) {
+    Err(_) => {},
+    Ok(entries) => for entry in entries {
+      let entry = entry?;
+      if !entry.path().is_dir() { continue }
+      
+      if let Ok(name) = entry.file_name().into_string() && let Ok(info) = ContentInfo::from_str(name.as_str()) {
+        println!("• {} ({}: {:?})", info.to_str().blue().bold(), i18n::PATH, entry.path());
+      }
     }
   }
   
   Ok(())
 }
 
+/// Creates a new content from given folder.
 pub(crate) fn new_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {
@@ -58,6 +65,7 @@ pub(crate) fn new_content(
   Ok(())
 }
 
+/// Syncs content files to build folder.
 pub(crate) fn use_from_storage(
   storage_dir: &Path,
   build_dir: &Path,
@@ -89,6 +97,7 @@ pub(crate) fn use_from_storage(
   Ok(())
 }
 
+/// Adds project artifacts as a content.
 pub(crate) fn add_to_storage(
   storage_dir: &Path,
   artifacts_dir: &Path,
@@ -106,6 +115,7 @@ pub(crate) fn add_to_storage(
   Ok(())
 }
 
+/// Removes the content from Deployer's storage.
 pub(crate) fn remove_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {

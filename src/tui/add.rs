@@ -1,12 +1,15 @@
+//! `Add` and `New` menus.
+
 use anyhow::bail;
 use colored::Colorize;
+use regex::Regex;
 use safe_path::scoped_join;
 use std::path::PathBuf;
 
 use crate::actions::{
   new_action,
   buildlike::*,
-  check::{specify_regex, CheckAction},
+  check::CheckAction,
   deploylike::*,
   observe::ObserveAction,
   packlike::*,
@@ -19,7 +22,7 @@ use crate::cmd::NewActionArgs;
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
-  custom_command::{CustomCommand, specify_bash_c},
+  custom_command::CustomCommand,
   info::{ActionInfo, ContentInfo, PipelineInfo, ShortName},
   programming_languages::{ProgrammingLanguage, specify_programming_languages},
   remote_host::RemoteHost,
@@ -30,7 +33,7 @@ use crate::entities::{
 use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
-use crate::utils::tags_custom_type;
+use crate::utils::{tags_custom_type, str2regex_simple};
 
 impl DeployerProjectOptions {
   pub(crate) fn init_from_prompt(&mut self, curr_dir: String) -> anyhow::Result<()> {
@@ -62,7 +65,7 @@ impl DeployerProjectOptions {
     self.targets = collect_targets()?;
     self.variables = collect_variables()?;
     self.artifacts = collect_artifacts()?;
-    self.inplace_artifacts_into_project_root = collect_af_inplacements(&self.artifacts)?;
+    self.place_artifacts_into_project_root = collect_af_inplacements(&self.artifacts)?;
     
     Ok(())
   }
@@ -146,12 +149,10 @@ impl DescribedAction {
       },
       action_type @ ("Configure deploy" | "Deploy" | "Post-deploy") => {
         let deploy_toolkit = Text::new("Enter deploy toolkit name (or hit `esc`):").prompt_skippable()?;
-        let tags = tags_custom_type("Enter deploy tags:", None).prompt()?;
         let commands = collect_multiple_commands()?;
         
         let action = DeployAction {
           deploy_toolkit,
-          tags,
           commands,
         };
         
@@ -162,12 +163,7 @@ impl DescribedAction {
           _ => unreachable!(),
         }
       },
-      "Observe" => {
-        let tags = tags_custom_type(i18n::OBSERVE_TAGS, None).prompt()?;
-        let command = CustomCommand::new_from_prompt_unspecified()?;
-        
-        Action::Observe(ObserveAction { tags, command })
-      },
+      "Observe" => Action::Observe(ObserveAction { command: CustomCommand::new_from_prompt_unspecified()? }),
       "Patch" => Action::Patch(PatchAction::new_from_prompt()?),
       "Use content from storage" => {
         let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
@@ -190,6 +186,11 @@ impl DescribedAction {
     
     let requirements = collect_requirements()?;
     
+    let exec_in_project_dir = if let Ok(Some(exec_in_project_dir)) = inquire::Confirm::new(i18n::EXEC_IN_PROJECT_DIR)
+      .with_default(false)
+      .prompt_skippable()
+    { Some(exec_in_project_dir) } else { None };
+    
     let described_action = DescribedAction {
       title: name,
       desc,
@@ -197,6 +198,7 @@ impl DescribedAction {
       tags,
       action,
       requirements,
+      exec_in_project_dir,
     };
     
     if
@@ -212,7 +214,6 @@ impl DescribedAction {
   }
 }
 
-/// Создаёт несколько новых команд.
 pub(crate) fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> {
   use inquire::Confirm;
   
@@ -314,6 +315,13 @@ impl CheckAction {
   }
 }
 
+impl PatchAction {
+  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+    let patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).prompt()?);
+    Ok(Self { patch })
+  }
+}
+
 impl DescribedPipeline {
   pub(crate) fn new_from_prompt(globals: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
     use inquire::Text;
@@ -347,7 +355,7 @@ impl DescribedPipeline {
   }
 }
 
-// Helper function to collect multiple custom commands
+// Helper function to collect multiple Actions
 pub(crate) fn collect_multiple_actions(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<Vec<DescribedAction>> {
@@ -528,16 +536,42 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
   Ok(v)
 }
 
+pub(crate) fn specify_regex(for_what: &str) -> anyhow::Result<Regex> {
+  let mut regex_str;
+  
+  loop {
+    regex_str = inquire::Text::new(
+      &format!("{} {} {}:", i18n::CHECK_ENTER_REGEX, for_what, i18n::CHECK_HELP)
+    ).prompt()?;
+    
+    if let Err(e) = Regex::new(&regex_str) {
+      println!("{}: {:?}.", i18n::CHECK_REGEX_INVALID_DUE, e);
+      continue
+    }
+    
+    if regex_str.as_str() != "/h" { break }
+    println!("{}: `{}`", i18n::GUIDE, i18n::CHECK_GUIDE_TITLE.blue());
+    println!(">>> {}", i18n::CHECK_GUIDE_1);
+    println!(">>> {}", i18n::CHECK_GUIDE_2);
+    println!(">>> ");
+    println!(">>> {}: {}", i18n::CHECK_GUIDE_3, "https://docs.rs/regex/latest/regex/".blue());
+    println!(">>> {}: {} ({})", i18n::CHECK_GUIDE_4, "https://regex101.com/".blue(), i18n::CHECK_GUIDE_5);
+  }
+  
+  str2regex_simple(regex_str.as_str())
+}
+
 impl Variable {
   pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
     let title = inquire::Text::new(i18n::VAR_TITLE).prompt()?;
     println!("{}: {} `{}`, `{}`.", i18n::NOTE.green().italic(), i18n::VAR_NOTE, VAULT_ADDR_ENV.green(), VAULT_ADDR_TOKEN.green());
     let is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?;
     
-    let types = vec![i18n::VAR_PLAIN, i18n::VAR_ENV, i18n::VAR_KV2];
+    let types = vec![i18n::VAR_PLAIN, i18n::VAR_ENVF, i18n::VAR_ENV, i18n::VAR_KV2];
     let r#type = inquire::Select::new(i18n::SPECIFY_VAR_TYPE, types).prompt()?;
     let value = match r#type {
       i18n::VAR_PLAIN => Variable::new_plain_from_prompt()?,
+      i18n::VAR_ENVF => Variable::new_env_file_from_prompt()?,
       i18n::VAR_ENV => Variable::new_env_from_prompt()?,
       i18n::VAR_KV2 => Variable::new_kv2_from_prompt()?,
       _ => unreachable!(),
@@ -555,6 +589,10 @@ impl Variable {
   }
   
   pub(crate) fn new_env_from_prompt() -> anyhow::Result<VarValue> {
+    Ok(VarValue::FromEnvVar(inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?))
+  }
+  
+  pub(crate) fn new_env_file_from_prompt() -> anyhow::Result<VarValue> {
     Ok(VarValue::FromEnvFile(FromEnvFile {
       env_file_path: PathBuf::from(inquire::Text::new(i18n::VAR_ENV_FILE).prompt()?),
       key: inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?,
@@ -680,7 +718,6 @@ impl AutoVersionExtractFromRule {
 }
 
 impl CustomCommand {
-  /// Создаёт новую команду.
   pub(crate) fn new_from_prompt() -> anyhow::Result<CustomCommand> {
     let bash_c = specify_bash_c(None)?;
     
@@ -723,6 +760,36 @@ impl CustomCommand {
       remote_exec: None,
     })
   }
+}
+
+pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
+  let mut bash_c;
+  loop {
+    let prompt = format!("{} {}:", i18n::CMD_SPECIFY_BASH_C, i18n::CHECK_HELP);
+    let mut text_prompt = inquire::Text::new(prompt.as_str());
+    if let Some(default) = default { text_prompt = text_prompt.with_initial_value(default); }
+    bash_c = text_prompt.prompt()?;
+    if bash_c.as_str() != "/h" { break }
+    println!("{}: `{}`", i18n::GUIDE, i18n::CUSTOM_CMD_GUIDE_TITLE.blue());
+    println!(">>> {}", i18n::CUSTOM_CMD_GUIDE_1);
+    println!(">>> {}", i18n::CUSTOM_CMD_GUIDE_2.replace("%1%", &"~".green()).replace("%2%", &"PATH".green()));
+    println!(">>> ");
+    println!(">>> {}", i18n::CUSTOM_CMD_GUIDE_3);
+    println!(">>> `{}`", "g++ <input-file> -o <output-file>".green());
+    println!(">>> `{}{}`", "docker compose run -e DEPLOY_KEY=".green(), "{{my very secret key}}".red());
+    println!(">>> ");
+    println!(">>> {}", i18n::CUSTOM_CMD_GUIDE_4);
+    println!(">>> {} `{}`.", i18n::CUSTOM_CMD_GUIDE_5, "/bin/bash".green());
+    
+    let shell = match std::env::var("DEPLOYER_SH_PATH") {
+      Ok(path) => format!("`{}`", path.green()),
+      Err(_) => format!("\"\" (`{}`)", "/bin/bash".green()),
+    };
+    
+    println!(">>> {} {}", i18n::CUSTOM_CMD_GUIDE_6, shell);
+  }
+  
+  Ok(bash_c)
 }
 
 impl ProgrammingLanguage {
