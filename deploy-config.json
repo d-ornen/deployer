@@ -403,7 +403,6 @@
           "tags": [],
           "action": {
             "Observe": {
-              "tags": [],
               "command": {
                 "bash_c": "btop",
                 "ignore_fails": true,
