@@ -1,4 +1,4 @@
-# Deployer: documentation for version `1.2.X`
+# Deployer: documentation for version `1.3.X`
 
 ## Description of working principles
 
