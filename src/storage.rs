@@ -139,7 +139,7 @@ pub fn remove_content(
   
   if versions.is_empty() { return Ok(()) }
   
-  let variant = PathBuf::from(inquire::Select::new(i18n::CONTENT_SELECT_TO_REMOVE, versions).prompt()?);
+  let variant = content_path.join(inquire::Select::new(i18n::CONTENT_SELECT_TO_REMOVE, versions).prompt()?);
   if variant.exists() { std::fs::remove_dir_all(variant)?; }
   
   Ok(())
