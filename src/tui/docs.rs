@@ -62,7 +62,7 @@ fn make_skin() -> MadSkin {
   skin
 }
 
-pub(crate) fn read_docs() -> anyhow::Result<()> {
+pub fn read_docs() -> anyhow::Result<()> {
   let skin = make_skin();
   run_app(skin)?;
   Ok(())

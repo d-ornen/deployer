@@ -22,18 +22,18 @@ use crate::utils::{ordered_map, ordered_set};
 
 /// Project configuration.
 #[derive(Deserialize, Serialize, PartialEq, Default)]
-pub(crate) struct DeployerProjectOptions {
+pub struct DeployerProjectOptions {
   /// Project name.
-  pub(crate) project_name: String,
+  pub project_name: String,
   
   /// Programming languages used by project.
-  pub(crate) langs: Vec<ProgrammingLanguage>,
+  pub langs: Vec<ProgrammingLanguage>,
   
   /// Targets of the project.
-  pub(crate) targets: Vec<TargetDescription>,
+  pub targets: Vec<TargetDescription>,
   
   /// Deploy toolkit (if needed).
-  pub(crate) deploy_toolkit: Option<String>,
+  pub deploy_toolkit: Option<String>,
   
   /// Cache files and folders' relative paths.
   /// 
@@ -41,48 +41,48 @@ pub(crate) struct DeployerProjectOptions {
   /// but you can copy or symlink any cache files from project's folder
   /// by build options (see `crate::build::build` function).
   #[serde(serialize_with = "ordered_set")]
-  pub(crate) cache_files: HashSet<PathBuf>,
+  pub cache_files: HashSet<PathBuf>,
   
   /// Project Pipelines.
-  pub(crate) pipelines: Vec<DescribedPipeline>,
+  pub pipelines: Vec<DescribedPipeline>,
   
   /// Project artifacts' relative paths.
   /// 
   /// After every Pipeline artifacts are placing inside project's folder.
-  pub(crate) artifacts: Vec<PathBuf>,
+  pub artifacts: Vec<PathBuf>,
   
   /// Project variables.
   /// 
   /// This is how you can change your shell commands on the fly.
-  pub(crate) variables: Vec<Variable>,
+  pub variables: Vec<Variable>,
   
   /// Relative artifacts sources inside build folder and destinations inside
   /// `artifacts` folder in project's directory.
-  pub(crate) place_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
+  pub place_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 }
 
 /// Global Deployer's configuration.
 #[derive(Deserialize, Serialize)]
-pub(crate) struct DeployerGlobalConfig {
+pub struct DeployerGlobalConfig {
   /// Project list.
-  pub(crate) projects: Vec<String>,
+  pub projects: Vec<String>,
   
   /// Available Actions Registry.
   #[serde(serialize_with = "ordered_map")]
-  pub(crate) actions_registry: HashMap<Info, DescribedAction>,
+  pub actions_registry: HashMap<Info, DescribedAction>,
   
   /// Available Pipelines Registry.
   #[serde(serialize_with = "ordered_map")]
-  pub(crate) pipelines_registry: HashMap<Info, DescribedPipeline>,
+  pub pipelines_registry: HashMap<Info, DescribedPipeline>,
   
   /// Available remote hosts Registry.
   #[serde(serialize_with = "ordered_map")]
-  pub(crate) remote_hosts: HashMap<ShortName, RemoteHost>,
+  pub remote_hosts: HashMap<ShortName, RemoteHost>,
 }
 
 impl DeployerGlobalConfig {
   /// Appends global configuration by Actions that can't be added by TUI.
-  pub(crate) fn make_sure_contain_defaults(actions_registry: &mut HashMap<Info, DescribedAction>) {
+  pub fn make_sure_contain_defaults(actions_registry: &mut HashMap<Info, DescribedAction>) {
     let info = Info::new("interrupt", "0.1").unwrap();
     actions_registry.insert(info.clone(), DescribedAction {
       title: "Interrupt Pipeline".into(),

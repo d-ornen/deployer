@@ -9,9 +9,9 @@ use crate::entities::auto_version::AutoVersionExtractFromRule;
 
 /// AddToStorage Action.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
-pub(crate) struct AddToStorageAction {
+pub struct AddToStorageAction {
   /// Content's short name. Used to load to and sync from storage.
-  pub(crate) short_name: String,
+  pub short_name: String,
   /// Automatic rule to extract version from project.
-  pub(crate) auto_version_rule: AutoVersionExtractFromRule,
+  pub auto_version_rule: AutoVersionExtractFromRule,
 }

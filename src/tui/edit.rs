@@ -14,7 +14,7 @@ use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::custom_command::CustomCommand;
 use crate::entities::info::ShortName;
 use crate::entities::path_type::PathType;
-use crate::entities::programming_languages::{ProgrammingLanguage, specify_programming_languages};
+use crate::entities::programming_languages::ProgrammingLanguage;
 use crate::entities::remote_host::RemoteHost;
 use crate::entities::requirements::Requirement;
 use crate::entities::targets::{TargetDescription, OsVariant, OsVersionSpecification};
@@ -23,7 +23,7 @@ use crate::entities::variables::{Variable, VarValue};
 use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
-use crate::tui::add::{collect_af_inplacement, collect_path, collect_artifact, specify_regex, specify_bash_c};
+use crate::tui::add::{collect_af_inplacement, specify_programming_languages, collect_path, collect_artifact, specify_regex, specify_bash_c};
 use crate::utils::tags_custom_type;
 
 impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
@@ -76,7 +76,7 @@ impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
 }
 
 impl DeployerProjectOptions {
-  pub(crate) fn select_default_pipeline(&mut self) -> anyhow::Result<()> {
+  pub fn select_default_pipeline(&mut self) -> anyhow::Result<()> {
     match self.pipelines.len() {
       0 => {
         println!("{}", i18n::PROJECT_NO_PIPELINES);
@@ -216,7 +216,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedAction> {
 }
 
 impl DescribedAction {
-  pub(crate) fn edit_action_from_prompt(&mut self) -> anyhow::Result<()> {
+  pub fn edit_action_from_prompt(&mut self) -> anyhow::Result<()> {
     let mut actions = vec![];
     match &self.action {
       Action::Custom(_) | Action::Observe(_) => { actions.push(i18n::EDIT_COMMAND); },
@@ -333,7 +333,7 @@ impl DescribedAction {
 }
 
 impl DescribedPipeline {
-  pub(crate) fn edit_pipeline_from_prompt(&mut self, globals: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
+  pub fn edit_pipeline_from_prompt(&mut self, globals: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
     let actions = vec![
       i18n::EDIT_PIPELINE_ACTIONS,
       i18n::EDIT_TITLE,
@@ -476,7 +476,7 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
 }
 
 impl Requirement {
-  pub(crate) fn edit_requirement_from_prompt(&mut self) -> anyhow::Result<()> {
+  pub fn edit_requirement_from_prompt(&mut self) -> anyhow::Result<()> {
     match self {
       Self::Exists(path) => { *path = PathBuf::from(
         inquire::Text::new(i18n::ABSOLUTE_PATH).with_initial_value(path.to_str().unwrap()).prompt()?
@@ -803,7 +803,7 @@ impl Edit for Vec<TargetDescription> {
 }
 
 impl Variable {
-  pub(crate) fn edit_variable_from_prompt(&mut self) -> anyhow::Result<()> {
+  pub fn edit_variable_from_prompt(&mut self) -> anyhow::Result<()> {
     let actions = vec![
       i18n::EDIT_TITLE,
       i18n::EDIT_VAR_SECRET,
@@ -891,7 +891,7 @@ impl Edit for Vec<Variable> {
 }
 
 impl TargetDescription {
-  pub(crate) fn edit_target_from_prompt(&mut self) -> anyhow::Result<()> {
+  pub fn edit_target_from_prompt(&mut self) -> anyhow::Result<()> {
     let actions = vec![
       i18n::EDIT_ARCH,
       i18n::EDIT_OS,
@@ -1149,7 +1149,7 @@ impl Edit for Vec<ProgrammingLanguage> {
 }
 
 impl CheckAction {
-  pub(crate) fn change_regexes_from_prompt(&mut self) -> anyhow::Result<()> {
+  pub fn change_regexes_from_prompt(&mut self) -> anyhow::Result<()> {
     println!("{}", i18n::CHECK_CURR_REGEX);
     println!("`success_when_found` = {:?}", self.success_when_found);
     println!("`success_when_not_found` = {:?}", self.success_when_not_found);

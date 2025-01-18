@@ -15,7 +15,7 @@ use crate::i18n;
 /// Deployer tries to satisfy Pipeline's Actions requirements before every Pipeline execution.
 /// If a single requirement fails to satisfy, Deployer exits.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum Requirement {
+pub enum Requirement {
   /// Requirement of path existence.
   Exists(PathBuf),
   /// Requirement of at least single path of a given list existence.
@@ -44,14 +44,14 @@ impl ResolveExists for PathBuf {
 }
 
 /// Satisfy errors type.
-pub(crate) enum SatisfyErr<'a> {
+pub enum SatisfyErr<'a> {
   Exists(&'a PathBuf),
   ExistsAny(&'a Vec<PathBuf>),
   Check(Vec<String>),
   Remote(String),
 }
 
-pub(crate) trait Satisfy<'a> {
+pub trait Satisfy<'a> {
   fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>>;
 }
 

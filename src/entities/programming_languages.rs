@@ -2,64 +2,18 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::i18n;
-use crate::utils::tags_custom_type;
-
 /// Programming language.
 /// 
 /// Canonically represents most well-known by `deployer` author languages,
 /// but you always specify yours.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub(crate) enum ProgrammingLanguage {
+pub enum ProgrammingLanguage {
   Rust,
   Go,
   C,
   Cpp,
   Python,
   Other(String),
-}
-
-/// Parses specified programming languages.
-pub(crate) fn specify_programming_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
-  use inquire::MultiSelect;
-  
-  let langs = vec!["Rust", "Go", "C", "C++", "Python", "Others"];
-  let selected = MultiSelect::new(i18n::PL_SELECT, langs).prompt()?;
-  
-  let mut result = Vec::new();
-  for lang in selected {
-    let lang = match lang {
-      "Rust" => ProgrammingLanguage::Rust,
-      "Go" => ProgrammingLanguage::Go,
-      "C" => ProgrammingLanguage::C,
-      "C++" => ProgrammingLanguage::Cpp,
-      "Python" => ProgrammingLanguage::Python,
-      "Others" => {
-        let langs = collect_multiple_languages()?;
-        result.extend_from_slice(&langs);
-        continue
-      }
-      _ => unreachable!(),
-    };
-    result.push(lang);
-  }
-  
-  Ok(result)
-}
-
-/// Collects multiple languages.
-fn collect_multiple_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
-  let langs = tags_custom_type(i18n::PL_COLLECT, None).prompt()?;
-  let mut v = vec![];
-  
-  for lang in langs {
-    match lang.as_str() {
-      "Rust" | "Go" | "C" | "C++" | "Python" => continue,
-      lang => v.push(ProgrammingLanguage::Other(lang.to_owned())),
-    }
-  }
-  
-  Ok(v)
 }
 
 impl std::fmt::Display for ProgrammingLanguage {

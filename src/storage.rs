@@ -1,16 +1,20 @@
 //! Storage module.
 
 use anyhow::bail;
+#[cfg(feature = "tui")]
 use colored::Colorize;
 use std::path::{Path, PathBuf};
 
-use crate::entities::info::{ContentInfo, ShortName};
+use crate::entities::info::ContentInfo;
+#[cfg(feature = "tui")]
+use crate::entities::info::ShortName;
 use crate::i18n;
 use crate::STORAGE_DIR;
 use crate::rw::copy_all;
 
 /// Lists all available content in Deployer's storage.
-pub(crate) fn list_content(
+#[cfg(feature = "tui")]
+pub fn list_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {
   let mut content_path = PathBuf::from(storage_dir);
@@ -24,7 +28,7 @@ pub(crate) fn list_content(
       let entry = entry?;
       if !entry.path().is_dir() { continue }
       
-      if let Ok(name) = entry.file_name().into_string() && let Ok(info) = ContentInfo::from_str(name.as_str()) {
+      if let Ok(name) = entry.file_name().into_string() && let Ok(info) = ContentInfo::try_from_str(name.as_str()) {
         println!("• {} ({}: {:?})", info.to_str().blue().bold(), i18n::PATH, entry.path());
       }
     }
@@ -34,7 +38,8 @@ pub(crate) fn list_content(
 }
 
 /// Creates a new content from given folder.
-pub(crate) fn new_content(
+#[cfg(feature = "tui")]
+pub fn new_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {
   use inquire::Text;
@@ -66,7 +71,7 @@ pub(crate) fn new_content(
 }
 
 /// Syncs content files to build folder.
-pub(crate) fn use_from_storage(
+pub fn use_from_storage(
   storage_dir: &Path,
   build_dir: &Path,
   content_info: &ContentInfo,
@@ -98,7 +103,7 @@ pub(crate) fn use_from_storage(
 }
 
 /// Adds project artifacts as a content.
-pub(crate) fn add_to_storage(
+pub fn add_to_storage(
   storage_dir: &Path,
   artifacts_dir: &Path,
   content_info: &ContentInfo,
@@ -116,7 +121,8 @@ pub(crate) fn add_to_storage(
 }
 
 /// Removes the content from Deployer's storage.
-pub(crate) fn remove_content(
+#[cfg(feature = "tui")]
+pub fn remove_content(
   storage_dir: &Path,
 ) -> anyhow::Result<()> {
   let content_short_name = ShortName::new(inquire::Text::new(i18n::CONTENT_INFO).prompt()?)?;

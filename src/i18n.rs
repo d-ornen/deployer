@@ -4,7 +4,7 @@
 #[macro_export]
 macro_rules! tr {
   ($k:ident, $v:expr) => {
-    pub(crate) const $k: &str = $v;
+    pub const $k: &str = $v;
   };
 }
 
@@ -18,4 +18,4 @@ mod ru;
 #[cfg(feature = "i18n-ru")]
 use ru as translations;
 
-pub(crate) use translations::*;
+pub use translations::*;

@@ -7,11 +7,11 @@ use std::sync::OnceLock;
 use std::path::{Path, PathBuf};
 use crate::{CACHE_DIR, LOGS_DIR};
 
-pub(crate) static VERBOSE: OnceLock<bool> = OnceLock::new();
+pub static VERBOSE: OnceLock<bool> = OnceLock::new();
 const LOG_FILE_DELIMETER: &str = "================================================================";
 
 /// Reads the contents of the file or provides `Default::default()` if it cannot.
-pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file: impl AsRef<Path>) -> T {
+pub fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file: impl AsRef<Path>) -> T {
   let mut path = PathBuf::new();
   path.push(folder);
   path.push(file);
@@ -26,7 +26,7 @@ pub(crate) fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file
 }
 
 /// Reads the contents of a file as type `T`.
-pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
+pub fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
   let file = File::open(filepath.as_ref())?;
   let reader = BufReader::new(file);
   
@@ -39,7 +39,7 @@ pub(crate) fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> a
 /// Writes `T` to a file, ignoring write and serialization errors.
 /// 
 /// All errors are written only to the log, which can be seen with the `-V` flag.
-pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, config: &T) {
+pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, config: &T) {
   let mut path = PathBuf::new();
   path.push(folder);
   path.push(file.as_ref());
@@ -70,7 +70,7 @@ pub(crate) fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Pat
 /// If `src` is a file, then all subfolders up to `dst` are created, and then the file is copied and overwritten.
 /// 
 /// Previously existing folders and files, unless overwritten, are not changed and are stored in their places.
-pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
+pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
       std::fs::create_dir_all(parent)?;
@@ -103,7 +103,7 @@ pub(crate) fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[i
 }
 
 /// Creates UNIX symlink.
-pub(crate) fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
+pub fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   use std::os::unix::fs::symlink as os_symlink;
   
   match os_symlink(src.as_ref(), dst) {
@@ -148,14 +148,14 @@ fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Re
   Ok(())
 }
 
-pub(crate) fn log(s: impl AsRef<str>) {
+pub fn log(s: impl AsRef<str>) {
   if *VERBOSE.wait() {
     println!("{}", s.as_ref());
   }
 }
 
 /// Generates the path to the build log depending on the project and Pipeline.
-pub(crate) fn generate_build_log_filepath(
+pub fn generate_build_log_filepath(
   project_name: &str,
   pipeline_short_name: &str,
   cache_dir: &Path,
@@ -177,7 +177,7 @@ pub(crate) fn generate_build_log_filepath(
 }
 
 /// Writes a build log message to a file.
-pub(crate) fn build_log(
+pub fn build_log(
   path: &Path,
   output: &[String],
 ) -> anyhow::Result<()> {

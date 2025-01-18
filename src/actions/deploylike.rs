@@ -47,15 +47,15 @@ use crate::entities::traits::Execute;
 /// 
 /// This Action type depends on supported project deploy toolkit.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
-pub(crate) struct DeployAction {
+pub struct DeployAction {
   /// Deploy toolkit supported by Action.
-  pub(crate) deploy_toolkit: Option<String>,
+  pub deploy_toolkit: Option<String>,
   /// Commands to deploy-like Action.
-  pub(crate) commands: Vec<CustomCommand>,
+  pub commands: Vec<CustomCommand>,
 }
 
-pub(crate) type ConfigureDeployAction = DeployAction;
-pub(crate) type PostDeployAction = DeployAction;
+pub type ConfigureDeployAction = DeployAction;
+pub type PostDeployAction = DeployAction;
 
 impl Execute for DeployAction {
   /// Executes commands with given build environment.

@@ -49,16 +49,16 @@ use crate::entities::{
 /// 
 /// This Action type depends on supported project programming languages.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
-pub(crate) struct BuildAction {
+pub struct BuildAction {
   /// Programming languages supported by this Action.
-  pub(crate) supported_langs: Vec<ProgrammingLanguage>,
+  pub supported_langs: Vec<ProgrammingLanguage>,
   /// Commands to build-like Action.
-  pub(crate) commands: Vec<CustomCommand>,
+  pub commands: Vec<CustomCommand>,
 }
 
-pub(crate) type PreBuildAction = BuildAction;
-pub(crate) type PostBuildAction = BuildAction;
-pub(crate) type TestAction = BuildAction;
+pub type PreBuildAction = BuildAction;
+pub type PostBuildAction = BuildAction;
+pub type TestAction = BuildAction;
 
 impl Execute for BuildAction {
   /// Executes commands with given build environment.

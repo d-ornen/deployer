@@ -2,17 +2,19 @@
 //! 
 //! Action is the main entity of Deployer. Actions as part of Pipelines are used to build, install, and deploy processes.
 
+#[cfg(feature = "tui")]
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "tui")]
 use std::process::exit;
 
-pub(crate) mod check;
-pub(crate) mod buildlike;
-pub(crate) mod packlike;
-pub(crate) mod deploylike;
-pub(crate) mod observe;
-pub(crate) mod patch;
-pub(crate) mod storage_add;
+pub mod check;
+pub mod buildlike;
+pub mod packlike;
+pub mod deploylike;
+pub mod observe;
+pub mod patch;
+pub mod storage_add;
 
 use crate::actions::{
   check::CheckAction,
@@ -23,15 +25,22 @@ use crate::actions::{
   patch::PatchAction,
   storage_add::AddToStorageAction,
 };
+#[cfg(feature = "tui")]
 use crate::cmd::{NewActionArgs, CatActionArgs};
+#[cfg(feature = "tui")]
 use crate::configs::DeployerGlobalConfig;
 use crate::entities::{
   custom_command::CustomCommand,
-  info::{ActionInfo, ContentInfo, ShortName, StrToInfo, info2str, str2info, str2info_wl},
+  info::{ActionInfo, ContentInfo, ShortName, info2str, str2info, str2info_wl},
   requirements::Requirement,
 };
+#[cfg(feature = "tui")]
+use crate::entities::info::StrToInfo;
+#[cfg(feature = "tui")]
 use crate::hmap;
+#[cfg(feature = "tui")]
 use crate::i18n;
+#[cfg(feature = "tui")]
 use crate::rw::read_checked;
 
 /// Described Action.
@@ -39,37 +48,37 @@ use crate::rw::read_checked;
 /// Represents common info about Action, some properties such as requirements, and
 /// Action definition.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
-pub(crate) struct DescribedAction {
+pub struct DescribedAction {
   /// Name of the Action.
-  pub(crate) title: String,
+  pub title: String,
   
   /// Description.
-  pub(crate) desc: String,
+  pub desc: String,
   
   /// Short name and version.
   #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
-  pub(crate) info: ActionInfo,
+  pub info: ActionInfo,
   
   /// List of tags (to use with `grep` when searching through `deployer ls actions`).
-  pub(crate) tags: Vec<String>,
+  pub tags: Vec<String>,
   
   /// Action definition.
-  pub(crate) action: Action,
+  pub action: Action,
   
   /// Requirements list.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) requirements: Option<Vec<Requirement>>,
+  pub requirements: Option<Vec<Requirement>>,
   
   /// Flag of execution inside project folder.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) exec_in_project_dir: Option<bool>,
+  pub exec_in_project_dir: Option<bool>,
 }
 
 /// Action types.
 /// 
 /// See [DOCS.en.md](/DOCS.en.md) and [DOCS.ru.md](/DOCS.ru.md).
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
-pub(crate) enum Action {
+pub enum Action {
   /// Used when the user needs to perform actions independently.
   Interrupt,
   
@@ -123,7 +132,8 @@ pub(crate) enum Action {
 }
 
 /// Prints all available Actions on the screen.
-pub(crate) fn list_actions(
+#[cfg(feature = "tui")]
+pub fn list_actions(
   globals: &DeployerGlobalConfig,
 ) {
   println!("{}", i18n::ACTIONS_AVAILABLE);
@@ -141,7 +151,8 @@ pub(crate) fn list_actions(
 }
 
 /// Removes selected Action.
-pub(crate) fn remove_action(
+#[cfg(feature = "tui")]
+pub fn remove_action(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
   use inquire::{Select, Confirm};
@@ -179,7 +190,8 @@ pub(crate) fn remove_action(
 }
 
 /// Adds new Action.
-pub(crate) fn new_action(
+#[cfg(feature = "tui")]
+pub fn new_action(
   globals: &mut DeployerGlobalConfig,
   args: &NewActionArgs,
 ) -> anyhow::Result<DescribedAction> {
@@ -199,7 +211,8 @@ pub(crate) fn new_action(
 }
 
 /// Prints Action as JSON.
-pub(crate) fn cat_action(
+#[cfg(feature = "tui")]
+pub fn cat_action(
   globals: &DeployerGlobalConfig,
   args: &CatActionArgs,
 ) -> anyhow::Result<()> {
@@ -215,7 +228,8 @@ pub(crate) fn cat_action(
 }
 
 /// Edits the Action.
-pub(crate) fn edit_action(
+#[cfg(feature = "tui")]
+pub fn edit_action(
   globals: &mut DeployerGlobalConfig,
   args: &CatActionArgs,
 ) -> anyhow::Result<()> {

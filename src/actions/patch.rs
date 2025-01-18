@@ -25,9 +25,9 @@ use crate::i18n;
 /// 
 /// This Action type allows you to patch any files, including binaries and archives, based on rules.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
-pub(crate) struct PatchAction {
+pub struct PatchAction {
   /// Path to patch file.
-  pub(crate) patch: PathBuf,
+  pub patch: PathBuf,
 }
 
 impl Execute for PatchAction {

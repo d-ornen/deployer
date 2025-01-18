@@ -1,7 +1,7 @@
 //! Terminal UI module.
 
-pub(crate) mod add;
-pub(crate) mod edit;
-pub(crate) mod setup;
+pub mod add;
+pub mod edit;
+pub mod setup;
 
-pub(crate) mod docs;
+pub mod docs;

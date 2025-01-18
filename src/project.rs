@@ -6,7 +6,7 @@ use crate::entities::traits::EditExtended;
 use crate::i18n;
 
 /// Inits the project.
-pub(crate) fn init_project(
+pub fn init_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
   _args: &InitArgs,
@@ -26,7 +26,7 @@ pub(crate) fn init_project(
 }
 
 /// Edits the project.
-pub(crate) fn edit_project(
+pub fn edit_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
 ) -> anyhow::Result<()> {

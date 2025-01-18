@@ -22,6 +22,7 @@
 mod tests;
 
 mod cmd;
+#[cfg(feature = "tui")]
 mod tui;
 mod configs;
 mod rw;
@@ -35,6 +36,7 @@ mod storage;
 mod actions;
 mod pipelines;
 mod entities;
+#[cfg(feature = "tui")]
 mod project;
 
 mod i18n;
@@ -70,11 +72,11 @@ static HIDDEN_PROJECT_CONF: &str = ".deploy-config.json";
 static GLOBAL_CONF: &str = "deploy-global.json";
 static BUILD_CACHE_LIST: &str = "deploy-builds.json";
 
-pub(crate) static CACHE_DIR: &str = "deploy-cache";
-pub(crate) static LOGS_DIR: &str = "logs";
-pub(crate) static STORAGE_DIR: &str = "deployer";
+pub static CACHE_DIR: &str = "deploy-cache";
+pub static LOGS_DIR: &str = "logs";
+pub static STORAGE_DIR: &str = "deployer";
 
-pub(crate) static ARTIFACTS_DIR: &str = "artifacts";
+pub static ARTIFACTS_DIR: &str = "artifacts";
 
 #[cfg(not(unix))]
 compile_error!("`deployer` can't work with non-Unix systems.");

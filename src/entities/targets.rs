@@ -8,24 +8,24 @@ use serde::{Deserialize, Serialize};
 /// 
 /// Contains description of installation goal.
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
-pub(crate) struct TargetDescription {
+pub struct TargetDescription {
   /// CPU architecture specified in plain text.
   /// 
   /// You can write just an arch `x86_64`, simple form `pc`/`arm`,
   /// extended form `x86_64-sse-4`, until you really use these architectures
   /// specialization in your Actions (for example, you can specify `sse-4` existence
   /// for running `RUSTFLAGS='-C target_cpu=x86-64-v4' cargo build --release`).
-  pub(crate) arch: String,
+  pub arch: String,
   /// Operation system or specific kernel (maybe, you writes a BIOS application).
-  pub(crate) os: OsVariant,
+  pub os: OsVariant,
   /// OS derivative.
   /// 
   /// Usually it means some specific edition or distributive
   /// (you may leave it empty or just write `any`, if there is no).
   /// For example: `Ubuntu` (Linux distribution), `AOSP`/`MIUI` (Android distributions).
-  pub(crate) derivative: String,
+  pub derivative: String,
   /// OS version specification.
-  pub(crate) version: OsVersionSpecification,
+  pub version: OsVersionSpecification,
 }
 
 /// OS variant.
@@ -35,7 +35,7 @@ pub(crate) struct TargetDescription {
 /// 
 /// Unix-like is related to `BSD` and other POSIX-compatible systems.
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
-pub(crate) enum OsVariant {
+pub enum OsVariant {
   Android,
   #[allow(non_camel_case_types)]
   iOS,
@@ -54,7 +54,7 @@ pub(crate) enum OsVariant {
 /// 
 /// Strong specification, on the contrary, locks on chosen OS version.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Default, Debug)]
-pub(crate) enum OsVersionSpecification {
+pub enum OsVersionSpecification {
   #[default]
   No,
   Weak(String),

@@ -11,27 +11,27 @@ use crate::entities::remote_host::RemoteHost;
 
 /// Build environment.
 #[derive(Clone, Copy)]
-pub(crate) struct BuildEnvironment<'a> {
+pub struct BuildEnvironment<'a> {
   /// Actual build folder. This is where Deployer runs all the Actions.
-  pub(crate) build_dir: &'a Path,
+  pub build_dir: &'a Path,
   /// System-wide or local common cache folder (usually `~/.cache`).
-  pub(crate) cache_dir: &'a Path,
+  pub cache_dir: &'a Path,
   /// System-wide or local common configuration folder (usually `~/.config`).
-  pub(crate) config_dir: &'a Path,
+  pub config_dir: &'a Path,
   /// Project folder.
-  pub(crate) project_dir: Option<&'a Path>,
+  pub project_dir: Option<&'a Path>,
   /// Deployer storage folder.
-  pub(crate) storage_dir: &'a Path,
+  pub storage_dir: &'a Path,
   /// Artifacts folder (usually `%project_dir%/artifacts`).
-  pub(crate) artifacts_dir: &'a Path,
+  pub artifacts_dir: &'a Path,
   /// Remote hosts's Registry. Used to find hosts by short name.
-  pub(crate) remotes: &'a HashMap<ShortName, RemoteHost>,
+  pub remotes: &'a HashMap<ShortName, RemoteHost>,
   /// What files you should ignore when running Pipelines remotely.
-  pub(crate) ignore: &'a HashSet<PathBuf>,
+  pub ignore: &'a HashSet<PathBuf>,
   /// New build flag. Pipeline execution will run all Actions.
-  pub(crate) new_build: bool,
+  pub new_build: bool,
   /// Silent build flag. Deployer will not print anything on the screen.
-  pub(crate) silent_build: bool,
+  pub silent_build: bool,
   /// No I/O redirection flag. Deployer will not collect any command's output.
-  pub(crate) no_pipe: bool,
+  pub no_pipe: bool,
 }

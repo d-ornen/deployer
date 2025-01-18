@@ -15,22 +15,22 @@ use crate::i18n;
 
 /// Remote host.
 #[derive(Deserialize, Serialize, Clone)]
-pub(crate) struct RemoteHost {
+pub struct RemoteHost {
   /// Short name (remote host identifier inside Deployer's Registry).
-  pub(crate) short_name: ShortName,
+  pub short_name: ShortName,
   /// IP address of SSH server.
-  pub(crate) ip: IpAddr,
+  pub ip: IpAddr,
   /// Port of SSH server.
-  pub(crate) port: u16,
+  pub port: u16,
   /// Username under which you plan to perform operations on the host.
-  pub(crate) username: String,
+  pub username: String,
   /// Path to private SSH key file.
-  pub(crate) ssh_private_key_file: PathBuf,
+  pub ssh_private_key_file: PathBuf,
 }
 
 impl RemoteHost {
   /// Checks the remote host connectivity, authorization and Deployer installation existence.
-  pub(crate) fn check(&self) -> anyhow::Result<()> {
+  pub fn check(&self) -> anyhow::Result<()> {
     const PKG_NAME: &str = env!("CARGO_PKG_NAME");
     const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
     
@@ -56,7 +56,7 @@ impl RemoteHost {
   }
   
   /// Starts Deployer's Pipeline execution on the remote host with given remote build folder.
-  pub(crate) fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
+  pub fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
     let shell = match std::env::var("DEPLOYER_SH_PATH") {
       Ok(path) => path,
       Err(_) => "/bin/bash".to_string(),
@@ -80,17 +80,17 @@ impl RemoteHost {
   }
   
   /// Opens the session with given runtime.
-  pub(crate) fn open_session(&self, rt: &tokio::runtime::Runtime) -> anyhow::Result<Session> {
+  pub fn open_session(&self, rt: &tokio::runtime::Runtime) -> anyhow::Result<Session> {
     rt.block_on(Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)))
   }
   
   /// Closes the session with given runtime.
-  pub(crate) fn close_session(session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<()> {
+  pub fn close_session(session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<()> {
     rt.block_on(session.close())
   }
   
   /// Executes single shell command with given session and runtime.
-  pub(crate) fn exec(&self, bash_c: &str, session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, String)> {
+  pub fn exec(&self, bash_c: &str, session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, String)> {
     rt.block_on(async {
       let (status, out) = session.call(bash_c).await?;
       match status {
@@ -115,7 +115,7 @@ impl russh::client::Handler for Client {
   }
 }
 
-pub(crate) struct Session {
+pub struct Session {
   session: russh::client::Handle<Client>,
 }
 
