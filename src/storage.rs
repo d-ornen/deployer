@@ -83,7 +83,7 @@ pub fn use_from_storage(
   
   if !content_info_str.ends_with("latest") {
     content_path.push(&content_info_str);
-    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, content_info_str, i18n::CONTENT_CONSIDER_ADD) }
     copy_all(&content_path, build_dir, &[""])?;
   } else {
     let mut versions = vec![];
@@ -92,10 +92,10 @@ pub fn use_from_storage(
       let name = entry.file_name().to_str().unwrap().to_owned();
       if name.starts_with(content_info.short_name()) { versions.push(name); }
     }
-    if versions.is_empty() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    if versions.is_empty() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, content_info_str, i18n::CONTENT_CONSIDER_ADD) }
     let max = versions.iter().max().unwrap();
     content_path.push(max);
-    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, i18n::CONTENT_CONSIDER_ADD, content_info_str) }
+    if !content_path.exists() { bail!("{}: `{}`. {}", i18n::NO_SUCH_CONTENT, content_info_str, i18n::CONTENT_CONSIDER_ADD) }
     copy_all(&content_path, build_dir, &[""])?;
   }
   
