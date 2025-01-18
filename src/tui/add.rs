@@ -24,7 +24,7 @@ use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
   custom_command::CustomCommand,
   info::{ActionInfo, ContentInfo, PipelineInfo, ShortName},
-  programming_languages::{ProgrammingLanguage, specify_programming_languages},
+  programming_languages::ProgrammingLanguage,
   remote_host::RemoteHost,
   requirements::Requirement,
   targets::{TargetDescription, OsVariant, OsVersionSpecification},
@@ -36,7 +36,7 @@ use crate::pipelines::DescribedPipeline;
 use crate::utils::{tags_custom_type, str2regex_simple};
 
 impl DeployerProjectOptions {
-  pub(crate) fn init_from_prompt(&mut self, curr_dir: String) -> anyhow::Result<()> {
+  pub fn init_from_prompt(&mut self, curr_dir: String) -> anyhow::Result<()> {
     use inquire::Text;
     
     #[cfg(unix)]
@@ -72,7 +72,7 @@ impl DeployerProjectOptions {
 }
 
 impl DescribedAction {
-  pub(crate) fn new_from_prompt(opts: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
+  pub fn new_from_prompt(opts: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
     use inquire::{Select, Text};
     
     let short_name = Text::new(i18n::ACTION_SHORT_NAME).prompt()?;
@@ -214,7 +214,7 @@ impl DescribedAction {
   }
 }
 
-pub(crate) fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> {
+pub fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> {
   use inquire::Confirm;
   
   let mut commands = Vec::new();
@@ -228,7 +228,7 @@ pub(crate) fn collect_multiple_commands() -> anyhow::Result<Vec<CustomCommand>> 
   Ok(commands)
 }
 
-pub(crate) fn collect_requirements() -> anyhow::Result<Option<Vec<Requirement>>> {
+pub fn collect_requirements() -> anyhow::Result<Option<Vec<Requirement>>> {
   use inquire::Confirm;
   
   let mut reqs = Vec::new();
@@ -239,7 +239,7 @@ pub(crate) fn collect_requirements() -> anyhow::Result<Option<Vec<Requirement>>>
 }
 
 impl CheckAction {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let bash_c = specify_bash_c(None)?;
     
     let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
@@ -278,7 +278,7 @@ impl CheckAction {
     })
   }
   
-  pub(crate) fn new_wop_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_wop_from_prompt() -> anyhow::Result<Self> {
     let bash_c = specify_bash_c(None)?;
     
     let ignore_fails = !inquire::Confirm::new(i18n::CHECK_IGNORE_FAILS).with_default(true).prompt()?;
@@ -316,14 +316,14 @@ impl CheckAction {
 }
 
 impl PatchAction {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).prompt()?);
     Ok(Self { patch })
   }
 }
 
 impl DescribedPipeline {
-  pub(crate) fn new_from_prompt(globals: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
+  pub fn new_from_prompt(globals: &mut DeployerGlobalConfig) -> anyhow::Result<Self> {
     use inquire::Text;
     
     let short_name = Text::new(i18n::PIPELINE_SHORT_NAME).prompt()?;
@@ -356,7 +356,7 @@ impl DescribedPipeline {
 }
 
 // Helper function to collect multiple Actions
-pub(crate) fn collect_multiple_actions(
+pub fn collect_multiple_actions(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<Vec<DescribedAction>> {
   use inquire::Confirm;
@@ -371,7 +371,7 @@ pub(crate) fn collect_multiple_actions(
   Ok(actions)
 }
 
-pub(crate) fn select_action(
+pub fn select_action(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<DescribedAction> {
   use inquire::{Select, Text};
@@ -413,7 +413,7 @@ pub(crate) fn select_action(
   Ok(action)
 }
 
-pub(crate) fn reorder_actions(
+pub fn reorder_actions(
   selected_actions_unordered: Vec<DescribedAction>,
 ) -> anyhow::Result<Vec<DescribedAction>> {
   use inquire::ReorderableList;
@@ -437,7 +437,7 @@ pub(crate) fn reorder_actions(
   Ok(selected_actions_ordered)
 }
 
-pub(crate) fn collect_targets() -> anyhow::Result<Vec<TargetDescription>> {
+pub fn collect_targets() -> anyhow::Result<Vec<TargetDescription>> {
   let mut v = vec![];
   let mut first = true;
   
@@ -449,7 +449,7 @@ pub(crate) fn collect_targets() -> anyhow::Result<Vec<TargetDescription>> {
   Ok(v)
 }
 
-pub(crate) fn collect_artifact() -> anyhow::Result<PathBuf> {
+pub fn collect_artifact() -> anyhow::Result<PathBuf> {
   let assume_root = PathBuf::from("/");
   
   loop {
@@ -459,7 +459,7 @@ pub(crate) fn collect_artifact() -> anyhow::Result<PathBuf> {
   }
 }
 
-pub(crate) fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
+pub fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
   let mut v = vec![];
   let mut first = true;
   
@@ -471,11 +471,11 @@ pub(crate) fn collect_artifacts() -> anyhow::Result<Vec<PathBuf>> {
   Ok(v)
 }
 
-pub(crate) fn collect_path() -> anyhow::Result<PathBuf> {
+pub fn collect_path() -> anyhow::Result<PathBuf> {
   Ok(PathBuf::from(inquire::Text::new(i18n::ABSOLUTE_PATH).prompt()?))
 }
 
-pub(crate) fn collect_paths() -> anyhow::Result<Vec<PathBuf>> {
+pub fn collect_paths() -> anyhow::Result<Vec<PathBuf>> {
   let mut v = vec![];
   let mut first = true;
   
@@ -487,7 +487,7 @@ pub(crate) fn collect_paths() -> anyhow::Result<Vec<PathBuf>> {
   Ok(v)
 }
 
-pub(crate) fn collect_variables() -> anyhow::Result<Vec<Variable>> {
+pub fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   let mut v = vec![];
   let mut first = true;
   
@@ -499,7 +499,7 @@ pub(crate) fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   Ok(v)
 }
 
-pub(crate) fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(PathBuf, PathBuf)> {
+pub fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(PathBuf, PathBuf)> {
   use inquire::{Select, Text};
   
   let assume_root = PathBuf::from("/");
@@ -513,7 +513,7 @@ pub(crate) fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::R
   }
 }
 
-pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
+pub fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
   use inquire::Confirm;
   
   let artifacts = artifacts.iter().map(|v| v.to_str().unwrap()).collect::<Vec<_>>();
@@ -536,7 +536,7 @@ pub(crate) fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<V
   Ok(v)
 }
 
-pub(crate) fn specify_regex(for_what: &str) -> anyhow::Result<Regex> {
+pub fn specify_regex(for_what: &str) -> anyhow::Result<Regex> {
   let mut regex_str;
   
   loop {
@@ -562,7 +562,7 @@ pub(crate) fn specify_regex(for_what: &str) -> anyhow::Result<Regex> {
 }
 
 impl Variable {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let title = inquire::Text::new(i18n::VAR_TITLE).prompt()?;
     println!("{}: {} `{}`, `{}`.", i18n::NOTE.green().italic(), i18n::VAR_NOTE, VAULT_ADDR_ENV.green(), VAULT_ADDR_TOKEN.green());
     let is_secret = inquire::Confirm::new(i18n::VAR_IS_SECRET).with_default(false).prompt()?;
@@ -584,22 +584,22 @@ impl Variable {
     })
   }
   
-  pub(crate) fn new_plain_from_prompt() -> anyhow::Result<VarValue> {
+  pub fn new_plain_from_prompt() -> anyhow::Result<VarValue> {
     Ok(VarValue::Plain(inquire::Text::new(i18n::VAR_PLAIN_CONTENT).prompt()?))
   }
   
-  pub(crate) fn new_env_from_prompt() -> anyhow::Result<VarValue> {
+  pub fn new_env_from_prompt() -> anyhow::Result<VarValue> {
     Ok(VarValue::FromEnvVar(inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?))
   }
   
-  pub(crate) fn new_env_file_from_prompt() -> anyhow::Result<VarValue> {
+  pub fn new_env_file_from_prompt() -> anyhow::Result<VarValue> {
     Ok(VarValue::FromEnvFile(FromEnvFile {
       env_file_path: PathBuf::from(inquire::Text::new(i18n::VAR_ENV_FILE).prompt()?),
       key: inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?,
     }))
   }
   
-  pub(crate) fn new_kv2_from_prompt() -> anyhow::Result<VarValue> {
+  pub fn new_kv2_from_prompt() -> anyhow::Result<VarValue> {
     println!("{}: {}", i18n::NOTE.green().italic(), i18n::KV2_NOTE);
     Ok(VarValue::FromHCVaultKv2(Kv2Paths {
       mount_path: inquire::Text::new(i18n::VAR_MOUNT_PATH).prompt()?,
@@ -609,7 +609,7 @@ impl Variable {
 }
 
 impl Requirement {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let types = vec![i18n::REQ_TYPE_EX, i18n::REQ_TYPE_EX_ANY, i18n::REQ_TYPE_CHECK, i18n::REQ_TYPE_REMOTE];
     let r#type = inquire::Select::new(i18n::SELECT_REQ_TYPE, types).prompt()?;
     match r#type {
@@ -621,25 +621,25 @@ impl Requirement {
     }
   }
   
-  pub(crate) fn new_exists_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_exists_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::Exists(collect_path()?))
   }
   
-  pub(crate) fn new_exists_any_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_exists_any_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::ExistsAny(collect_paths()?))
   }
   
-  pub(crate) fn new_check_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_check_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::CheckSuccess(CheckAction::new_wop_from_prompt()?))
   }
   
-  pub(crate) fn new_remote_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_remote_from_prompt() -> anyhow::Result<Self> {
     Ok(Self::RemoteAccessibleAndReady(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?))
   }
 }
 
 impl TargetDescription {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     use inquire::{Select, Text};
     
     let arch = Text::new(i18n::TARGET_ARCH).prompt()?;
@@ -696,7 +696,7 @@ impl TargetDescription {
 }
 
 impl AutoVersionExtractFromRule {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let new_autover_rule = inquire::Select::new(
       i18n::SPECIFY_AUTO_VER,
       vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
@@ -718,7 +718,7 @@ impl AutoVersionExtractFromRule {
 }
 
 impl CustomCommand {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<CustomCommand> {
+  pub fn new_from_prompt() -> anyhow::Result<CustomCommand> {
     let bash_c = specify_bash_c(None)?;
     
     let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
@@ -743,7 +743,7 @@ impl CustomCommand {
     })
   }
   
-  pub(crate) fn new_from_prompt_unspecified() -> anyhow::Result<CustomCommand> {
+  pub fn new_from_prompt_unspecified() -> anyhow::Result<CustomCommand> {
     let bash_c = specify_bash_c(None)?;
     
     let placeholders = tags_custom_type(i18n::CMD_PLACEHOLDERS, None).prompt()?;
@@ -762,7 +762,7 @@ impl CustomCommand {
   }
 }
 
-pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
+pub fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
   let mut bash_c;
   loop {
     let prompt = format!("{} {}:", i18n::CMD_SPECIFY_BASH_C, i18n::CHECK_HELP);
@@ -793,7 +793,7 @@ pub(crate) fn specify_bash_c(default: Option<&str>) -> anyhow::Result<String> {
 }
 
 impl ProgrammingLanguage {
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let s = inquire::Text::new(i18n::PL_INPUT_PROMPT).prompt()?;
     let pl = match s.as_str() {
       "Rust" => Self::Rust,
@@ -807,9 +807,52 @@ impl ProgrammingLanguage {
   }
 }
 
+/// Parses specified programming languages.
+pub fn specify_programming_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
+  use inquire::MultiSelect;
+  
+  let langs = vec!["Rust", "Go", "C", "C++", "Python", "Others"];
+  let selected = MultiSelect::new(i18n::PL_SELECT, langs).prompt()?;
+  
+  let mut result = Vec::new();
+  for lang in selected {
+    let lang = match lang {
+      "Rust" => ProgrammingLanguage::Rust,
+      "Go" => ProgrammingLanguage::Go,
+      "C" => ProgrammingLanguage::C,
+      "C++" => ProgrammingLanguage::Cpp,
+      "Python" => ProgrammingLanguage::Python,
+      "Others" => {
+        let langs = collect_multiple_languages()?;
+        result.extend_from_slice(&langs);
+        continue
+      }
+      _ => unreachable!(),
+    };
+    result.push(lang);
+  }
+  
+  Ok(result)
+}
+
+/// Collects multiple languages.
+fn collect_multiple_languages() -> anyhow::Result<Vec<ProgrammingLanguage>> {
+  let langs = tags_custom_type(i18n::PL_COLLECT, None).prompt()?;
+  let mut v = vec![];
+  
+  for lang in langs {
+    match lang.as_str() {
+      "Rust" | "Go" | "C" | "C++" | "Python" => continue,
+      lang => v.push(ProgrammingLanguage::Other(lang.to_owned())),
+    }
+  }
+  
+  Ok(v)
+}
+
 impl RemoteHost {
   #[allow(unused)]
-  pub(crate) fn new_from_prompt() -> anyhow::Result<Self> {
+  pub fn new_from_prompt() -> anyhow::Result<Self> {
     let short_name = ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?;
     let ip = inquire::Text::new(i18n::SPECIFY_HOST_IP).prompt()?.parse()?;
     let port = inquire::Text::new(i18n::SPECIFY_HOST_PORT).prompt()?.parse()?;
@@ -826,7 +869,7 @@ impl RemoteHost {
     })
   }
   
-  pub(crate) fn new_with_args_from_prompt(args: crate::cmd::NewRemoteArgs) -> anyhow::Result<Self> {
+  pub fn new_with_args_from_prompt(args: crate::cmd::NewRemoteArgs) -> anyhow::Result<Self> {
     let short_name = ShortName::new(match args.short_name {
       Some(name) => name,
       None => inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?,

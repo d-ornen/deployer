@@ -22,6 +22,7 @@
 mod tests;
 
 mod cmd;
+#[cfg(feature = "tui")]
 mod tui;
 mod configs;
 mod rw;
@@ -35,6 +36,7 @@ mod storage;
 mod actions;
 mod pipelines;
 mod entities;
+#[cfg(feature = "tui")]
 mod project;
 
 mod i18n;
@@ -50,6 +52,7 @@ use crate::project::{init_project, edit_project};
 use crate::remote::{list_remote, cat_remote, new_remote, edit_remote, remove_remote};
 use crate::rw::{read, write, VERBOSE};
 use crate::storage::{list_content, new_content, remove_content};
+use crate::tui::docs;
 use crate::utils::get_current_working_dir;
 
 #[cfg(feature = "tests")]
@@ -69,11 +72,11 @@ static HIDDEN_PROJECT_CONF: &str = ".deploy-config.json";
 static GLOBAL_CONF: &str = "deploy-global.json";
 static BUILD_CACHE_LIST: &str = "deploy-builds.json";
 
-pub(crate) static CACHE_DIR: &str = "deploy-cache";
-pub(crate) static LOGS_DIR: &str = "logs";
-pub(crate) static STORAGE_DIR: &str = "deployer";
+pub static CACHE_DIR: &str = "deploy-cache";
+pub static LOGS_DIR: &str = "logs";
+pub static STORAGE_DIR: &str = "deployer";
 
-pub(crate) static ARTIFACTS_DIR: &str = "artifacts";
+pub static ARTIFACTS_DIR: &str = "artifacts";
 
 #[cfg(not(unix))]
 compile_error!("`deployer` can't work with non-Unix systems.");
@@ -216,6 +219,8 @@ fn main() {
       clean_builds(&config, &mut builds, &cache_folder, &args).unwrap();
       write(&cache_folder, BUILD_CACHE_LIST, &builds);
     },
+    
+    DeployerExecType::Docs => docs::read_docs().unwrap(),
     
     #[cfg(feature = "tests")]
     DeployerExecType::Tests => tests().unwrap(),

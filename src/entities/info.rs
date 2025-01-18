@@ -18,11 +18,11 @@ use crate::i18n;
 /// 
 /// You can use anything with numbers, English letters and `-`, `_` characters.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ShortName(String);
+pub struct ShortName(String);
 
 impl ShortName {
   /// Validates and creates a short name.
-  pub(crate) fn new(short_name: impl AsRef<str>) -> anyhow::Result<Self> {
+  pub fn new(short_name: impl AsRef<str>) -> anyhow::Result<Self> {
     if !validate_short_name(short_name.as_ref()) {
       bail!(i18n::INCORRECT_SHORT_NAME)
     }
@@ -30,7 +30,7 @@ impl ShortName {
   }
   
   /// Represents as `&str`.
-  pub(crate) fn as_str(&self) -> &str { self.0.as_str() }
+  pub fn as_str(&self) -> &str { self.0.as_str() }
 }
 
 /// Version.
@@ -38,11 +38,11 @@ impl ShortName {
 /// You can use any version like these: `X`, `X.Y`, `X.Y.Z`;
 /// for example: `1.0`, `4.21.9`, etc.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct Version(String);
+pub struct Version(String);
 
 impl Version {
   /// Validates and creates a version.
-  pub(crate) fn new(version: impl AsRef<str>) -> anyhow::Result<Self> {
+  pub fn new(version: impl AsRef<str>) -> anyhow::Result<Self> {
     if !validate_version(version.as_ref()) {
       bail!(i18n::INCORRECT_VERSION)
     }
@@ -51,7 +51,7 @@ impl Version {
   
   /// Validates and creates a version, but allows use `latest` version to
   /// use with `UseFromStorage` Action type.
-  pub(crate) fn new_for_using(version: impl AsRef<str>) -> anyhow::Result<Self> {
+  pub fn new_for_using(version: impl AsRef<str>) -> anyhow::Result<Self> {
     if !version.as_ref().eq("latest") && !validate_version(version.as_ref()) {
       bail!(i18n::INCORRECT_VERSION)
     }
@@ -59,26 +59,26 @@ impl Version {
   }
   
   /// Represents as `&str`.
-  pub(crate) fn as_str(&self) -> &str { self.0.as_str() }
+  pub fn as_str(&self) -> &str { self.0.as_str() }
 }
 
 /// Any notable entity info.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct Info {
+pub struct Info {
   /// Short name.
   short_name: ShortName,
   /// Version.
   version: Version,
 }
 
-pub(crate) trait StrToInfo {
+pub trait StrToInfo {
   /// Try to convert this to Info.
   fn to_info(&self) -> anyhow::Result<Info>;
 }
 
-impl StrToInfo for String { fn to_info(&self) -> anyhow::Result<Info> { Info::from_str(self) } }
-impl StrToInfo for &String { fn to_info(&self) -> anyhow::Result<Info> { Info::from_str(self) } }
-impl StrToInfo for &str { fn to_info(&self) -> anyhow::Result<Info> { Info::from_str(self) } }
+impl StrToInfo for String { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
+impl StrToInfo for &String { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
+impl StrToInfo for &str { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
 
 impl<'de> Deserialize<'de> for Info {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> { str2info(deserializer) }
@@ -97,18 +97,18 @@ static VERSION_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Validates the short name.
-pub(crate) fn validate_short_name(short_name: &str) -> bool {
+pub fn validate_short_name(short_name: &str) -> bool {
   SHORT_NAME_VALIDATOR.is_match(short_name)
 }
 
 /// Validates the version.
-pub(crate) fn validate_version(version: &str) -> bool {
+pub fn validate_version(version: &str) -> bool {
   VERSION_VALIDATOR.is_match(version)
 }
 
 impl Info {
   /// Validates short name and version of entity and creates info object.
-  pub(crate) fn new(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
+  pub fn new(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
     let short_name = match ShortName::new(short_name) {
       Err(_) => bail!(i18n::INCORRECT_SHORT_NAME),
       Ok(v) => v,
@@ -123,7 +123,7 @@ impl Info {
   /// Validates short name and version of entity and creates info object.
   /// 
   /// Allows use `latest` version for `UseFromStorage` Action.
-  pub(crate) fn new_for_using(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
+  pub fn new_for_using(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
     let short_name = match ShortName::new(short_name) {
       Err(_) => bail!(i18n::INCORRECT_SHORT_NAME),
       Ok(v) => v,
@@ -136,23 +136,23 @@ impl Info {
   }
   
   /// Constructs info object from `ShortName` and `Version` objects.
-  pub(crate) fn from(short_name: ShortName, version: Version) -> Self {
+  pub fn from(short_name: ShortName, version: Version) -> Self {
     Self { short_name, version }
   }
   
-  pub(crate) fn short_name(&self) -> &str {
+  pub fn short_name(&self) -> &str {
     self.short_name.as_str()
   }
   
   /// Represents whole entity info as a single string.
   /// 
   /// Returns a string formatted like this: `short-name@version`.
-  pub(crate) fn to_str(&self) -> String {
+  pub fn to_str(&self) -> String {
     format!("{}@{}", self.short_name.as_str(), self.version.as_str())
   }
   
   /// Try to convert a string to entity info object.
-  pub(crate) fn from_str(short_name_and_ver: &str) -> anyhow::Result<Self> {
+  pub fn try_from_str(short_name_and_ver: &str) -> anyhow::Result<Self> {
     let vals = short_name_and_ver.split('@').collect::<Vec<_>>();
     if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
       Info::new(short_name, version)
@@ -162,7 +162,7 @@ impl Info {
   }
   
   /// Try to convert a string to entity info object.
-  pub(crate) fn from_str_wl(short_name_and_ver: &str) -> anyhow::Result<Self> {
+  pub fn try_from_str_wl(short_name_and_ver: &str) -> anyhow::Result<Self> {
     let vals = short_name_and_ver.split('@').collect::<Vec<_>>();
     if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
       Info::new_for_using(short_name, version)
@@ -172,37 +172,37 @@ impl Info {
   }
 }
 
-pub(crate) type ActionInfo = Info;
-pub(crate) type PipelineInfo = Info;
-pub(crate) type ContentInfo = Info;
+pub type ActionInfo = Info;
+pub type PipelineInfo = Info;
+pub type ContentInfo = Info;
 
-pub(crate) fn str2info<'de, D>(deserializer: D) -> Result<Info, D::Error>
+pub fn str2info<'de, D>(deserializer: D) -> Result<Info, D::Error>
 where
   D: serde::Deserializer<'de>,
 {
   use serde::de::Error;
   String::deserialize(deserializer).and_then(|string| {
-    match Info::from_str(string.as_str()) {
+    match Info::try_from_str(string.as_str()) {
       Ok(v) => Ok(v),
       Err(e) => Err(Error::custom(&e))
     }
   })
 }
 
-pub(crate) fn str2info_wl<'de, D>(deserializer: D) -> Result<Info, D::Error>
+pub fn str2info_wl<'de, D>(deserializer: D) -> Result<Info, D::Error>
 where
   D: serde::Deserializer<'de>,
 {
   use serde::de::Error;
   String::deserialize(deserializer).and_then(|string| {
-    match Info::from_str_wl(string.as_str()) {
+    match Info::try_from_str_wl(string.as_str()) {
       Ok(v) => Ok(v),
       Err(e) => Err(Error::custom(&e))
     }
   })
 }
 
-pub(crate) fn info2str<S>(v: &Info, serializer: S) -> Result<S::Ok, S::Error>
+pub fn info2str<S>(v: &Info, serializer: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {

@@ -108,7 +108,7 @@ impl DescribedAction {
     Ok(action)
   }
   
-  pub(crate) fn prompt_setup_for_project(
+  pub fn prompt_setup_for_project(
     &self,
     langs: &Vec<ProgrammingLanguage>,
     deploy_toolkit: &Option<String>,
@@ -141,7 +141,7 @@ impl DescribedAction {
 }
 
 impl CheckAction {
-  pub(crate) fn prompt_setup_for_project(
+  pub fn prompt_setup_for_project(
     &self,
     info: &ActionInfo,
     variables: &[Variable],
@@ -154,7 +154,7 @@ impl CheckAction {
 }
 
 impl CustomCommand {
-  pub(crate) fn prompt_setup_for_project(
+  pub fn prompt_setup_for_project(
     &self,
     info: &ActionInfo,
     variables: &[Variable],
@@ -213,7 +213,7 @@ impl CustomCommand {
   }
 }
 
-pub(crate) fn specify_pipeline_short_name(
+pub fn specify_pipeline_short_name(
   config: &mut DeployerProjectOptions,
   short_name: &mut String,
 ) -> anyhow::Result<()> {

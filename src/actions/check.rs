@@ -40,15 +40,15 @@ use crate::utils::{regexopt2str, str2regexopt};
 /// 
 /// Checks your command output by given regular expressions.
 #[derive(Deserialize, Serialize, Clone)]
-pub(crate) struct CheckAction {
+pub struct CheckAction {
   /// Command to execute.
-  pub(crate) command: CustomCommand,
+  pub command: CustomCommand,
   /// Regular expression that means successful check if it matches the command's output.
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
-  pub(crate) success_when_found: Option<Regex>,
+  pub success_when_found: Option<Regex>,
   /// Regular expression that means successful check if it doesn't match the command's output.
   #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
-  pub(crate) success_when_not_found: Option<Regex>,
+  pub success_when_not_found: Option<Regex>,
 }
 
 impl Execute for CheckAction {

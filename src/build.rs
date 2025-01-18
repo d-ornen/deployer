@@ -30,32 +30,32 @@ use crate::utils::get_current_working_dir;
 
 /// List of all builds at this host.
 #[derive(Deserialize, Serialize, Default)]
-pub(crate) struct Builds {
-  pub(crate) projects: Vec<ProjectBuilds>,
+pub struct Builds {
+  pub projects: Vec<ProjectBuilds>,
 }
 
 /// Builds of chosen project.
 #[derive(Deserialize, Serialize, Clone)]
-pub(crate) struct ProjectBuilds {
+pub struct ProjectBuilds {
   /// Project name (see `DeployerProjectOptions::project_name`).
-  pub(crate) name: String,
+  pub name: String,
   /// List of build folders.
-  pub(crate) builds: Vec<Build>,
+  pub builds: Vec<Build>,
 }
 
 /// Build information.
 #[derive(Deserialize, Serialize, Clone)]
-pub(crate) struct Build {
+pub struct Build {
   /// If is set, this folder will be used only for Pipelines with this exclusive tag.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) exclusive_tag: Option<String>,
+  pub exclusive_tag: Option<String>,
   /// Build path.
-  pub(crate) folder: PathBuf,
+  pub folder: PathBuf,
 }
 
 impl Build {
   /// Checks the exclusive tag on both build folder and given Pipeline.
-  pub(crate) fn works_with(&self, pipeline: &DescribedPipeline) -> bool {
+  pub fn works_with(&self, pipeline: &DescribedPipeline) -> bool {
     self.exclusive_tag.as_ref().is_some_and(|a| pipeline.exclusive_exec_tag.as_ref().is_some_and(|b| a.as_str().eq(b.as_str()))) ||
     (self.exclusive_tag.is_none() && pipeline.exclusive_exec_tag.is_none())
   }
@@ -64,7 +64,7 @@ impl Build {
 /// Places Pipeline artifacts in the `artifacts` folder inside project's directory.
 /// 
 /// `panic_when_not_found` is set to `false` on all function's usages now.
-pub(crate) fn place_artifacts(
+pub fn place_artifacts(
   config: &DeployerProjectOptions,
   env: BuildEnvironment,
   panic_when_not_found: bool,
@@ -187,7 +187,7 @@ fn prepare_build_folder(
 /// - `fresh` to create new build folder
 /// - `copy_cache` to copy cache files from project's folder
 /// - `link_cache` to create symlinks to cache files from project's folder
-pub(crate) fn build(
+pub fn build(
   config: &mut DeployerProjectOptions,
   globals: &DeployerGlobalConfig,
   builds: &mut Builds,
@@ -282,7 +282,7 @@ pub(crate) fn build(
 
 /// Builds project as worker node (e.g., without project directory itself
 /// and with given build folder path from controller's node).
-pub(crate) fn build_as_worker(
+pub fn build_as_worker(
   build_dir: &Path,
   cache_dir: &Path,
   config_dir: &Path,
@@ -328,7 +328,7 @@ pub(crate) fn build_as_worker(
 /// 
 /// After remote build Deployer automatically copies all built artifacts
 /// to this host from the remote.
-pub(crate) fn build_as_controller(
+pub fn build_as_controller(
   config: &DeployerProjectOptions,
   builds: &mut Builds,
   artifacts_dir: &Path,
@@ -375,7 +375,7 @@ pub(crate) fn build_as_controller(
 /// 1. Prepare build log file.
 /// 2. Collect all Pipeline Actions' requirements and satisfy them.
 /// 3. Execute all Pipeline's Actions.
-pub(crate) fn execute_pipeline(
+pub fn execute_pipeline(
   config: &DeployerProjectOptions,
   env: BuildEnvironment,
   pipeline: &DescribedPipeline,
@@ -475,7 +475,12 @@ pub(crate) fn execute_pipeline(
       Action::Patch(patch) => patch.execute(env)?,
       Action::Interrupt => {
         println!();
+        #[cfg(feature = "tui")]
         inquire::Confirm::new(i18n::INTERRUPT).with_default(true).prompt()?;
+        #[cfg(not(feature = "tui"))]
+        {
+          let _ = std::io::read_to_string(std::io::stdin())?;
+        }
         (true, vec![])
       },
       Action::UseFromStorage(content_info) => {
@@ -552,7 +557,7 @@ pub(crate) fn execute_pipeline(
 /// 
 /// You can also specify `include_artifacts` option (`deployer clean -i`)
 /// to cleanup `artifacts` folder.
-pub(crate) fn clean_builds(
+pub fn clean_builds(
   config: &DeployerProjectOptions,
   builds: &mut Builds,
   cache_dir: &Path,

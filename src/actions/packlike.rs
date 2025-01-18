@@ -43,15 +43,15 @@ use crate::entities::{
 /// 
 /// This Action type depends on aimed installation target.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
-pub(crate) struct PackAction {
+pub struct PackAction {
   /// Target (combination of CPU arch, OS and its version or derivative).
-  pub(crate) target: Option<TargetDescription>,
+  pub target: Option<TargetDescription>,
   /// Commands to pack-like Action.
-  pub(crate) commands: Vec<CustomCommand>,
+  pub commands: Vec<CustomCommand>,
 }
 
-pub(crate) type DeliveryAction = PackAction;
-pub(crate) type InstallAction = PackAction;
+pub type DeliveryAction = PackAction;
+pub type InstallAction = PackAction;
 
 impl Execute for PackAction {
   /// Executes commands with given build environment.

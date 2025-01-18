@@ -44,7 +44,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai",
+                  "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai,tui",
                   "ignore_fails": false,
                   "show_success_output": true,
                   "show_bash_c": true
@@ -73,7 +73,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo build --release --no-default-features --features=python,lua,rhai",
+                  "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,lua,rhai,tui",
                   "ignore_fails": false,
                   "show_success_output": false,
                   "show_bash_c": true
@@ -214,7 +214,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai",
+                  "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui",
                   "ignore_fails": false,
                   "show_success_output": true,
                   "show_bash_c": true
@@ -243,7 +243,7 @@
               ],
               "commands": [
                 {
-                  "bash_c": "cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai",
+                  "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui",
                   "ignore_fails": false,
                   "show_success_output": false,
                   "show_bash_c": true
@@ -360,6 +360,43 @@
       "exclusive_exec_tag": "ru"
     },
     {
+      "title": "check-lib",
+      "desc": "",
+      "info": "deployer-check-lib@0.1.0",
+      "tags": [],
+      "actions": [
+        {
+          "title": "Lint",
+          "desc": "Got from `Cargo Clippy`.",
+          "info": "cargo-clippy@0.1.0",
+          "tags": [
+            "cargo",
+            "clippy"
+          ],
+          "action": {
+            "PreBuild": {
+              "supported_langs": [
+                "Rust"
+              ],
+              "commands": [
+                {
+                  "bash_c": "cargo clippy --no-default-features --lib --features=python,lua,rhai",
+                  "ignore_fails": false,
+                  "show_success_output": true,
+                  "show_bash_c": true
+                }
+              ]
+            }
+          },
+          "requirements": [
+            {
+              "Exists": "/bin/cargo"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "test",
       "desc": "",
       "info": "deployer-test@0.1.0",
@@ -403,7 +440,6 @@
           "tags": [],
           "action": {
             "Observe": {
-              "tags": [],
               "command": {
                 "bash_c": "btop",
                 "ignore_fails": true,

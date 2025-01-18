@@ -10,20 +10,20 @@ use std::path::PathBuf;
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 use vaultrs::kv2;
 
-pub(crate) const VAULT_ADDR_ENV: &str = "DEPLOYER_VAULT_ADDR";
-pub(crate) const VAULT_ADDR_TOKEN: &str = "DEPLOYER_VAULT_TOKEN";
+pub const VAULT_ADDR_ENV: &str = "DEPLOYER_VAULT_ADDR";
+pub const VAULT_ADDR_TOKEN: &str = "DEPLOYER_VAULT_TOKEN";
 
 /// Variable.
 /// 
 /// Contains some metadata about variable value.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) struct Variable {
+pub struct Variable {
   /// Name of the variable.
-  pub(crate) title: String,
+  pub title: String,
   /// Is the variable a secret.
-  pub(crate) is_secret: bool,
+  pub is_secret: bool,
   /// Variable value (will replace one of shell command's placeholders).
-  pub(crate) value: VarValue,
+  pub value: VarValue,
 }
 
 impl Variable {
@@ -31,7 +31,7 @@ impl Variable {
   /// 
   /// Note that plain variable can't be a secret in any safe way. It will be
   /// stored inside your project configuration.
-  pub(crate) fn new_plain(title: &str, value: &str) -> Self {
+  pub fn new_plain(title: &str, value: &str) -> Self {
     Self {
       title: title.to_string(),
       is_secret: false,
@@ -40,7 +40,7 @@ impl Variable {
   }
   
   /// Gets the variable's value.
-  pub(crate) fn get_value(&self) -> anyhow::Result<String> {
+  pub fn get_value(&self) -> anyhow::Result<String> {
     match &self.value {
       VarValue::Plain(val) => Ok(val.to_owned()),
       VarValue::FromEnvFile(info) => {
@@ -64,7 +64,7 @@ impl Variable {
 
 /// Variable value type.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum VarValue {
+pub enum VarValue {
   /// Plain (stored inside this struct).
   Plain(String),
   /// Environment file's variable (specified by env file path and var's name).
@@ -77,26 +77,26 @@ pub(crate) enum VarValue {
 
 /// Environment file's variable metadata.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) struct FromEnvFile {
+pub struct FromEnvFile {
   /// Path to the environment variable's file.
-  pub(crate) env_file_path: PathBuf,
+  pub env_file_path: PathBuf,
   /// Name of the variable by which it's stored inside given file.
-  pub(crate) key: String,
+  pub key: String,
 }
 
 /// Vault KV2 secret's metadata.
 /// 
 /// See [KV2 docs](https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2).
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) struct Kv2Paths {
+pub struct Kv2Paths {
   /// The path to the KV mount containing the secret to read.
-  pub(crate) mount_path: String,
+  pub mount_path: String,
   /// Specifies the path of the secret to read.
-  pub(crate) secret_path: String,
+  pub secret_path: String,
 }
 
 /// Some additional methods/
-pub(crate) trait VarTraits {
+pub trait VarTraits {
   fn is_secret(&self, title: &str) -> bool;
   fn titles(&self) -> Vec<String>;
   fn find(&self, title: &str) -> Option<Variable>;

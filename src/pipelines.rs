@@ -2,56 +2,69 @@
 //! 
 //! Pipeline is a list of Actions.
 
+#[cfg(feature = "tui")]
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "tui")]
 use std::process::exit;
 
-use crate::actions::{DescribedAction, Action};
+use crate::actions::DescribedAction;
+#[cfg(feature = "tui")]
+use crate::actions::Action;
+#[cfg(feature = "tui")]
 use crate::cmd::{NewPipelineArgs, CatPipelineArgs, CatProjectArgs, WithPipelineArgs};
+#[cfg(feature = "tui")]
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
-use crate::entities::info::{PipelineInfo, StrToInfo, info2str, str2info};
+use crate::entities::info::{PipelineInfo, info2str, str2info};
+#[cfg(feature = "tui")]
+use crate::entities::info::StrToInfo;
+#[cfg(feature = "tui")]
 use crate::hmap;
+#[cfg(feature = "tui")]
 use crate::i18n;
+#[cfg(feature = "tui")]
 use crate::rw::read_checked;
+#[cfg(feature = "tui")]
 use crate::tui::setup::specify_pipeline_short_name;
 
 /// Described Pipeline.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
-pub(crate) struct DescribedPipeline {
+pub struct DescribedPipeline {
   /// Pipeline name.
   /// 
   /// When you're using project's assigned Pipelines, make sure that
   /// title is simple enough to use it as argument to `deployer build name1,name2,name3,..`.
-  pub(crate) title: String,
+  pub title: String,
   
   /// Pipeline description.
-  pub(crate) desc: String,
+  pub desc: String,
   
   /// Short name and version.
   #[serde(serialize_with = "info2str", deserialize_with = "str2info")]
-  pub(crate) info: PipelineInfo,
+  pub info: PipelineInfo,
   
   /// List of tags (to use with `grep` when searching through `deployer ls pipelines`).
-  pub(crate) tags: Vec<String>,
+  pub tags: Vec<String>,
   
   /// Used Actions with execution order.
-  pub(crate) actions: Vec<DescribedAction>,
+  pub actions: Vec<DescribedAction>,
   
   /// This field is used only in projects.
   /// 
   /// If set to `true`, and no Pipeline specified to `deployer build`, runs automatically.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) default: Option<bool>,
+  pub default: Option<bool>,
   
   /// Specify exclusive execution tag to save unique cache.
   /// 
   /// If set to any string, Deployer will perform this Pipeline only in special build folder.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) exclusive_exec_tag: Option<String>,
+  pub exclusive_exec_tag: Option<String>,
 }
 
 /// Lists all available Pipelines.
-pub(crate) fn list_pipelines(
+#[cfg(feature = "tui")]
+pub fn list_pipelines(
   globals: &DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
   println!("{}", i18n::PIPELINES_AVAILABLE);
@@ -71,7 +84,8 @@ pub(crate) fn list_pipelines(
 }
 
 /// Creates a new Pipeline.
-pub(crate) fn new_pipeline(
+#[cfg(feature = "tui")]
+pub fn new_pipeline(
   globals: &mut DeployerGlobalConfig,
   args: &NewPipelineArgs,
 ) -> anyhow::Result<()> {
@@ -98,7 +112,8 @@ pub(crate) fn new_pipeline(
 }
 
 /// Removes a Pipeline.
-pub(crate) fn remove_pipeline(
+#[cfg(feature = "tui")]
+pub fn remove_pipeline(
   globals: &mut DeployerGlobalConfig,
 ) -> anyhow::Result<()> {
   use inquire::{Select, Confirm};
@@ -136,7 +151,8 @@ pub(crate) fn remove_pipeline(
 }
 
 /// Prints a Pipeline as JSON.
-pub(crate) fn cat_pipeline(
+#[cfg(feature = "tui")]
+pub fn cat_pipeline(
   globals: &DeployerGlobalConfig,
   args: &CatPipelineArgs,
 ) -> anyhow::Result<()> {
@@ -155,7 +171,8 @@ pub(crate) fn cat_pipeline(
 /// 
 /// If you specify `cat_all_shell_commands` option (`deployer cat project -n`),
 /// Deployer will print all shell commands of all project Pipelines.
-pub(crate) fn cat_project_pipelines(
+#[cfg(feature = "tui")]
+pub fn cat_project_pipelines(
   config: &DeployerProjectOptions,
   args: CatProjectArgs,
 ) -> anyhow::Result<()> {
@@ -197,6 +214,7 @@ pub(crate) fn cat_project_pipelines(
 }
 
 /// Reorders Pipelines.
+#[cfg(feature = "tui")]
 fn reorder_pipelines_in_project(
   pipelines_unordered: Vec<DescribedPipeline>,
 ) -> anyhow::Result<Vec<DescribedPipeline>> {
@@ -225,7 +243,8 @@ fn reorder_pipelines_in_project(
 /// 
 /// While setup, Deployer checks programming languages, target specs and
 /// deploy toolkit to make sure that Pipeline is compatible with your project.
-pub(crate) fn assign_pipeline_to_project(
+#[cfg(feature = "tui")]
+pub fn assign_pipeline_to_project(
   globals: &mut DeployerGlobalConfig,
   config: &mut DeployerProjectOptions,
   args: &WithPipelineArgs,
@@ -302,7 +321,8 @@ pub(crate) fn assign_pipeline_to_project(
 }
 
 /// Edits the Pipeline.
-pub(crate) fn edit_pipeline(globals: &mut DeployerGlobalConfig, args: &CatPipelineArgs) -> anyhow::Result<()> {
+#[cfg(feature = "tui")]
+pub fn edit_pipeline(globals: &mut DeployerGlobalConfig, args: &CatPipelineArgs) -> anyhow::Result<()> {
   let info = args.pipeline_short_info_and_version.to_info()?;
   
   let mut pipeline = match globals.pipelines_registry.contains_key(&info) {

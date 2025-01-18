@@ -21,13 +21,13 @@ use crate::entities::variables::Variable;
 
 /// Custom command.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
-pub(crate) struct CustomCommand {
+pub struct CustomCommand {
   /// Shell command that should be executed.
-  pub(crate) bash_c: String,
+  pub bash_c: String,
   
   /// Command placeholders. You can specify several placeholders in single command.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) placeholders: Option<Vec<String>>,
+  pub placeholders: Option<Vec<String>>,
   /// Variables list to replace placeholders.
   /// 
   /// If you have many variables to perform one command with (e.g., have to execute
@@ -43,38 +43,38 @@ pub(crate) struct CustomCommand {
   /// ])
   /// ```
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) replacements: Option<Vec<Vec<(String, Variable)>>>,
+  pub replacements: Option<Vec<Vec<(String, Variable)>>>,
   
   /// Flag to ignore command fails.
   /// 
   /// Any status code your command returns which isn't equal zero means fail. But this
   /// flag allows to avoid Pipeline early exit, if needed. Error will be ignored.
-  pub(crate) ignore_fails: bool,
+  pub ignore_fails: bool,
   
   /// Flag to show output if the command was finished successfully.
   /// 
   /// E.g., if you don't wanna see `cargo build` output when code is built successfully,
   /// you can set this flag to `true`.
-  pub(crate) show_success_output: bool,
+  pub show_success_output: bool,
   
   /// Flag to show command on screen (during Pipeline execution).
   /// 
   /// Allows to hide constructed command (from `bash_c` and replaced variables) to avoid
   /// leaking secrets (keys, tokens, paths to sensitive files, etc.).
-  pub(crate) show_bash_c: bool,
+  pub show_bash_c: bool,
   
   /// Flag to run this command only once on repeateable builds.
   /// 
   /// If set, this command will be performed only when Deployer starts fresh build
   /// (e.g., when no build cache is present, or `build -f` command flag is given).
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) only_when_fresh: Option<bool>,
+  pub only_when_fresh: Option<bool>,
   
   /// List with remote's short names.
   /// 
   /// If is specified and isn't empty, command will be performed only on given remote hosts.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub(crate) remote_exec: Option<Vec<ShortName>>,
+  pub remote_exec: Option<Vec<ShortName>>,
 }
 
 impl Execute for CustomCommand {
@@ -149,7 +149,7 @@ impl Execute for CustomCommand {
 
 impl CustomCommand {
   /// Runs given command remotely on one or more remote hosts.
-  pub(crate) fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  pub fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let hosts = self.remote_exec.as_ref().unwrap();
     let mut output = vec![];
     

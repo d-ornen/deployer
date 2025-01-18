@@ -1,14 +1,15 @@
 //! Entities module.
 
-pub(crate) mod traits;
+pub mod traits;
 
-pub(crate) mod info;
-pub(crate) mod targets;
-pub(crate) mod custom_command;
-pub(crate) mod variables;
-pub(crate) mod programming_languages;
-pub(crate) mod environment;
-pub(crate) mod auto_version;
-pub(crate) mod requirements;
-pub(crate) mod path_type;
-pub(crate) mod remote_host;
+pub mod info;
+pub mod targets;
+pub mod custom_command;
+pub mod variables;
+pub mod programming_languages;
+pub mod environment;
+pub mod auto_version;
+pub mod requirements;
+#[cfg(feature = "tui")]
+pub mod path_type;
+pub mod remote_host;

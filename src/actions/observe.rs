@@ -24,8 +24,8 @@ use crate::entities::traits::Execute;
 /// 
 /// This Action type implicitly overrides `no_pipe` build argument for given command.
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
-pub(crate) struct ObserveAction {
-  pub(crate) command: CustomCommand,
+pub struct ObserveAction {
+  pub command: CustomCommand,
 }
 
 impl Execute for ObserveAction {

@@ -1,0 +1,31 @@
+#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
+#![deny(warnings, clippy::todo, clippy::unimplemented)]
+
+pub mod cmd;
+#[cfg(feature = "tui")]
+pub mod tui;
+pub mod configs;
+pub mod rw;
+pub mod utils;
+
+pub mod build;
+
+pub mod remote;
+pub mod storage;
+
+pub mod actions;
+pub mod pipelines;
+pub mod entities;
+
+pub mod i18n;
+
+pub static PROJECT_CONF: &str = "deploy-config.json";
+pub static HIDDEN_PROJECT_CONF: &str = ".deploy-config.json";
+pub static GLOBAL_CONF: &str = "deploy-global.json";
+pub static BUILD_CACHE_LIST: &str = "deploy-builds.json";
+
+pub static CACHE_DIR: &str = "deploy-cache";
+pub static LOGS_DIR: &str = "logs";
+pub static STORAGE_DIR: &str = "deployer";
+
+pub static ARTIFACTS_DIR: &str = "artifacts";
