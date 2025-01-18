@@ -410,7 +410,7 @@
           "action": {
             "Custom": {
               "bash_c": "ls",
-              "ignore_fails": false,
+              "ignore_fails": true,
               "show_success_output": true,
               "show_bash_c": true,
               "only_when_fresh": false,

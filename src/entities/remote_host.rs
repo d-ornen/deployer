@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::net::ToSocketAddrs;
 
+use crate::entities::custom_command::compose_output;
 use crate::entities::info::ShortName;
 use crate::i18n;
 
@@ -42,13 +43,13 @@ impl RemoteHost {
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
-      let (s, o) = session.call(&format!(r#"{} -c "~/.cargo/bin/deployer -V""#, shell)).await?;
+      let out = session.call(&format!(r#"{} -c "~/.cargo/bin/deployer -V""#, shell)).await?;
       session.close().await?;
-      if s != 0 || o.is_empty() || !o.contains(PKG_NAME) {
+      if out.is_empty() || !out.contains(PKG_NAME) {
         bail!(i18n::REMOTE_NO_DEPLOYER)
       } else {
-        if !o.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
-          println!(r#"{} (out: "{}")"#, i18n::REMOTE_CONSIDER_UPGRADE, o.trim());
+        if !out.contains(&format!("{} {}", PKG_NAME, PKG_VERSION)) {
+          println!(r#"{} (out: "{}")"#, i18n::REMOTE_CONSIDER_UPGRADE, out.trim());
         }
         Ok(())
       }
@@ -56,26 +57,27 @@ impl RemoteHost {
   }
   
   /// Starts Deployer's Pipeline execution on the remote host with given remote build folder.
-  pub fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
+  pub fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<(bool, Vec<String>)> {
     let shell = match std::env::var("DEPLOYER_SH_PATH") {
       Ok(path) => path,
       Err(_) => "/bin/bash".to_string(),
     };
     
     let rt = tokio::runtime::Runtime::new()?;
+    let cmd = format!(
+      r#"{} -c "~/.cargo/bin/deployer build -r {} {} && echo $?""#,
+      shell,
+      remote_build_dir.to_string_lossy().as_str(),
+      pipeline,
+    );
     rt.block_on(async {
       let mut session = Session::connect(&self.ssh_private_key_file, &self.username, (self.ip, self.port)).await?;
-      let (s, o) = session.call(
-        &format!(
-          r#"{} -c "~/.cargo/bin/deployer build -r {} {}""#,
-          shell,
-          remote_build_dir.to_string_lossy().as_str(),
-          pipeline,
-        )
-      ).await?;
+      let out = session.call(cmd.as_str()).await?;
       session.close().await?;
-      if s != 0 { bail!("{}", o) }
-      else { Ok(()) }
+      let success = out.ends_with("\n0\n");
+      let mut out = compose_output(cmd, out, String::new(), success, true, true);
+      out.pop();
+      Ok((success, out))
     })
   }
   
@@ -92,11 +94,9 @@ impl RemoteHost {
   /// Executes single shell command with given session and runtime.
   pub fn exec(&self, bash_c: &str, session: &mut Session, rt: &tokio::runtime::Runtime) -> anyhow::Result<(bool, String)> {
     rt.block_on(async {
-      let (status, out) = session.call(bash_c).await?;
-      match status {
-        0 => Ok((true, out)),
-        _ => Ok((false, out)),
-      }
+      let out = session.call(bash_c).await?;
+      let success = out.ends_with("\n0\n");
+      Ok((success, out))
     })
   }
 }
@@ -146,26 +146,18 @@ impl Session {
     Ok(Self { session })
   }
 
-  async fn call(&mut self, command: &str) -> anyhow::Result<(u32, String)> {
+  async fn call(&mut self, command: &str) -> anyhow::Result<String> {
     use russh::ChannelMsg;
     
     let mut channel = self.session.channel_open_session().await?;
     channel.exec(true, command).await?;
-
-    let mut status = None;
+    
     let mut out_buf = vec![];
-
-    loop {
-      let Some(msg) = channel.wait().await else { break; };
-      match msg {
-        ChannelMsg::Data { ref data } => { out_buf.extend_from_slice(data); },
-        ChannelMsg::ExitStatus { exit_status } => { status = Some(exit_status); },
-        _ => {},
-      }
+    while let Some(msg) = channel.wait().await {
+      if let ChannelMsg::Data { ref data } = msg { out_buf.extend_from_slice(data); }
     }
     
-    let out = String::from_utf8_lossy_owned(out_buf);
-    Ok((status.unwrap_or(0), out))
+    Ok(String::from_utf8_lossy_owned(out_buf))
   }
 
   async fn close(&mut self) -> anyhow::Result<()> {

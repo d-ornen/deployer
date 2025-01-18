@@ -195,17 +195,19 @@ impl CustomCommand {
       
       let mut session = remote.open_session(&rt)?;
       for bash_c in &cmds {
-        let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
+        let bash_c_info = format!(r#"{} -c "{} && echo $?""#, shell, bash_c).green();
         let (s, out) = remote.exec(bash_c, &mut session, &rt)?;
         
-        output.extend_from_slice(&compose_output(
+        let mut composed = compose_output(
           bash_c_info.to_string(),
           out,
           String::new(),
           s,
           self.show_success_output,
           self.show_bash_c,
-        ));
+        );
+        composed.pop();
+        output.extend_from_slice(&composed);
         
         if !self.ignore_fails && !s {
           RemoteHost::close_session(&mut session, &rt)?;
@@ -220,7 +222,7 @@ impl CustomCommand {
 }
 
 /// Composes output from given `stdout` and `stderr` to Deployer's out.
-fn compose_output(
+pub fn compose_output(
   bash_c_info: String,
   stdout: String,
   stderr: String,

@@ -3,12 +3,14 @@
 //! Deployer's build process both complicated and flexible enough.
 //! The main functions is `build` and `execute_pipeline`.
 
+use anyhow::bail;
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, HashMap};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
@@ -304,7 +306,7 @@ pub fn build_as_worker(
         artifacts_dir: &artifacts_dir,
         new_build: true,
         silent_build: false,
-        no_pipe: true,
+        no_pipe: false,
         ignore: &config.cache_files,
         remotes,
       };
@@ -343,18 +345,27 @@ pub fn build_as_controller(
       remote.push(host.clone());
     }
   }
+  if remote.is_empty() { bail!(i18n::NO_SUCH_HOSTS); }
   
   for pipeline_tag in &args.pipeline_tags {
     if let Some(pipeline) = config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
       let (build_path, _) = prepare_build_folder(config, builds, pipeline, current_dir, cache_dir, args)?;
       
       for host in remote.iter() {
-        println!("{} `{}`...", i18n::START_BUILD_AT_REMOTE, host.short_name.as_str().green());
+        if !args.silent { println!("{} `{}`...", i18n::START_BUILD_AT_REMOTE, host.short_name.as_str().green()); }
         let now = std::time::Instant::now();
         let generated_remote = sync_to_remote(&build_path, host, &config.cache_files)?;
-        if let Err(e) = host.call_deployer_to_build(&generated_remote, pipeline.title.as_str()) { println!("{}", e); };
+        match host.call_deployer_to_build(&generated_remote, pipeline.title.as_str()) {
+          Err(e) => println!("{}", e),
+          Ok((status, out)) => {
+            if !args.silent { for line in out { println!("{}", line) } }
+            if !status { exit(1); }
+          }
+        }
         sync_artifacts_from_remote(&generated_remote, artifacts_dir, host)?;
-        println!("{} `{}` ({}).", i18n::BUILT_AT_REMOTE, host.short_name.as_str().green(), format!("{:.2?}", now.elapsed()).green());
+        if !args.silent {
+          println!("{} `{}` ({}).", i18n::BUILT_AT_REMOTE, host.short_name.as_str().green(), format!("{:.2?}", now.elapsed()).green());
+        }
       }
     } else {
       panic!(
@@ -544,7 +555,7 @@ pub fn execute_pipeline(
     
     cntr += 1;
     
-    if !status { return Ok(()) }
+    if !status { exit(1) }
   }
   
   println!("{} {}.", i18n::DONE_IN, format!("{:.2?}", total_time).green());
