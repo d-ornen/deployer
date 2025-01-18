@@ -36,3 +36,7 @@ python = ["smart-patcher/python"]
 lua = ["smart-patcher/lua"]
 rhai = ["smart-patcher/rhai"]
 tui = ["dep:inquire"]
+
+[profile.release]
+codegen-units = 1
+lto = true
