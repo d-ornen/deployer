@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, HashMap};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
@@ -304,7 +305,7 @@ pub fn build_as_worker(
         artifacts_dir: &artifacts_dir,
         new_build: true,
         silent_build: false,
-        no_pipe: true,
+        no_pipe: false,
         ignore: &config.cache_files,
         remotes,
       };
@@ -544,7 +545,7 @@ pub fn execute_pipeline(
     
     cntr += 1;
     
-    if !status { return Ok(()) }
+    if !status { exit(1) }
   }
   
   println!("{} {}.", i18n::DONE_IN, format!("{:.2?}", total_time).green());
