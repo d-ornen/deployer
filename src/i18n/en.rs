@@ -346,6 +346,7 @@ tr!(SPECIFY_HOST_PORT, "Specify the port of a remote host's SSH server:");
 tr!(SPECIFY_HOST_USERNAME, "Specify the remote username:");
 tr!(SPECIFY_SSH_KEY_PATH, "Specify the path to private SSH key for remote host:");
 tr!(NO_HOSTS, "There is no remote hosts in Registry.");
+tr!(NO_SUCH_HOSTS, "There is no such remote hosts in Registry.");
 tr!(REMOTE_REGISTRY_CHOOSE_TO_REMOVE, "Select remote host for removing from Deployer's Registry:");
 tr!(REMOTE_EXEC, "Executing at");
 tr!(REMOTE_ADD_TO_CMD_FIRST, "Do you want to execute this command remotely on one or many remote hosts? If yes, the command won't be executed on this host.");

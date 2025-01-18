@@ -57,7 +57,7 @@ impl RemoteHost {
   }
   
   /// Starts Deployer's Pipeline execution on the remote host with given remote build folder.
-  pub fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<()> {
+  pub fn call_deployer_to_build(&self, remote_build_dir: &Path, pipeline: &str) -> anyhow::Result<(bool, Vec<String>)> {
     let shell = match std::env::var("DEPLOYER_SH_PATH") {
       Ok(path) => path,
       Err(_) => "/bin/bash".to_string(),
@@ -77,8 +77,7 @@ impl RemoteHost {
       let success = out.ends_with("\n0\n");
       let mut out = compose_output(cmd, out, String::new(), success, true, true);
       out.pop();
-      for line in out { println!("{}", line); }
-      Ok(())
+      Ok((success, out))
     })
   }
   
