@@ -508,7 +508,7 @@ pub fn execute_pipeline(
             let (succ, out) = cmd.execute(env)?;
             if !succ || out.is_empty() { (false, out) }
             else {
-              let version = out.last().unwrap().trim().to_owned();
+              let version = out.last().unwrap().trim().replace(">>> ", "");
               let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
               if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
               else { (true, vec![]) }
