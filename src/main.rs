@@ -78,6 +78,12 @@ pub static STORAGE_DIR: &str = "deployer";
 
 pub static ARTIFACTS_DIR: &str = "artifacts";
 
+pub static CTRLC_HANDLER: std::sync::LazyLock<
+  std::sync::Arc<
+    std::sync::Mutex<Option<std::process::Child>>
+  >
+> = std::sync::LazyLock::new(|| std::sync::Arc::new(std::sync::Mutex::new(None)));
+
 #[cfg(not(unix))]
 compile_error!("`deployer` can't work with non-Unix systems.");
 
@@ -93,8 +99,16 @@ fn main() {
   }));
   
   ctrlc::set_handler(move || {
-    println!("\nInterrupted");
-    std::process::exit(0);
+    let mut guard = CTRLC_HANDLER.lock().unwrap();
+    if let Some(child) = guard.as_mut() {
+      if let Err(e) = child.kill() {
+        eprintln!("Failed to kill process: {}", e);
+      }
+      *guard = None;
+    } else {
+      println!("\nInterrupted");
+      std::process::exit(0);
+    }
   }).expect("Error setting Ctrl-C handler");
   
   let args = Cli::parse();

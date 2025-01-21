@@ -22,6 +22,7 @@ pub fn list_content(
   
   println!("{}", i18n::CONTENT_AVAILABLE);
   
+  let mut content = vec![];
   match std::fs::read_dir(content_path) {
     Err(_) => {},
     Ok(entries) => for entry in entries {
@@ -29,10 +30,12 @@ pub fn list_content(
       if !entry.path().is_dir() { continue }
       
       if let Ok(name) = entry.file_name().into_string() && let Ok(info) = ContentInfo::try_from_str(name.as_str()) {
-        println!("• {} ({}: {:?})", info.to_str().blue().bold(), i18n::PATH, entry.path());
+        content.push(format!("• {} ({}: {:?})", info.to_str().blue().bold(), i18n::PATH, entry.path()));
       }
     }
   }
+  content.sort_unstable();
+  for line in content { println!("{}", line); }
   
   Ok(())
 }

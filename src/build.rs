@@ -8,16 +8,14 @@ use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, HashMap};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
 use crate::{CACHE_DIR, ARTIFACTS_DIR, BUILD_CACHE_LIST};
-use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::environment::BuildEnvironment;
-use crate::entities::info::{ContentInfo, ShortName};
+use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
 use crate::entities::traits::Execute;
@@ -27,7 +25,7 @@ use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::remote::{sync_to_remote, sync_from_remote, sync_artifacts_from_remote};
 use crate::rw::{copy_all, write, symlink, log, generate_build_log_filepath, build_log};
-use crate::storage::{use_from_storage, add_to_storage};
+use crate::storage::use_from_storage;
 use crate::utils::get_current_working_dir;
 
 /// List of all builds at this host.
@@ -450,9 +448,11 @@ pub fn execute_pipeline(
         ..env
       }
     } else { env };
+    let observer = matches!(&action.action, Action::Observe(_));
+    let no_pipe = observer | env.no_pipe;
     
     if !env.silent_build {
-      if !env.no_pipe {
+      if !no_pipe {
         print!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
       } else {
         println!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
@@ -482,7 +482,7 @@ pub fn execute_pipeline(
       Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
-      Action::Observe(o_action) => o_action.execute(env)?,
+      Action::Observe(o_action) => o_action.execute_observer(env)?,
       Action::Patch(patch) => patch.execute(env)?,
       Action::Interrupt => {
         println!();
@@ -502,26 +502,7 @@ pub fn execute_pipeline(
       },
       Action::AddToStorage(rules) => {
         place_artifacts(config, env, false)?;
-        
-        match &rules.auto_version_rule {
-          AutoVersionExtractFromRule::CmdStdout(cmd) => {
-            let (succ, out) = cmd.execute(env)?;
-            if !succ || out.is_empty() { (false, out) }
-            else {
-              let version = out.last().unwrap().trim().to_owned();
-              let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
-              if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
-              else { (true, vec![]) }
-            }
-          },
-          AutoVersionExtractFromRule::PlainFile(path) => {
-            let mut file = std::fs::File::open(path)?;
-            let version = { let mut ver = String::new(); file.read_to_string(&mut ver)?; ver.trim().to_string() };
-            let info = ContentInfo::new(rules.short_name.as_str(), version.as_str())?;
-            if let Err(e) = add_to_storage(env.storage_dir, env.artifacts_dir, &info) { (false, vec![e.to_string()]) }
-            else { (true, vec![]) }
-          },
-        }
+        rules.execute(env)?
       },
     };
     
@@ -531,8 +512,8 @@ pub fn execute_pipeline(
     };
     
     let elapsed = now.elapsed();
-    total_time += elapsed;
-    if !env.no_pipe { build_log(&log_file, &output)?; }
+    if !observer { total_time += elapsed; }
+    if !no_pipe { build_log(&log_file, &output)?; }
     build_log(&log_file, &[
       format!(
         "[{}/{}] {} -{} ({:.2?}).",
@@ -545,7 +526,7 @@ pub fn execute_pipeline(
     ])?;
     
     if !env.silent_build {
-      if !env.no_pipe {
+      if !no_pipe {
         println!("{} ({}).", status_str, format!("{:.2?}", elapsed).green());
         for line in &output { println!("{}", line); }
       } else {

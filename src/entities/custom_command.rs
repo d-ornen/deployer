@@ -18,6 +18,7 @@ use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 use crate::entities::traits::Execute;
 use crate::entities::variables::Variable;
+use crate::CTRLC_HANDLER;
 
 /// Custom command.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
@@ -136,6 +137,66 @@ impl Execute for CustomCommand {
         ));
         
         command_output.status.success()
+      };
+      
+      if !self.ignore_fails && !success {
+        return Ok((false, output))
+      }
+    }
+    
+    Ok((true, output))
+  }
+  
+  fn execute_observer(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) { return self.remote_execute(env); }
+    
+    let mut output = vec![];
+    
+    if !env.new_build && self.only_when_fresh.is_some_and(|v| v) {
+      if *crate::rw::VERBOSE.wait() {
+        output.push(i18n::CMD_SKIP_DUE_TO_NOT_FRESH.to_string());
+      }
+      return Ok((true, output))
+    }
+    
+    let shell = match std::env::var("DEPLOYER_SH_PATH") {
+      Ok(path) => path,
+      Err(_) => "/bin/bash".to_string(),
+    };
+    
+    let mut cmds = vec![];
+    if self.placeholders.is_some() && let Some(replacements) = &self.replacements {
+      for every_start in replacements {
+        let mut bash_c = self.bash_c.to_owned();
+        
+        for (from, to) in every_start { bash_c = bash_c.replace(from, to.get_value()?.as_str()); }
+        cmds.push(bash_c);
+      }
+    } else {
+      cmds.push(self.bash_c.to_owned());
+    }
+    
+    for bash_c in &cmds {
+      let mut cmd = std::process::Command::new(&shell);
+      cmd.current_dir(env.build_dir).arg("-c").arg(bash_c);
+      
+      if !env.no_pipe { cmd.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()); }
+      
+      {
+        let mut guard = CTRLC_HANDLER.as_ref().lock().unwrap();
+        *guard = Some(cmd.spawn().map_err(|e| anyhow::anyhow!("Can't execute command due to: {}", e))?);
+      }
+      
+      let success = {
+        let res = {
+          let mut guard = CTRLC_HANDLER.as_ref().lock().unwrap();
+          if let Some(child) = guard.as_mut() {
+            child.wait().map_err(|e| anyhow::anyhow!("Can't wait for exit status due to: {}", e))?
+          } else {
+            return Ok((false, vec!["Can't get child from `CTRLC_HANDLER`!".to_string()]));
+          }
+        };
+        res.success()
       };
       
       if !self.ignore_fails && !success {
