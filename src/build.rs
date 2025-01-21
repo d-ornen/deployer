@@ -448,7 +448,8 @@ pub fn execute_pipeline(
         ..env
       }
     } else { env };
-    let no_pipe = if let Action::Observe(_) = &action.action { true } else { env.no_pipe };
+    let observer = matches!(&action.action, Action::Observe(_));
+    let no_pipe = observer | env.no_pipe;
     
     if !env.silent_build {
       if !no_pipe {
@@ -481,7 +482,7 @@ pub fn execute_pipeline(
       Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
-      Action::Observe(o_action) => o_action.execute(env)?,
+      Action::Observe(o_action) => o_action.execute_observer(env)?,
       Action::Patch(patch) => patch.execute(env)?,
       Action::Interrupt => {
         println!();
@@ -511,7 +512,7 @@ pub fn execute_pipeline(
     };
     
     let elapsed = now.elapsed();
-    total_time += elapsed;
+    if !observer { total_time += elapsed; }
     if !no_pipe { build_log(&log_file, &output)?; }
     build_log(&log_file, &[
       format!(

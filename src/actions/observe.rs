@@ -35,4 +35,10 @@ impl Execute for ObserveAction {
     observe_env.no_pipe = true;
     self.command.execute(observe_env)
   }
+  
+  fn execute_observer(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    let mut observe_env = env;
+    observe_env.no_pipe = true;
+    self.command.execute_observer(observe_env)
+  }
 }
