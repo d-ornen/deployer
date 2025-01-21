@@ -1,7 +1,7 @@
 //! Build-like Actions.
-//! 
+//!
 //! JSON example:
-//! 
+//!
 //! ```json
 //! {
 //!   "PostBuild": {
@@ -30,7 +30,7 @@
 //!   }
 //! }
 //! ```
-//! 
+//!
 //! For build-like Actions, specialization in programming languages is specific:
 //! depending on whether the set of languages used in the project matches the set
 //! specified in the build-like Action, Deployer will warn you about using Actions
@@ -39,14 +39,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
-  environment::BuildEnvironment,
-  custom_command::CustomCommand,
-  programming_languages::ProgrammingLanguage,
+  custom_command::CustomCommand, environment::BuildEnvironment, programming_languages::ProgrammingLanguage,
   traits::Execute,
 };
 
 /// Build-like Action.
-/// 
+///
 /// This Action type depends on supported project programming languages.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub struct BuildAction {
@@ -64,16 +62,16 @@ impl Execute for BuildAction {
   /// Executes commands with given build environment.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
-    
+
     for cmd in &self.commands {
       let (status, out) = cmd.execute(env)?;
       total_output.extend_from_slice(&out);
-      
+
       if !status {
-        return Ok((false, total_output))
+        return Ok((false, total_output));
       }
     }
-    
+
     Ok((true, total_output))
   }
 }

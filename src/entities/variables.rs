@@ -1,5 +1,5 @@
 //! Variables module.
-//! 
+//!
 //! Variables allows you to modify your shell commands with no need to
 //! edit project configuration file.
 
@@ -14,7 +14,7 @@ pub const VAULT_ADDR_ENV: &str = "DEPLOYER_VAULT_ADDR";
 pub const VAULT_ADDR_TOKEN: &str = "DEPLOYER_VAULT_TOKEN";
 
 /// Variable.
-/// 
+///
 /// Contains some metadata about variable value.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub struct Variable {
@@ -28,7 +28,7 @@ pub struct Variable {
 
 impl Variable {
   /// Creates new plain variable from given title and value.
-  /// 
+  ///
   /// Note that plain variable can't be a secret in any safe way. It will be
   /// stored inside your project configuration.
   pub fn new_plain(title: &str, value: &str) -> Self {
@@ -38,26 +38,34 @@ impl Variable {
       value: VarValue::Plain(value.to_string()),
     }
   }
-  
+
   /// Gets the variable's value.
   pub fn get_value(&self) -> anyhow::Result<String> {
     match &self.value {
       VarValue::Plain(val) => Ok(val.to_owned()),
       VarValue::FromEnvFile(info) => {
         let env_variables = read_file(&info.env_file_path)?;
-        let val = env_variables.get(&info.key).ok_or(anyhow!("There is no such key in your ENV file."))?;
+        let val = env_variables
+          .get(&info.key)
+          .ok_or(anyhow!("There is no such key in your ENV file."))?;
         Ok(val.to_owned())
-      },
+      }
       VarValue::FromEnvVar(key) => Ok(std::env::var(key)?),
       VarValue::FromHCVaultKv2(info) => {
         let vault_addr = std::env::var(VAULT_ADDR_ENV)?;
         let vault_token = std::env::var(VAULT_ADDR_TOKEN)?;
-        
-        let client = VaultClient::new(VaultClientSettingsBuilder::default().address(vault_addr).token(vault_token).build()?)?;
-        
+
+        let client = VaultClient::new(
+          VaultClientSettingsBuilder::default()
+            .address(vault_addr)
+            .token(vault_token)
+            .build()?,
+        )?;
+
         let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(kv2::read(&client, &info.mount_path, &info.secret_path)).map_err(|e| anyhow!(e.to_string()))
-      },
+        rt.block_on(kv2::read(&client, &info.mount_path, &info.secret_path))
+          .map_err(|e| anyhow!(e.to_string()))
+      }
     }
   }
 }
@@ -85,7 +93,7 @@ pub struct FromEnvFile {
 }
 
 /// Vault KV2 secret's metadata.
-/// 
+///
 /// See [KV2 docs](https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2).
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
 pub struct Kv2Paths {
@@ -105,14 +113,17 @@ pub trait VarTraits {
 impl VarTraits for [Variable] {
   /// Is the list containing a secret?
   fn is_secret(&self, title: &str) -> bool {
-    self.iter().find(|v| v.title.as_str().eq(title)).is_some_and(|v| v.is_secret)
+    self
+      .iter()
+      .find(|v| v.title.as_str().eq(title))
+      .is_some_and(|v| v.is_secret)
   }
-  
+
   /// Gets variable titles.
   fn titles(&self) -> Vec<String> {
     self.iter().map(|v| v.title.to_owned()).collect::<Vec<_>>()
   }
-  
+
   /// Searches the variable by given title.
   fn find(&self, title: &str) -> Option<Variable> {
     self.iter().find(|v| v.title.as_str().eq(title)).cloned()

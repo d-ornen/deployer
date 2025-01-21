@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Programming language.
-/// 
+///
 /// Canonically represents most well-known by `deployer` author languages,
 /// but you always specify yours.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -26,7 +26,7 @@ impl std::fmt::Display for ProgrammingLanguage {
       Self::Python => "Python".to_string(),
       Self::Other(s) => s.to_owned(),
     };
-    
+
     f.write_str(&lang)
   }
 }

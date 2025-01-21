@@ -1,7 +1,7 @@
 //! Pack-like Action.
-//! 
+//!
 //! JSON example:
-//! 
+//!
 //! ```json
 //! {
 //!   "target": {
@@ -24,7 +24,7 @@
 //!   ]
 //! }
 //! ```
-//! 
+//!
 //! For pack-like Actions, specialization in targets is specific:
 //! depending on whether target aimed by the project matches the target
 //! aimed by the pack-like Action, Deployer will warn you about using Actions
@@ -33,14 +33,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
-  environment::BuildEnvironment,
-  custom_command::CustomCommand,
-  targets::TargetDescription,
-  traits::Execute,
+  custom_command::CustomCommand, environment::BuildEnvironment, targets::TargetDescription, traits::Execute,
 };
 
 /// Pack-like Action.
-/// 
+///
 /// This Action type depends on aimed installation target.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub struct PackAction {
@@ -57,16 +54,16 @@ impl Execute for PackAction {
   /// Executes commands with given build environment.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
-    
+
     for cmd in &self.commands {
       let (status, out) = cmd.execute(env)?;
       total_output.extend_from_slice(&out);
-      
+
       if !status {
-        return Ok((false, total_output))
+        return Ok((false, total_output));
       }
     }
-    
+
     Ok((true, total_output))
   }
 }

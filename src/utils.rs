@@ -40,11 +40,11 @@ where
   D: serde::Deserializer<'de>,
 {
   use serde::de::Error;
-  Option::<String>::deserialize(deserializer).and_then(|option| {
-    match option {
-      Some(string) => Regex::new(string.as_str()).map(Some).map_err(|err| Error::custom(err.to_string())),
-      None => Ok(None),
-    }
+  Option::<String>::deserialize(deserializer).and_then(|option| match option {
+    Some(string) => Regex::new(string.as_str())
+      .map(Some)
+      .map_err(|err| Error::custom(err.to_string())),
+    None => Ok(None),
   })
 }
 
@@ -58,20 +58,24 @@ where
   }
 }
 
-pub fn ordered_map<
-  S, K: Ord + serde::Serialize, V: serde::Serialize
->(value: &std::collections::HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
-  where S: serde::Serializer,
+pub fn ordered_map<S, K: Ord + serde::Serialize, V: serde::Serialize>(
+  value: &std::collections::HashMap<K, V>,
+  serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
 {
   use serde::Serialize;
   let ordered: std::collections::BTreeMap<_, _> = value.iter().collect();
   ordered.serialize(serializer)
 }
 
-pub fn ordered_set<
-  S, V: Ord + serde::Serialize
->(value: &std::collections::HashSet<V>, serializer: S) -> Result<S::Ok, S::Error>
-  where S: serde::Serializer,
+pub fn ordered_set<S, V: Ord + serde::Serialize>(
+  value: &std::collections::HashSet<V>,
+  serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
 {
   use serde::Serialize;
   let ordered: std::collections::BTreeSet<_> = value.iter().collect();

@@ -1,7 +1,7 @@
 //! Project module.
 
 use crate::cmd::InitArgs;
-use crate::configs::{DeployerProjectOptions, DeployerGlobalConfig};
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::traits::EditExtended;
 use crate::i18n;
 
@@ -16,22 +16,23 @@ pub fn init_project(
     .to_str()
     .expect("Can't convert current dir's path to string!")
     .to_owned();
-  if !globals.projects.contains(&curr_dir) { globals.projects.push(curr_dir.to_owned()); }
-  
+  if !globals.projects.contains(&curr_dir) {
+    globals.projects.push(curr_dir.to_owned());
+  }
+
   config.init_from_prompt(curr_dir)?;
-  
+
   println!("{}", i18n::INIT_SUCC);
-  
+
   Ok(())
 }
 
 /// Edits the project.
-pub fn edit_project(
-  globals: &mut DeployerGlobalConfig,
-  config: &mut DeployerProjectOptions,
-) -> anyhow::Result<()> {
-  if *config == Default::default() { panic!("{}", i18n::CFG_INVALID); }
-  
+pub fn edit_project(globals: &mut DeployerGlobalConfig, config: &mut DeployerProjectOptions) -> anyhow::Result<()> {
+  if *config == Default::default() {
+    panic!("{}", i18n::CFG_INVALID);
+  }
+
   config.edit_from_prompt(globals)?;
   Ok(())
 }

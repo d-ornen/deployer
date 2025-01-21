@@ -1,10 +1,12 @@
 //! R/W utils module.
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::sync::OnceLock;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+use crate::entities::traits::ConfigAutoMigrate;
 use crate::{CACHE_DIR, LOGS_DIR};
 
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
@@ -13,31 +15,41 @@ const LOG_FILE_DELIMETER: &str = "==============================================
 /// Reads the contents of the file or provides `Default::default()` if it cannot.
 pub fn read<T: DeserializeOwned + Default>(folder: impl AsRef<Path>, file: impl AsRef<Path>) -> T {
   let mut path = PathBuf::new();
-  path.push(folder);
-  path.push(file);
-  
-  match read_checked(path) {
-    Err(e) => {
+  path.push(folder.as_ref());
+  path.push(file.as_ref());
+
+  read_checked(&path).unwrap_or_else(|e| {
+    log(format!("Error on file read: {:?}", e));
+    Default::default()
+  })
+}
+
+/// Reads the contents of the file or provides `Default::default()` if it cannot.
+pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
+  folder: impl AsRef<Path>,
+  file: impl AsRef<Path>,
+) -> T {
+  let mut path = PathBuf::new();
+  path.push(folder.as_ref());
+  path.push(file.as_ref());
+
+  read_checked(&path).unwrap_or_else(|_| {
+    T::migrate(&path).unwrap_or_else(|e| {
       log(format!("Error on file read: {:?}", e));
       Default::default()
-    },
-    Ok(v) => v,
-  }
+    })
+  })
 }
 
 /// Reads the contents of a file as type `T`.
 pub fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
   let file = File::open(filepath.as_ref())?;
   let reader = BufReader::new(file);
-  
-  match filepath.as_ref().extension().unwrap().to_str().unwrap().to_lowercase().as_str() {
-    "json" => Ok(serde_json::from_reader(reader)?),
-    _ => Err(anyhow::anyhow!("Unsupported file extension!"))
-  }
+  serde_json::from_reader(reader).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Writes `T` to a file, ignoring write and serialization errors.
-/// 
+///
 /// All errors are written only to the log, which can be seen with the `-V` flag.
 pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, config: &T) {
   let mut path = PathBuf::new();
@@ -47,28 +59,31 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
     Ok(file) => file,
     Err(_) => {
       log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
-      return
+      return;
     }
   };
-  
+
   let writer = BufWriter::new(f);
-  
+
   match serde_json::to_writer_pretty(writer, config) {
     Ok(_) => (),
     Err(_) => {
-      log(format!("Can't save `{:?}` config file due to serialization error!", file.as_ref().as_os_str()));
-    },
+      log(format!(
+        "Can't save `{:?}` config file due to serialization error!",
+        file.as_ref().as_os_str()
+      ));
+    }
   }
 }
 
 /// Function of recursive copying of contents.
-/// 
+///
 /// If `src` is a folder, then:
 /// - first, all missing subfolders for `dst` and the `dst` folder itself are created if they do not exist;
 /// - then files are copied and overwritten, symlinks are created, folders are copied by calling the same function.
-/// 
+///
 /// If `src` is a file, then all subfolders up to `dst` are created, and then the file is copied and overwritten.
-/// 
+///
 /// Previously existing folders and files, unless overwritten, are not changed and are stored in their places.
 pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
@@ -76,18 +91,20 @@ pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsR
       std::fs::create_dir_all(parent)?;
     }
     std::fs::copy(src.as_ref(), dst.as_ref())?;
-    return Ok(())
+    return Ok(());
   }
   std::fs::create_dir_all(&dst)?;
-  
+
   for entry in std::fs::read_dir(src)? {
     let entry = entry?;
     let name = entry.file_name();
-    
-    if ignore.iter().any(|v| v.as_ref().as_os_str().eq(name.as_os_str())) { continue }
-    
+
+    if ignore.iter().any(|v| v.as_ref().as_os_str().eq(name.as_os_str())) {
+      continue;
+    }
+
     log(format!("-> {:?}", name));
-    
+
     let ty = entry.file_type()?;
     let d = dst.as_ref().join(entry.file_name());
     if ty.is_dir() {
@@ -98,26 +115,26 @@ pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsR
       symlink(std::fs::canonicalize(name)?, d);
     }
   }
-  
+
   Ok(())
 }
 
 /// Creates UNIX symlink.
 pub fn symlink(src: impl AsRef<Path>, dst: impl AsRef<Path>) {
   use std::os::unix::fs::symlink as os_symlink;
-  
+
   match os_symlink(src.as_ref(), dst) {
     Ok(_) => (),
     Err(e) => {
       log(format!("Skip `{}` due to: {:?}", src.as_ref().to_str().unwrap(), e));
-    },
+    }
   }
 }
 
 /// Copies only if the files are different from each other.
 fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Result<()> {
   use std::io::Read;
-  
+
   let src_path = src.as_ref();
   let dst_path = dst.as_ref();
 
@@ -128,10 +145,10 @@ fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Re
   if src_path.metadata()?.len() != dst_path.metadata()?.len() {
     return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
   }
-  
+
   let mut src_file = std::fs::File::open(src_path)?;
   let mut dst_file = std::fs::File::open(dst_path)?;
-  
+
   let mut src_buffer = [0; 8192]; // 8KB chunks
   let mut dst_buffer = [0; 8192];
 
@@ -139,10 +156,16 @@ fn copy_if_different(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> anyhow::Re
     let src_bytes = src_file.read(&mut src_buffer)?;
     let dst_bytes = dst_file.read(&mut dst_buffer)?;
 
-    if src_bytes != dst_bytes { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
-    if src_bytes == 0 { break; }
+    if src_bytes != dst_bytes {
+      return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
+    }
+    if src_bytes == 0 {
+      break;
+    }
 
-    if src_buffer[..src_bytes] != dst_buffer[..dst_bytes] { return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?); }
+    if src_buffer[..src_bytes] != dst_buffer[..dst_bytes] {
+      return Ok(std::fs::copy(src_path, dst_path).map(|_| ())?);
+    }
   }
 
   Ok(())
@@ -155,34 +178,36 @@ pub fn log(s: impl AsRef<str>) {
 }
 
 /// Generates the path to the build log depending on the project and Pipeline.
-pub fn generate_build_log_filepath(
-  project_name: &str,
-  pipeline_short_name: &str,
-  cache_dir: &Path,
-) -> PathBuf {
+pub fn generate_build_log_filepath(project_name: &str, pipeline_short_name: &str, cache_dir: &Path) -> PathBuf {
   use chrono::Local;
-  
+
   let mut logs_path = PathBuf::new();
   logs_path.push(cache_dir);
   logs_path.push(CACHE_DIR);
   logs_path.push(LOGS_DIR);
-  if !logs_path.exists() { std::fs::create_dir_all(logs_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", logs_path)); }
-  
+  if !logs_path.exists() {
+    std::fs::create_dir_all(logs_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", logs_path));
+  }
+
   let curr_dt = Local::now();
-  
-  let log_path = logs_path.join(format!("{}-{}-{}.txt", project_name.replace('/', "-"), pipeline_short_name, curr_dt.format("%Y-%m-%d-%H:%M")));
-  if log_path.exists() { build_log(&log_path, &[LOG_FILE_DELIMETER.to_string()]).expect("Current log file is unwriteable!"); }
-  
+
+  let log_path = logs_path.join(format!(
+    "{}-{}-{}.txt",
+    project_name.replace('/', "-"),
+    pipeline_short_name,
+    curr_dt.format("%Y-%m-%d-%H:%M")
+  ));
+  if log_path.exists() {
+    build_log(&log_path, &[LOG_FILE_DELIMETER.to_string()]).expect("Current log file is unwriteable!");
+  }
+
   log_path
 }
 
 /// Writes a build log message to a file.
-pub fn build_log(
-  path: &Path,
-  output: &[String],
-) -> anyhow::Result<()> {
+pub fn build_log(path: &Path, output: &[String]) -> anyhow::Result<()> {
   use std::io::Write;
-  
+
   let file = File::options().create(true).append(true).open(path)?;
   let mut writer = BufWriter::new(file);
   for line in output {
@@ -190,6 +215,6 @@ pub fn build_log(
     writer.write_all(&line)?;
     writer.write_all("\n".as_bytes())?;
   }
-  
+
   Ok(())
 }

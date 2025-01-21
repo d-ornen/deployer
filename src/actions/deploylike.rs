@@ -1,7 +1,7 @@
 //! Deploy-like Actions.
-//! 
+//!
 //! JSON example:
-//! 
+//!
 //! ```json
 //! {
 //!   "title": "Build Docker Compose Image",
@@ -31,7 +31,7 @@
 //!   }
 //! }
 //! ```
-//! 
+//!
 //! For deploy-like Actions, specialization in deploy toolkit is specific:
 //! depending on whether the deploy toolkit (e.g., `docker`, `podman`, `k8s`, etc.)
 //! used in the project matches the toolkit specified in the deploy-like Action,
@@ -39,12 +39,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::entities::environment::BuildEnvironment;
 use crate::entities::custom_command::CustomCommand;
+use crate::entities::environment::BuildEnvironment;
 use crate::entities::traits::Execute;
 
 /// Deploy-like Action.
-/// 
+///
 /// This Action type depends on supported project deploy toolkit.
 #[derive(Deserialize, Serialize, PartialEq, Default, Clone)]
 pub struct DeployAction {
@@ -61,16 +61,16 @@ impl Execute for DeployAction {
   /// Executes commands with given build environment.
   fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
-    
+
     for cmd in &self.commands {
       let (status, out) = cmd.execute(env)?;
       total_output.extend_from_slice(&out);
-      
+
       if !status {
-        return Ok((false, total_output))
+        return Ok((false, total_output));
       }
     }
-    
+
     Ok((true, total_output))
   }
 }

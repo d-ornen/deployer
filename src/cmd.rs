@@ -1,8 +1,8 @@
 //! CMD module.
-//! 
+//!
 //! Defines the Deployer's command-line interface.
 
-use clap::{Args, Subcommand, Parser};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 /// Build and deploy your services as fast as you can.
@@ -43,7 +43,7 @@ pub enum DeployerExecType {
   /// Remove the inner Deployer's object
   #[command(subcommand)]
   Rm(RemoveType),
-  
+
   /// Init the deployable project
   Init(InitArgs),
   /// Add Deployer's Pipeline to the project
@@ -52,10 +52,10 @@ pub enum DeployerExecType {
   Build(BuildArgs),
   /// Clean the project's builds
   Clean(CleanArgs),
-  
+
   #[cfg(feature = "tests")]
   Tests,
-  
+
   /// Read the docs.
   Docs,
 }
@@ -188,14 +188,14 @@ pub struct BuildArgs {
   /// {short-name} or {short-name1},{short-name2},..
   #[arg(required = false, value_delimiter(','))]
   pub pipeline_tags: Vec<String>,
-  
+
   /// Build in current folder
   #[arg(short('j'), long)]
   pub current: bool,
   /// Build in specified folder
   #[arg(short('o'), long)]
   pub build_at: Option<PathBuf>,
-  
+
   /// Fresh build
   #[arg(short('f'), long)]
   pub fresh: bool,
@@ -205,15 +205,15 @@ pub struct BuildArgs {
   /// With copying cache
   #[arg(short('C'), long)]
   pub copy_cache: bool,
-  
+
   /// Build as remote host (as worker)
   #[arg(short('r'), long)]
   pub remote_build_folder: Option<PathBuf>,
-  
+
   /// Build remotely on specified hosts (as boss-node)
   #[arg(short('R'), long, value_delimiter(','))]
   pub remote_host_short_names: Vec<String>,
-  
+
   /// Force disable output from Actions
   #[arg(short('s'), long)]
   pub silent: bool,

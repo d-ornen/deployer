@@ -1,5 +1,5 @@
 //! Build environment module.
-//! 
+//!
 //! `BuildEnvironment` is just a struct that have all needed variables
 //! and paths during Pipeline execution.
 
