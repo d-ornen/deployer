@@ -29,6 +29,7 @@ impl DescribedAction {
   ) -> anyhow::Result<BuildAction> {
     let mut action = action.clone();
     if 
+      !langs.is_empty() && 
       !langs.iter().any(|l| action.supported_langs.contains(l)) && 
       !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_PLS
