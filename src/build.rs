@@ -448,9 +448,10 @@ pub fn execute_pipeline(
         ..env
       }
     } else { env };
+    let no_pipe = if let Action::Observe(_) = &action.action { true } else { env.no_pipe };
     
     if !env.silent_build {
-      if !env.no_pipe {
+      if !no_pipe {
         print!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
       } else {
         println!("[{}/{}] {} `{}`...", cntr, total, i18n::STARTING_ACTION, action.title.blue().italic());
@@ -511,7 +512,7 @@ pub fn execute_pipeline(
     
     let elapsed = now.elapsed();
     total_time += elapsed;
-    if !env.no_pipe { build_log(&log_file, &output)?; }
+    if !no_pipe { build_log(&log_file, &output)?; }
     build_log(&log_file, &[
       format!(
         "[{}/{}] {} -{} ({:.2?}).",
@@ -524,7 +525,7 @@ pub fn execute_pipeline(
     ])?;
     
     if !env.silent_build {
-      if !env.no_pipe {
+      if !no_pipe {
         println!("{} ({}).", status_str, format!("{:.2?}", elapsed).green());
         for line in &output { println!("{}", line); }
       } else {
