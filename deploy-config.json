@@ -14,8 +14,8 @@
   "deploy_toolkit": null,
   "cache_files": [
     ".git",
-    "target",
-    "Cargo.lock"
+    "Cargo.lock",
+    "target"
   ],
   "pipelines": [
     {
