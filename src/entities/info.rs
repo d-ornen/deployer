@@ -1,21 +1,21 @@
 //! Info module.
-//! 
+//!
 //! Any info struct is needed to specify used Actions and Pipelines by some shortcut.
 //! So, info is just simple form of anything's name and its version.
-//! 
+//!
 //! Deployer has short name and version validation.
-//! 
+//!
 //! Note: version isn't satisfy `semver` requirements.
 
 use anyhow::bail;
 use regex::Regex;
-use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::LazyLock;
 
 use crate::i18n;
 
 /// Short name.
-/// 
+///
 /// You can use anything with numbers, English letters and `-`, `_` characters.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ShortName(String);
@@ -28,13 +28,15 @@ impl ShortName {
     }
     Ok(Self(short_name.as_ref().to_string()))
   }
-  
+
   /// Represents as `&str`.
-  pub fn as_str(&self) -> &str { self.0.as_str() }
+  pub fn as_str(&self) -> &str {
+    self.0.as_str()
+  }
 }
 
 /// Version.
-/// 
+///
 /// You can use any version like these: `X`, `X.Y`, `X.Y.Z`;
 /// for example: `1.0`, `4.21.9`, etc.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,7 +50,7 @@ impl Version {
     }
     Ok(Self(version.as_ref().to_string()))
   }
-  
+
   /// Validates and creates a version, but allows use `latest` version to
   /// use with `UseFromStorage` Action type.
   pub fn new_for_using(version: impl AsRef<str>) -> anyhow::Result<Self> {
@@ -57,9 +59,11 @@ impl Version {
     }
     Ok(Self(version.as_ref().to_string()))
   }
-  
+
   /// Represents as `&str`.
-  pub fn as_str(&self) -> &str { self.0.as_str() }
+  pub fn as_str(&self) -> &str {
+    self.0.as_str()
+  }
 }
 
 /// Any notable entity info.
@@ -76,25 +80,44 @@ pub trait StrToInfo {
   fn to_info(&self) -> anyhow::Result<Info>;
 }
 
-impl StrToInfo for String { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
-impl StrToInfo for &String { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
-impl StrToInfo for &str { fn to_info(&self) -> anyhow::Result<Info> { Info::try_from_str(self) } }
+impl StrToInfo for String {
+  fn to_info(&self) -> anyhow::Result<Info> {
+    Info::try_from_str(self)
+  }
+}
+impl StrToInfo for &String {
+  fn to_info(&self) -> anyhow::Result<Info> {
+    Info::try_from_str(self)
+  }
+}
+impl StrToInfo for &str {
+  fn to_info(&self) -> anyhow::Result<Info> {
+    Info::try_from_str(self)
+  }
+}
 
 impl<'de> Deserialize<'de> for Info {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> { str2info(deserializer) }
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    str2info(deserializer)
+  }
 }
 
 impl Serialize for Info {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer { info2str(self, serializer) }
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    info2str(self, serializer)
+  }
 }
 
-static SHORT_NAME_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new("^[a-zA-Z_0-9-_]*$").unwrap()
-});
+static SHORT_NAME_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[a-zA-Z_0-9-_]*$").unwrap());
 
-static VERSION_VALIDATOR: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r#"^(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?(?:\.(0|[1-9]\d*))?$"#).unwrap()
-});
+static VERSION_VALIDATOR: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r#"^(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?(?:\.(0|[1-9]\d*))?$"#).unwrap());
 
 /// Validates the short name.
 pub fn validate_short_name(short_name: &str) -> bool {
@@ -119,9 +142,9 @@ impl Info {
     };
     Ok(Self::from(short_name, version))
   }
-  
+
   /// Validates short name and version of entity and creates info object.
-  /// 
+  ///
   /// Allows use `latest` version for `UseFromStorage` Action.
   pub fn new_for_using(short_name: impl AsRef<str>, version: impl AsRef<str>) -> anyhow::Result<Self> {
     let short_name = match ShortName::new(short_name) {
@@ -134,37 +157,41 @@ impl Info {
     };
     Ok(Self::from(short_name, version))
   }
-  
+
   /// Constructs info object from `ShortName` and `Version` objects.
   pub fn from(short_name: ShortName, version: Version) -> Self {
     Self { short_name, version }
   }
-  
+
   pub fn short_name(&self) -> &str {
     self.short_name.as_str()
   }
-  
+
   /// Represents whole entity info as a single string.
-  /// 
+  ///
   /// Returns a string formatted like this: `short-name@version`.
   pub fn to_str(&self) -> String {
     format!("{}@{}", self.short_name.as_str(), self.version.as_str())
   }
-  
+
   /// Try to convert a string to entity info object.
   pub fn try_from_str(short_name_and_ver: &str) -> anyhow::Result<Self> {
     let vals = short_name_and_ver.split('@').collect::<Vec<_>>();
-    if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
+    if let Some(short_name) = vals.first()
+      && let Some(version) = vals.get(1)
+    {
       Info::new(short_name, version)
     } else {
       bail!("Short name and version must be divided by `@` character!")
     }
   }
-  
+
   /// Try to convert a string to entity info object.
   pub fn try_from_str_wl(short_name_and_ver: &str) -> anyhow::Result<Self> {
     let vals = short_name_and_ver.split('@').collect::<Vec<_>>();
-    if let Some(short_name) = vals.first() && let Some(version) = vals.get(1) {
+    if let Some(short_name) = vals.first()
+      && let Some(version) = vals.get(1)
+    {
       Info::new_for_using(short_name, version)
     } else {
       bail!("Short name and version must be divided by `@` character!")
@@ -181,11 +208,9 @@ where
   D: serde::Deserializer<'de>,
 {
   use serde::de::Error;
-  String::deserialize(deserializer).and_then(|string| {
-    match Info::try_from_str(string.as_str()) {
-      Ok(v) => Ok(v),
-      Err(e) => Err(Error::custom(&e))
-    }
+  String::deserialize(deserializer).and_then(|string| match Info::try_from_str(string.as_str()) {
+    Ok(v) => Ok(v),
+    Err(e) => Err(Error::custom(&e)),
   })
 }
 
@@ -194,11 +219,9 @@ where
   D: serde::Deserializer<'de>,
 {
   use serde::de::Error;
-  String::deserialize(deserializer).and_then(|string| {
-    match Info::try_from_str_wl(string.as_str()) {
-      Ok(v) => Ok(v),
-      Err(e) => Err(Error::custom(&e))
-    }
+  String::deserialize(deserializer).and_then(|string| match Info::try_from_str_wl(string.as_str()) {
+    Ok(v) => Ok(v),
+    Err(e) => Err(Error::custom(&e)),
   })
 }
 

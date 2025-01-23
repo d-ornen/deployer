@@ -14,8 +14,8 @@
   "deploy_toolkit": null,
   "cache_files": [
     ".git",
-    "target",
-    "Cargo.lock"
+    "Cargo.lock",
+    "target"
   ],
   "pipelines": [
     {
@@ -57,6 +57,33 @@
               "Exists": "/bin/cargo"
             }
           ]
+        },
+        {
+          "title": "Format",
+          "desc": "Format `.rs` files",
+          "info": "cargo-fmt@0.1.0",
+          "tags": [
+            "rust",
+            "cargo",
+            "fmt"
+          ],
+          "action": {
+            "PreBuild": {
+              "supported_langs": [
+                "Rust"
+              ],
+              "commands": [
+                {
+                  "bash_c": "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs",
+                  "ignore_fails": false,
+                  "show_success_output": false,
+                  "show_bash_c": true,
+                  "only_when_fresh": false
+                }
+              ]
+            }
+          },
+          "exec_in_project_dir": true
         },
         {
           "title": "Build",
@@ -227,6 +254,33 @@
               "Exists": "/bin/cargo"
             }
           ]
+        },
+        {
+          "title": "Форматирование кода",
+          "desc": "Format `.rs` files",
+          "info": "cargo-fmt@0.1.0",
+          "tags": [
+            "rust",
+            "cargo",
+            "fmt"
+          ],
+          "action": {
+            "PreBuild": {
+              "supported_langs": [
+                "Rust"
+              ],
+              "commands": [
+                {
+                  "bash_c": "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs",
+                  "ignore_fails": false,
+                  "show_success_output": false,
+                  "show_bash_c": true,
+                  "only_when_fresh": false
+                }
+              ]
+            }
+          },
+          "exec_in_project_dir": true
         },
         {
           "title": "Сборка",
@@ -462,5 +516,6 @@
       "target/release/deployer",
       "deployer"
     ]
-  ]
+  ],
+  "version": 2
 }
