@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.4] - 2025-01-23
 
+### Added
+
+- Configurations' auto-migrations.
+
 ### Changed
 
 - Bumped `smart-patcher`.
