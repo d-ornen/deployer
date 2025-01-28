@@ -4,7 +4,7 @@
 
 Deployer is, at its core, a local CI/CD. In other words, a `bash` command manager.
 
-Typically, it runs a Deployer build in a separate folder to save the cache while keeping the code folder clean. However, you can specify either any folder or the code folder; if you already have caches, you can copy them from the source folder, symlink to them, or ignore them completely and build from scratch.
+Typically, it runs in a separate folder to save the cache while keeping the code folder clean. However, you can specify either any folder or the code folder; if you already have caches, you can copy them from the source folder, symlink to them, or ignore them completely and run from scratch.
 
 ## Description of the main entities
 
@@ -759,10 +759,10 @@ deployer new remote                            # add new remote host to Registry
 deployer init                                  # init project, fill all attributes
 deployer with                                  # check compatibility and assign Pipeline to project,
                                                # also specify needed variables and artifacts
-deployer build                                 # run default Pipeline
-deployer build my-pipe                         # run specified `my-pipe` Pipeline
-deployer build configure,build -o build-folder # run `configure` and `build` Pipelines in a `build-folder`
-deployer build -R my-remote my-pipe            # run `my-pipe` Pipeline on remote host `my-remote`
+deployer run                                   # run default Pipeline
+deployer run my-pipe                           # run specified `my-pipe` Pipeline
+deployer run configure,build -o build-folder   # run `configure` and `build` Pipelines in a `build-folder`
+deployer run -R my-remote my-pipe              # run `my-pipe` Pipeline on remote host `my-remote`
 ```
 
 ### Console Interface (TUI)

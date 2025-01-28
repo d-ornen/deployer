@@ -8,7 +8,7 @@ pub mod rw;
 pub mod tui;
 pub mod utils;
 
-pub mod build;
+pub mod run;
 
 pub mod remote;
 pub mod storage;

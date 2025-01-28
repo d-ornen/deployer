@@ -13,7 +13,7 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
 use crate::CTRLC_HANDLER;
-use crate::entities::environment::BuildEnvironment;
+use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 use crate::entities::traits::Execute;
@@ -80,7 +80,7 @@ pub struct CustomCommand {
 
 impl Execute for CustomCommand {
   /// Runs given command one time or more, replacing the placeholders with given values.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) {
       return self.remote_execute(env);
     }
@@ -119,7 +119,7 @@ impl Execute for CustomCommand {
       let bash_c_info = format!(r#"{} -c "{}""#, shell, bash_c).green();
 
       let mut cmd = std::process::Command::new(&shell);
-      cmd.current_dir(env.build_dir).arg("-c").arg(bash_c);
+      cmd.current_dir(env.run_dir).arg("-c").arg(bash_c);
 
       if !env.no_pipe {
         cmd
@@ -163,7 +163,8 @@ impl Execute for CustomCommand {
     Ok((true, output))
   }
 
-  fn execute_observer(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Runs given command one time or more, replacing the placeholders with given values, and forcing `no_pipe` option.
+  fn execute_observer(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) {
       return self.remote_execute(env);
     }
@@ -200,7 +201,7 @@ impl Execute for CustomCommand {
 
     for bash_c in &cmds {
       let mut cmd = std::process::Command::new(&shell);
-      cmd.current_dir(env.build_dir).arg("-c").arg(bash_c);
+      cmd.current_dir(env.run_dir).arg("-c").arg(bash_c);
 
       if !env.no_pipe {
         cmd
@@ -242,7 +243,7 @@ impl Execute for CustomCommand {
 
 impl CustomCommand {
   /// Runs given command remotely on one or more remote hosts.
-  pub fn remote_execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  pub fn remote_execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let hosts = self.remote_exec.as_ref().unwrap();
     let mut output = vec![];
 

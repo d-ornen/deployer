@@ -39,7 +39,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
-  custom_command::CustomCommand, environment::BuildEnvironment, programming_languages::ProgrammingLanguage,
+  custom_command::CustomCommand, environment::RunEnvironment, programming_languages::ProgrammingLanguage,
   traits::Execute,
 };
 
@@ -59,8 +59,8 @@ pub type PostBuildAction = BuildAction;
 pub type TestAction = BuildAction;
 
 impl Execute for BuildAction {
-  /// Executes commands with given build environment.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Executes commands with given run environment.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

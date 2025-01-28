@@ -28,7 +28,7 @@ mod rw;
 mod tui;
 mod utils;
 
-mod build;
+mod run;
 
 mod remote;
 mod storage;
@@ -44,7 +44,6 @@ mod i18n;
 use std::path::PathBuf;
 
 use crate::actions::{cat_action, edit_action, list_actions, new_action, remove_action};
-use crate::build::Builds;
 use crate::cmd::{CatType, Cli, DeployerExecType, EditType, ListType, NewType, RemoveType};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::pipelines::{
@@ -53,6 +52,7 @@ use crate::pipelines::{
 };
 use crate::project::{edit_project, init_project};
 use crate::remote::{cat_remote, edit_remote, list_remote, new_remote, remove_remote};
+use crate::run::Runs;
 use crate::rw::{VERBOSE, read, read_or_migrate, write};
 use crate::storage::{list_content, new_content, remove_content};
 use crate::tui::docs;
@@ -61,7 +61,7 @@ use crate::utils::get_current_working_dir;
 #[cfg(feature = "tests")]
 use crate::tests::tests;
 
-use crate::build::{build, clean_builds};
+use crate::run::{clean_runs, run};
 
 use clap::Parser;
 use dirs::{cache_dir, config_dir, data_local_dir};
@@ -121,8 +121,8 @@ fn main() {
   let args = Cli::parse();
 
   if args.verbose {
-    if let DeployerExecType::Build(build_args) = &args.r#type
-      && build_args.silent
+    if let DeployerExecType::Run(run_args) = &args.r#type
+      && run_args.silent
     {
       VERBOSE.set(false).unwrap();
     } else {
@@ -172,7 +172,7 @@ fn main() {
   if config == Default::default() {
     config = read_or_migrate::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), HIDDEN_PROJECT_CONF);
   }
-  let mut builds = read::<Builds>(&cache_folder, BUILD_CACHE_LIST);
+  let mut runs = read::<Runs>(&cache_folder, BUILD_CACHE_LIST);
 
   match args.r#type {
     DeployerExecType::Ls(ListType::Actions) => list_actions(&globals),
@@ -239,22 +239,22 @@ fn main() {
       write(&config_folder, GLOBAL_CONF, &globals);
       write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
     }
-    DeployerExecType::Build(args) => {
-      build(
+    DeployerExecType::Run(args) => {
+      run(
         &mut config,
         &globals,
-        &mut builds,
+        &mut runs,
         &cache_folder,
         &config_folder,
         &storage_folder,
         &args,
       )
       .unwrap();
-      write(&cache_folder, BUILD_CACHE_LIST, &builds);
+      write(&cache_folder, BUILD_CACHE_LIST, &runs);
     }
     DeployerExecType::Clean(args) => {
-      clean_builds(&config, &mut builds, &cache_folder, &args).unwrap();
-      write(&cache_folder, BUILD_CACHE_LIST, &builds);
+      clean_runs(&config, &mut runs, &cache_folder, &args).unwrap();
+      write(&cache_folder, BUILD_CACHE_LIST, &runs);
     }
 
     DeployerExecType::Docs => docs::read_docs().unwrap(),

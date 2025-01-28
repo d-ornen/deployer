@@ -33,7 +33,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
-  custom_command::CustomCommand, environment::BuildEnvironment, targets::TargetDescription, traits::Execute,
+  custom_command::CustomCommand, environment::RunEnvironment, targets::TargetDescription, traits::Execute,
 };
 
 /// Pack-like Action.
@@ -51,8 +51,8 @@ pub type DeliveryAction = PackAction;
 pub type InstallAction = PackAction;
 
 impl Execute for PackAction {
-  /// Executes commands with given build environment.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Executes commands with given run environment.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

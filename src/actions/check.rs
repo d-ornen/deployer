@@ -28,7 +28,7 @@ use colored::Colorize;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::entities::{custom_command::CustomCommand, environment::BuildEnvironment, traits::Execute};
+use crate::entities::{custom_command::CustomCommand, environment::RunEnvironment, traits::Execute};
 use crate::i18n;
 use crate::utils::{regexopt2str, str2regexopt};
 
@@ -48,8 +48,8 @@ pub struct CheckAction {
 }
 
 impl Execute for CheckAction {
-  /// Executes commands with given build environment and checks its output.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Executes commands with given run environment and checks its output.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut output = vec![];
 
     let (status, command_out) = self.command.execute(env)?;

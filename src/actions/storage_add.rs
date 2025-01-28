@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 
 use crate::entities::auto_version::AutoVersionExtractFromRule;
-use crate::entities::environment::BuildEnvironment;
+use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ContentInfo;
 use crate::entities::traits::Execute;
 use crate::storage::add_to_storage;
@@ -22,7 +22,8 @@ pub struct AddToStorageAction {
 }
 
 impl Execute for AddToStorageAction {
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Adds content to storage from given run environment.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     Ok(match &self.auto_version_rule {
       AutoVersionExtractFromRule::CmdStdout(cmd) => {
         let (succ, out) = cmd.execute(env)?;

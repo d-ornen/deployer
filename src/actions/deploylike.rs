@@ -40,7 +40,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::custom_command::CustomCommand;
-use crate::entities::environment::BuildEnvironment;
+use crate::entities::environment::RunEnvironment;
 use crate::entities::traits::Execute;
 
 /// Deploy-like Action.
@@ -58,8 +58,8 @@ pub type ConfigureDeployAction = DeployAction;
 pub type PostDeployAction = DeployAction;
 
 impl Execute for DeployAction {
-  /// Executes commands with given build environment.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Executes commands with given run environment.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

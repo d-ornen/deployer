@@ -7,3 +7,4 @@
 - [ ] make `Artifact` docs inside DOCS.ru.md & DOCS.en.md
 - [ ] allow usage of another content storage paths via `DEPLOYER_STORAGE_PATH` env variable
 - [ ] make `deployer share content` command
+- [ ] `TestAction` <-> `CheckAction` (replace 1 with 2 and remove 2)

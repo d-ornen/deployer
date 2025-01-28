@@ -34,8 +34,8 @@ cargo install --path .                     # to install English version
 cargo install --path . --features=i18n-ru  # to install Russian version
 
 # if you already have Deployer installed
-deployer build en  # to install English version
-deployer build ru  # to install Russian version
+deployer run en  # to install English version
+deployer run ru  # to install Russian version
 ```
 
 That's it! Now you have `/home/username/.cargo/bin/deployer` binary. Modify the `PATH` variable, if you need to.
@@ -333,18 +333,18 @@ If you want to hide your configuration, you can rename it to `.deploy-config.jso
 At the end, let's build the project!
 
 ```bash
-deployer build
+deployer run
 
-# see the build options: you can share cache files and folders by symlinking or copying
-deployer build --help
-deployer build -fc
+# see the run options: you can share cache files and folders by symlinking or copying
+deployer run --help
+deployer run -fc
 
 # or explicitly specify the project pipeline's short name - `build-and-compress`
-deployer build build-and-compress
+deployer run build-and-compress
 ```
 
 For other options, check:
 
 ```bash
-deployer build -h
+deployer run -h
 ```
