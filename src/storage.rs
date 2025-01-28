@@ -12,11 +12,16 @@ use crate::entities::info::ShortName;
 use crate::i18n;
 use crate::rw::copy_all;
 
+pub const CUSTOM_STORAGE_PATH: &str = "DEPLOYER_STORAGE_PATH";
+
 /// Lists all available content in Deployer's storage.
 #[cfg(feature = "tui")]
 pub fn list_content(storage_dir: &Path) -> anyhow::Result<()> {
-  let mut content_path = PathBuf::from(storage_dir);
-  content_path.push(STORAGE_DIR);
+  let content_path = if let Ok(custom_storage_dir) = std::env::var(CUSTOM_STORAGE_PATH) {
+    PathBuf::from(custom_storage_dir)
+  } else {
+    PathBuf::from(storage_dir).join(STORAGE_DIR)
+  };
 
   println!("{}", i18n::CONTENT_AVAILABLE);
 
