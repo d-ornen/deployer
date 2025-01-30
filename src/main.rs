@@ -53,7 +53,7 @@ use crate::pipelines::{
 use crate::project::{edit_project, init_project};
 use crate::remote::{cat_remote, edit_remote, list_remote, new_remote, remove_remote};
 use crate::run::Runs;
-use crate::rw::{VERBOSE, read, read_or_migrate, write};
+use crate::rw::{VERBOSE, read, read_or_migrate, write, write_merge};
 use crate::storage::{list_content, new_content, remove_content};
 use crate::tui::docs;
 use crate::utils::get_current_working_dir;
@@ -250,7 +250,7 @@ fn main() {
         &args,
       )
       .unwrap();
-      write(&cache_folder, BUILD_CACHE_LIST, &runs);
+      write_merge(&cache_folder, BUILD_CACHE_LIST, &runs);
     }
     DeployerExecType::Clean(args) => {
       clean_runs(&config, &mut runs, &cache_folder, &args).unwrap();

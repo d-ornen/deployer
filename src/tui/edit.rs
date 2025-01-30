@@ -20,13 +20,13 @@ use crate::entities::requirements::Requirement;
 use crate::entities::targets::{OsVariant, OsVersionSpecification, TargetDescription};
 use crate::entities::traits::{Edit, EditExtended};
 use crate::entities::variables::{VarValue, Variable};
-use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::tui::add::{
   collect_af_inplacement, collect_artifact, collect_path, specify_bash_c, specify_programming_languages, specify_regex,
 };
 use crate::utils::tags_custom_type;
+use crate::{hmap, hset};
 
 impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
   fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
@@ -814,7 +814,7 @@ impl Edit for HashSet<PathBuf> {
 
     let selected = inquire::Select::new(i18n::VALUE_TO_REMOVE, cs.clone()).prompt()?;
 
-    let mut commands = HashSet::new();
+    let mut commands = hset!();
     for key in cs {
       if key.as_str().eq(selected.as_str()) {
         continue;

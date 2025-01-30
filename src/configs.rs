@@ -17,9 +17,9 @@ use crate::entities::{
   traits::ConfigAutoMigrate,
   variables::Variable,
 };
-use crate::hmap;
 use crate::pipelines::DescribedPipeline;
 use crate::utils::{ordered_map, ordered_set};
+use crate::{hmap, hset};
 
 const CURRENT_PROJECT_CONF_VERSION: u8 = 2;
 fn get_default_project_conf_version() -> u8 {
@@ -176,7 +176,7 @@ impl Default for DeployerProjectOptions {
       langs: vec![],
       targets: vec![],
       deploy_toolkit: None,
-      cache_files: HashSet::new(),
+      cache_files: hset!(),
       pipelines: vec![],
       artifacts: vec![],
       variables: vec![],

@@ -52,3 +52,10 @@ pub trait Execute {
 pub trait ConfigAutoMigrate<T> {
   fn migrate(path: &Path) -> anyhow::Result<T>;
 }
+
+pub trait Merge
+where
+  Self: Sized,
+{
+  fn merge(&self, other: Self) -> anyhow::Result<Self>;
+}

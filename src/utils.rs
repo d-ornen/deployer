@@ -10,6 +10,13 @@ macro_rules! hmap {
   };
 }
 
+#[macro_export]
+macro_rules! hset {
+  () => {
+    std::collections::HashSet::new()
+  };
+}
+
 pub fn get_current_working_dir() -> std::io::Result<std::path::PathBuf> {
   std::env::current_dir()
 }

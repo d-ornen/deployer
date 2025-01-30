@@ -6,7 +6,7 @@ use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::entities::traits::ConfigAutoMigrate;
+use crate::entities::traits::{ConfigAutoMigrate, Merge};
 use crate::{CACHE_DIR, LOGS_DIR};
 
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
@@ -66,6 +66,42 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
   let writer = BufWriter::new(f);
 
   match serde_json::to_writer_pretty(writer, config) {
+    Ok(_) => (),
+    Err(_) => {
+      log(format!(
+        "Can't save `{:?}` config file due to serialization error!",
+        file.as_ref().as_os_str()
+      ));
+    }
+  }
+}
+
+/// Writes `T` to a file, ignoring write and serialization errors, but with merging.
+///
+/// All errors are written only to the log, which can be seen with the `-V` flag.
+pub fn write_merge<T: Serialize + Merge + Default + DeserializeOwned + Clone>(
+  folder: impl AsRef<Path>,
+  file: impl AsRef<Path>,
+  config: &T,
+) {
+  let mut path = PathBuf::new();
+  path.push(folder);
+  path.push(file.as_ref());
+
+  let other = read_checked(&path).unwrap_or_default();
+  let merged: T = config.merge(other).unwrap_or((*config).clone());
+
+  let f = match File::create(path) {
+    Ok(file) => file,
+    Err(_) => {
+      log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
+      return;
+    }
+  };
+
+  let writer = BufWriter::new(f);
+
+  match serde_json::to_writer_pretty(writer, &merged) {
     Ok(_) => (),
     Err(_) => {
       log(format!(

@@ -7,7 +7,7 @@ use anyhow::bail;
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use uuid::Uuid;
@@ -18,8 +18,8 @@ use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
-use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
-use crate::entities::traits::Execute;
+use crate::entities::requirements::{Satisfy, SatisfyErr};
+use crate::entities::traits::{Execute, Merge};
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::remote::{sync_artifacts_from_remote, sync_from_remote, sync_to_remote};
@@ -27,15 +27,65 @@ use crate::rw::{build_log, copy_all, generate_build_log_filepath, log, symlink, 
 use crate::storage::use_from_storage;
 use crate::utils::get_current_working_dir;
 use crate::{ARTIFACTS_DIR, BUILD_CACHE_LIST, CACHE_DIR};
+use crate::{hmap, hset};
 
 /// List of all Pipelines runs at this host.
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Runs {
   pub projects: Vec<ProjectRuns>,
 }
 
+impl Merge for Runs {
+  fn merge(&self, other: Self) -> anyhow::Result<Self> {
+    let mut projects = hmap!();
+    for p in &self.projects {
+      projects.insert(p.name.to_owned(), vec![]);
+    }
+    for p in &other.projects {
+      projects.insert(p.name.to_owned(), vec![]);
+    }
+
+    for p in &other.projects {
+      let project = projects.get_mut(&p.name).unwrap();
+      for run in &p.runs {
+        if !project.contains(&run) {
+          project.push(run)
+        };
+      }
+    }
+    for p in &self.projects {
+      if other
+        .projects
+        .iter()
+        .find(|v| v.name.as_str().eq(p.name.as_str()))
+        .is_some_and(|v| v.runs.is_empty())
+      {
+        // Considering that project is cleared, continuing
+        continue;
+      }
+      let project = projects.get_mut(&p.name).unwrap();
+      for run in &p.runs {
+        if !project.contains(&run) {
+          project.push(run)
+        };
+      }
+    }
+
+    let mut runs = Runs { projects: vec![] };
+    projects.iter().for_each(|(k, v)| {
+      let pr_runs = v.iter().map(|v| (*v).to_owned()).collect::<Vec<_>>();
+      runs.projects.push(ProjectRuns {
+        name: k.to_owned(),
+        runs: pr_runs,
+      });
+    });
+
+    Ok(runs)
+  }
+}
+
 /// Runs of chosen project.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 pub struct ProjectRuns {
   /// Project name (see `DeployerProjectOptions::project_name`).
   pub name: String,
@@ -44,7 +94,7 @@ pub struct ProjectRuns {
 }
 
 /// Run information.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 pub struct Run {
   /// If is set, this folder will be used only for Pipelines with this exclusive tag.
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -462,7 +512,7 @@ pub fn execute_pipeline(
   let now = Instant::now();
 
   #[allow(clippy::mutable_key_type)]
-  let mut requirements = HashSet::<Requirement>::new();
+  let mut requirements = hset!();
   for action in &pipeline.actions {
     if let Some(action_reqs) = &action.requirements {
       for action_req in action_reqs {
