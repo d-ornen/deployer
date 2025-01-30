@@ -131,7 +131,9 @@ pub fn copy_all(
     if let Some(parent) = dst.as_ref().parent() {
       std::fs::create_dir_all(parent)?;
     }
-    std::fs::copy(src.as_ref(), dst.as_ref())?;
+    if let Err(e) = std::fs::copy(src.as_ref(), dst.as_ref()) {
+      log(format!("-> {:?} :: {}", src.as_ref(), e));
+    }
     return Ok(());
   }
   std::fs::create_dir_all(&dst)?;
