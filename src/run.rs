@@ -83,7 +83,12 @@ pub fn place_artifacts(
         panic!("{}: {:?}!", i18n::ARTIFACT_ENPLACE_FAIL, artifact_path);
       }
     } else if artifact_path.as_path().is_dir() || artifact_path.as_path().is_file() {
-      copy_all(artifact_path.as_path(), env.artifacts_dir.join(to).as_path(), &ignore)?;
+      copy_all(
+        artifact_path.as_path(),
+        artifact_path.as_path(),
+        env.artifacts_dir.join(to).as_path(),
+        &ignore,
+      )?;
     }
   }
 
@@ -166,7 +171,8 @@ fn prepare_run_folder(
   ];
   ignore.extend(config.cache_files.iter().cloned());
 
-  copy_all(get_current_working_dir().unwrap(), run_path.as_path(), &ignore)?;
+  let cwd = get_current_working_dir().unwrap();
+  copy_all(&cwd, &cwd, run_path.as_path(), &ignore)?;
   write(cache_dir, BUILD_CACHE_LIST, &runs);
 
   if args.link_cache {
@@ -178,7 +184,8 @@ fn prepare_run_folder(
 
   if args.copy_cache {
     for cache_item in &config.cache_files {
-      copy_all(current_dir.join(cache_item), run_path.join(cache_item), &[""])?;
+      let cache_item_path = current_dir.join(cache_item);
+      copy_all(&cache_item_path, &cache_item_path, run_path.join(cache_item), &[""])?;
       log(format!("-> {:?}", cache_item));
     }
   }

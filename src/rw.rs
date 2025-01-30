@@ -85,7 +85,12 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
 /// If `src` is a file, then all subfolders up to `dst` are created, and then the file is copied and overwritten.
 ///
 /// Previously existing folders and files, unless overwritten, are not changed and are stored in their places.
-pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
+pub fn copy_all(
+  root: impl AsRef<Path>,
+  src: impl AsRef<Path>,
+  dst: impl AsRef<Path>,
+  ignore: &[impl AsRef<Path>],
+) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
       std::fs::create_dir_all(parent)?;
@@ -95,24 +100,25 @@ pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsR
   }
   std::fs::create_dir_all(&dst)?;
 
-  for entry in std::fs::read_dir(src)? {
+  for entry in std::fs::read_dir(src.as_ref())? {
     let entry = entry?;
-    let name = entry.file_name();
+    let entry_path = entry.path();
+    let relative_entry = entry_path.strip_prefix(root.as_ref())?;
 
-    if ignore.iter().any(|v| v.as_ref().as_os_str().eq(name.as_os_str())) {
+    if ignore.iter().any(|v| v.as_ref().eq(relative_entry)) {
       continue;
     }
 
-    log(format!("-> {:?}", name));
+    log(format!("-> {:?}", relative_entry));
 
     let ty = entry.file_type()?;
     let d = dst.as_ref().join(entry.file_name());
     if ty.is_dir() {
-      copy_all(entry.path(), d, ignore)?;
+      copy_all(root.as_ref(), entry.path(), d, ignore)?;
     } else if ty.is_file() {
       copy_if_different(entry.path(), d)?;
     } else if ty.is_symlink() {
-      symlink(std::fs::canonicalize(name)?, d);
+      symlink(std::fs::canonicalize(entry.path())?, d);
     }
   }
 

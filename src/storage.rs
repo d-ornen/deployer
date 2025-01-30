@@ -84,7 +84,7 @@ pub fn new_content(storage_dir: &Path) -> anyhow::Result<()> {
   if new_path.exists() {
     std::fs::remove_dir_all(&new_path)?;
   }
-  copy_all(path, &new_path, &[""])?;
+  copy_all(&path, &path, &new_path, &[""])?;
 
   println!(
     "{}",
@@ -113,7 +113,7 @@ pub fn use_from_storage(storage_dir: &Path, build_dir: &Path, content_info: &Con
         i18n::CONTENT_CONSIDER_ADD
       )
     }
-    copy_all(&content_path, build_dir, &[""])?;
+    copy_all(&content_path, &content_path, build_dir, &[""])?;
   } else {
     let mut versions = vec![];
     for entry in std::fs::read_dir(&content_path)? {
@@ -141,7 +141,7 @@ pub fn use_from_storage(storage_dir: &Path, build_dir: &Path, content_info: &Con
         i18n::CONTENT_CONSIDER_ADD
       )
     }
-    copy_all(&content_path, build_dir, &[""])?;
+    copy_all(&content_path, &content_path, build_dir, &[""])?;
   }
 
   Ok(())
@@ -158,7 +158,7 @@ pub fn add_to_storage(storage_dir: &Path, artifacts_dir: &Path, content_info: &C
   if content_path.exists() {
     return Ok(());
   }
-  copy_all(artifacts_dir, &content_path, &[""])?;
+  copy_all(artifacts_dir, artifacts_dir, &content_path, &[""])?;
 
   Ok(())
 }
