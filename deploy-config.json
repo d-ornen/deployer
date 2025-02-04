@@ -28,7 +28,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai,tui,containered",
+                "bash_c": "cargo clippy --no-default-features --features=lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -71,7 +71,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,lua,rhai,tui,containered",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -188,7 +188,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -231,7 +231,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -360,7 +360,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -403,7 +403,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -521,7 +521,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --lib --features=python,lua,rhai",
+                "bash_c": "cargo clippy --no-default-features --lib --features=lua,rhai",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -544,7 +544,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --lib --features=python,lua,rhai,containered",
+                "bash_c": "cargo clippy --no-default-features --lib --features=lua,rhai,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -670,7 +670,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -693,7 +693,7 @@
             "supported_langs": ["Rust"],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true

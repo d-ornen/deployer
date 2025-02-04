@@ -23,10 +23,10 @@ WORKDIR /app
 
 FROM {base-image} AS deployer-executor
 WORKDIR /app
+COPY --from=deployer-builder /app/deployer/target/release/deployer .
 {preflight-commands}
 {run-strategy}
-COPY --from=deployer-builder /app/deployer/target/release/deployer .
-CMD ["/app/deployer", "run", "{pipeline-name}", "--link-cache", "--containered"{no-pipe}]
+CMD ["/app/deployer", "run", "{pipeline-name}", "--current", "--containered"{no-pipe}]
 
 "#;
 
