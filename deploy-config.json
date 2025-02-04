@@ -44,7 +44,7 @@
             ],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai,tui",
+                "bash_c": "cargo clippy --no-default-features --features=python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -101,7 +101,7 @@
             ],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,lua,rhai,tui",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -242,7 +242,7 @@
             ],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui",
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -299,7 +299,7 @@
             ],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -452,7 +452,7 @@
             ],
             "commands": [
               {
-                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui",
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": true,
                 "show_bash_c": true
@@ -509,7 +509,7 @@
             ],
             "commands": [
               {
-                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui",
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
                 "ignore_fails": false,
                 "show_success_output": false,
                 "show_bash_c": true
@@ -661,6 +661,37 @@
               ]
             }
           ]
+        },
+        {
+          "title": "Lint with `containered` feature",
+          "desc": "Got from `Cargo Clippy`.",
+          "info": "cargo-clippy@0.1.0",
+          "tags": [
+            "cargo",
+            "clippy"
+          ],
+          "action": {
+            "type": "pre_build",
+            "supported_langs": [
+              "Rust"
+            ],
+            "commands": [
+              {
+                "bash_c": "cargo clippy --no-default-features --lib --features=python,lua,rhai,containered",
+                "ignore_fails": false,
+                "show_success_output": true,
+                "show_bash_c": true
+              }
+            ]
+          },
+          "requirements": [
+            {
+              "ExistsAny": [
+                "/bin/cargo",
+                "~/.cargo/bin/cargo"
+              ]
+            }
+          ]
         }
       ],
       "default": false,
@@ -760,6 +791,88 @@
           "exec_in_project_dir": false
         }
       ]
+    },
+    {
+      "title": "test-containered",
+      "desc": "Got from `Deployer Pipeline`.",
+      "info": "deployer-default@0.1.2",
+      "tags": [
+        "cargo",
+        "clippy",
+        "build"
+      ],
+      "actions": [
+        {
+          "title": "Проверка качества кода",
+          "desc": "Got from `Cargo Clippy`.",
+          "info": "cargo-clippy@0.1.0",
+          "tags": [
+            "cargo",
+            "clippy"
+          ],
+          "action": {
+            "type": "pre_build",
+            "supported_langs": [
+              "Rust"
+            ],
+            "commands": [
+              {
+                "bash_c": "cargo clippy --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "ignore_fails": false,
+                "show_success_output": true,
+                "show_bash_c": true
+              }
+            ]
+          },
+          "requirements": [
+            {
+              "ExistsAny": [
+                "/bin/cargo",
+                "~/.cargo/bin/cargo"
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Сборка",
+          "desc": "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode",
+          "info": "cargo-rel@0.1",
+          "tags": [
+            "rust",
+            "cargo"
+          ],
+          "action": {
+            "type": "build",
+            "supported_langs": [
+              "Rust"
+            ],
+            "commands": [
+              {
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,python,lua,rhai,tui,containered",
+                "ignore_fails": false,
+                "show_success_output": false,
+                "show_bash_c": true
+              }
+            ]
+          },
+          "requirements": [
+            {
+              "ExistsAny": [
+                "/bin/cargo",
+                "~/.cargo/bin/cargo"
+              ]
+            }
+          ]
+        }
+      ],
+      "default": false,
+      "containered_opts": {
+        "base_image": null,
+        "preflight_cmds": null,
+        "build_deployer_base_image": null,
+        "preflight_deployer_build_deps": null
+      },
+      "exclusive_exec_tag": "containered"
     }
   ],
   "artifacts": [

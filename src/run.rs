@@ -15,6 +15,8 @@ use uuid::Uuid;
 use crate::actions::Action;
 use crate::cmd::{CleanArgs, RunArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
+#[cfg(feature = "containered")]
+use crate::containered::execute_pipeline_containered;
 use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
@@ -103,18 +105,6 @@ pub struct Run {
   pub folder: PathBuf,
 }
 
-impl Run {
-  /// Checks the exclusive tag on both run folder and given Pipeline.
-  pub fn works_with(&self, pipeline: &DescribedPipeline) -> bool {
-    self.exclusive_tag.as_ref().is_some_and(|a| {
-      pipeline
-        .exclusive_exec_tag
-        .as_ref()
-        .is_some_and(|b| a.as_str().eq(b.as_str()))
-    }) || (self.exclusive_tag.is_none() && pipeline.exclusive_exec_tag.is_none())
-  }
-}
-
 /// Places Pipeline artifacts in the `artifacts` folder inside project's directory.
 ///
 /// `panic_when_not_found` is set to `false` on all function's usages now.
@@ -146,7 +136,7 @@ pub fn place_artifacts(
 }
 
 /// Creates the artifacts folder, if it isn't exist.
-fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
   let artifacts_dir = current_dir.join(ARTIFACTS_DIR);
   std::fs::create_dir_all(artifacts_dir.as_path())
     .unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", artifacts_dir));
@@ -162,10 +152,10 @@ fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<Pat
 /// - `fresh` to create new run folder
 /// - `copy_cache` to copy cache files from project's folder
 /// - `link_cache` to create symlinks to cache files from project's folder
-fn prepare_run_folder(
+pub(crate) fn prepare_run_folder(
   config: &DeployerProjectOptions,
   runs: &mut Runs,
-  selected_pipeline: &DescribedPipeline,
+  exclusive_exec_tag: &Option<String>,
   current_dir: &std::path::Path,
   cache_dir: &Path,
   args: &RunArgs,
@@ -193,13 +183,18 @@ fn prepare_run_folder(
       }
     };
 
-    let folder = match project_runs.runs.iter().rev().find(|b| b.works_with(selected_pipeline)) {
+    let folder = match project_runs.runs.iter().rev().find(|b| {
+      b.exclusive_tag
+        .as_ref()
+        .is_some_and(|a| exclusive_exec_tag.as_ref().is_some_and(|b| a.as_str().eq(b.as_str())))
+        || (b.exclusive_tag.is_none() && exclusive_exec_tag.is_none())
+    }) {
       Some(b_stats) if !args.fresh => b_stats.folder.to_owned(),
       _ => {
         let uuid = format!("deploy-build-{}", Uuid::new_v4());
         let folder = run_path.join(uuid);
         let b_stats = Run {
-          exclusive_tag: selected_pipeline.exclusive_exec_tag.clone(),
+          exclusive_tag: exclusive_exec_tag.clone(),
           folder: folder.to_owned(),
         };
         project_runs.runs.push(b_stats);
@@ -305,7 +300,7 @@ pub fn run(
       let (run_path, new_build) = if args.current {
         (curr_dir.clone(), false)
       } else {
-        prepare_run_folder(config, runs, pipeline, &curr_dir, cache_dir, args)?
+        prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
       };
 
       let env = RunEnvironment {
@@ -320,6 +315,8 @@ pub fn run(
         no_pipe: args.no_pipe,
         ignore: &config.cache_files,
         remotes: &globals.remote_hosts,
+        #[cfg(feature = "containered")]
+        containered: args.containered,
       };
 
       execute_pipeline(config, env, pipeline)?;
@@ -331,7 +328,7 @@ pub fn run(
         let (run_path, new_build) = if args.current {
           (curr_dir.clone(), false)
         } else {
-          prepare_run_folder(config, runs, pipeline, &curr_dir, cache_dir, args)?
+          prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
         };
 
         let env = RunEnvironment {
@@ -346,6 +343,8 @@ pub fn run(
           no_pipe: args.no_pipe,
           ignore: &config.cache_files,
           remotes: &globals.remote_hosts,
+          #[cfg(feature = "containered")]
+          containered: args.containered,
         };
 
         execute_pipeline(config, env, pipeline)?;
@@ -390,6 +389,8 @@ pub fn run_as_worker(
         no_pipe: false,
         ignore: &config.cache_files,
         remotes,
+        #[cfg(feature = "containered")]
+        containered: args.containered,
       };
 
       execute_pipeline(&config, env, pipeline)?;
@@ -432,7 +433,8 @@ pub fn run_as_controller(
 
   for pipeline_tag in &args.pipeline_tags {
     if let Some(pipeline) = config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
-      let (build_path, _) = prepare_run_folder(config, runs, pipeline, current_dir, cache_dir, args)?;
+      let (build_path, _) =
+        prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, current_dir, cache_dir, args)?;
 
       for host in remote.iter() {
         if !args.silent {
@@ -493,6 +495,17 @@ pub fn execute_pipeline(
 ) -> anyhow::Result<()> {
   use std::io::{Write, stdout};
   use std::time::{Duration, Instant};
+
+  #[cfg(feature = "containered")]
+  if pipeline.containered_opts.is_some() && !env.containered {
+    let env = RunEnvironment {
+      silent_build: false,
+      no_pipe: true,
+      ..env
+    };
+
+    return execute_pipeline_containered(config, env, pipeline);
+  }
 
   let mut total_time = Duration::from_secs(0);
   let log_file = generate_build_log_filepath(&config.project_name, &pipeline.title, env.cache_dir);

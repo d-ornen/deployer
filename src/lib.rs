@@ -1,4 +1,4 @@
-#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
+#![feature(let_chains, if_let_guard, string_from_utf8_lossy_owned, str_as_str)]
 #![deny(warnings, clippy::todo, clippy::unimplemented)]
 
 pub mod cmd;
@@ -8,6 +8,8 @@ pub mod rw;
 pub mod tui;
 pub mod utils;
 
+#[cfg(feature = "containered")]
+mod containered;
 pub mod run;
 
 pub mod remote;

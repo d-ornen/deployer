@@ -34,4 +34,7 @@ pub struct RunEnvironment<'a> {
   pub silent_build: bool,
   /// No I/O redirection flag. Deployer will not collect any command's output.
   pub no_pipe: bool,
+  /// Is environment containered?
+  #[cfg(feature = "containered")]
+  pub containered: bool,
 }

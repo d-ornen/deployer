@@ -398,6 +398,7 @@ impl DescribedPipeline {
       actions: selected_actions_ordered,
       default: None,
       exclusive_exec_tag,
+      containered_opts: None,
     };
 
     Ok(described_pipeline)

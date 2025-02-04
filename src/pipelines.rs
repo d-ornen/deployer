@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "tui")]
 use std::process::exit;
 
-#[cfg(feature = "tui")]
 use crate::actions::Action;
 use crate::actions::DescribedAction;
 #[cfg(feature = "tui")]
 use crate::cmd::{CatPipelineArgs, CatProjectArgs, NewPipelineArgs, WithPipelineArgs};
 #[cfg(feature = "tui")]
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
+use crate::entities::containered_opts::ContaineredOpts;
 #[cfg(feature = "tui")]
 use crate::entities::info::StrToInfo;
 use crate::entities::info::{PipelineInfo, info2str, str2info};
@@ -54,6 +54,10 @@ pub struct DescribedPipeline {
   /// If set to `true`, and no Pipeline specified to `deployer build`, runs automatically.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub default: Option<bool>,
+
+  /// Indicates that this Pipeline should be executed inside containered environment.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub containered_opts: Option<ContaineredOpts>,
 
   /// Specify exclusive execution tag to save unique cache.
   ///

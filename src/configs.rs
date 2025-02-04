@@ -188,6 +188,7 @@ impl ConfigAutoMigrate<DeployerProjectOptions> for DeployerProjectOptions {
                 info: pipeline.info.to_owned(),
                 tags: pipeline.tags.to_owned(),
                 title: pipeline.title.to_owned(),
+                containered_opts: None,
               }
             });
           }
@@ -378,6 +379,7 @@ impl ConfigAutoMigrate<DeployerGlobalConfig> for DeployerGlobalConfig {
             info: pipeline.1.info.to_owned(),
             tags: pipeline.1.tags.to_owned(),
             title: pipeline.1.title.to_owned(),
+            containered_opts: None,
           }
         });
       }

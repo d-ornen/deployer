@@ -3,6 +3,7 @@
 pub mod traits;
 
 pub mod auto_version;
+pub mod containered_opts;
 pub mod custom_command;
 pub mod environment;
 pub mod info;

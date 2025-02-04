@@ -28,6 +28,8 @@ mod rw;
 mod tui;
 mod utils;
 
+#[cfg(feature = "containered")]
+mod containered;
 mod run;
 
 mod remote;

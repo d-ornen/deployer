@@ -33,6 +33,7 @@ pub enum DeployerExecType {
   Ls(ListType),
   /// Create new inner Deployer's object
   #[command(subcommand)]
+  #[clap(visible_alias("add"))]
   New(NewType),
   /// Print info about inner Deployer's object
   #[command(subcommand)]
@@ -49,6 +50,7 @@ pub enum DeployerExecType {
   /// Add Deployer's Pipeline to the project
   With(WithPipelineArgs),
   /// Run Pipelines
+  #[clap(visible_alias("r"))]
   Run(RunArgs),
   /// Clean the project's builds
   Clean(CleanArgs),
@@ -213,6 +215,11 @@ pub struct RunArgs {
   /// Run remotely on specified hosts (as controller node)
   #[arg(short('R'), long, value_delimiter(','))]
   pub remote_host_short_names: Vec<String>,
+
+  /// Run in container environment
+  #[cfg(feature = "containered")]
+  #[arg(long)]
+  pub containered: bool,
 
   /// Force disable output from Actions
   #[arg(short('s'), long)]
