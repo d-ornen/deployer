@@ -37,7 +37,3 @@ lua = ["smart-patcher/lua"]
 rhai = ["smart-patcher/rhai"]
 tui = ["dep:inquire"]
 containered = []
-
-[profile.release]
-codegen-units = 1
-lto = true

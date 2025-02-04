@@ -12,14 +12,15 @@ use crate::pipelines::DescribedPipeline;
 pub const BASE_IMAGE: &str = "ubuntu:latest";
 pub const PREFLIGHT_DEFAULT: &str =
   "RUN apt-get update && apt-get install -y python3-dev && rm -rf /var/lib/apt/lists/*";
-pub const DEPLOYER_DEFAULT_BASE_IMAGE: &str = "rust:latest";
 pub const DEPLOYER_DEFAULT_PREFLIGHT: &str =
-  "RUN apt-get update && apt-get install -y git python3-dev && rm -rf /var/lib/apt/lists/*";
+  "RUN apt-get update && apt-get install -y build-essential curl git python3-dev && rm -rf /var/lib/apt/lists/*";
 
 pub const GENERIC_DOCKERFILE: &str = r#"# generated file
 FROM {deployer-base-image} AS deployer-builder
 WORKDIR /app
 {preflight-install-deployer-deps}
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git && cd deployer && cargo build --release
 
 FROM {base-image} AS deployer-executor
@@ -68,10 +69,7 @@ fn generate_dockerfile(
     .replace("{pipeline-name}", pipeline.info.short_name())
     .replace(
       "{deployer-base-image}",
-      opts
-        .build_deployer_base_image
-        .as_deref()
-        .unwrap_or(DEPLOYER_DEFAULT_BASE_IMAGE),
+      opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE),
     )
     .replace(
       "{preflight-install-deployer-deps}",
