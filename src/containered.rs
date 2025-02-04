@@ -26,7 +26,7 @@ RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/de
 FROM {base-image} AS deployer-executor
 WORKDIR /app
 {preflight-commands}
-COPY . .
+{run-strategy}
 COPY --from=deployer-builder /app/deployer/target/release/deployer .
 CMD ["/app/deployer", "run", "{pipeline-name}", "--containered"]
 
@@ -57,16 +57,6 @@ fn generate_dockerfile(
   exclusive_exec_tag: &str,
 ) -> anyhow::Result<()> {
   let resulting_image = GENERIC_DOCKERFILE
-    .replace("{base-image}", opts.base_image.as_deref().unwrap_or(BASE_IMAGE))
-    .replace(
-      "{preflight-commands}",
-      &opts
-        .preflight_cmds
-        .as_ref()
-        .map(|v| v.join("\n"))
-        .unwrap_or(PREFLIGHT_DEFAULT.to_string()),
-    )
-    .replace("{pipeline-name}", &pipeline.title)
     .replace(
       "{deployer-base-image}",
       opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE),
@@ -77,7 +67,21 @@ fn generate_dockerfile(
         .preflight_deployer_build_deps
         .as_deref()
         .unwrap_or(DEPLOYER_DEFAULT_PREFLIGHT),
-    );
+    )
+    .replace("{base-image}", opts.base_image.as_deref().unwrap_or(BASE_IMAGE))
+    .replace(
+      "{preflight-commands}",
+      &opts
+        .preflight_cmds
+        .as_ref()
+        .map(|v| v.join("\n"))
+        .unwrap_or(PREFLIGHT_DEFAULT.to_string()),
+    )
+    .replace(
+      "{run-strategy}",
+      &opts.concat_strategies().unwrap_or("COPY . .".to_string()),
+    )
+    .replace("{pipeline-name}", &pipeline.title);
   let filepath = env.run_dir.join(format!("Dockerfile.{}", exclusive_exec_tag));
   let mut dockerfile = fs::File::options()
     .create(true)
@@ -107,14 +111,18 @@ pub fn execute_pipeline_containered(
 
   let exclusive_exec_tag = pipeline.exclusive_exec_tag.clone().unwrap_or(String::from("default")) + "-containered";
   let opts = pipeline.containered_opts.as_ref().unwrap();
+  opts.sync_fake_content(env)?;
   generate_dockerfile(env, pipeline, opts, &exclusive_exec_tag)?;
   generate_dockerignore(env, config)?;
   println!("Started `{}/{}` image build...", config.project_name, pipeline.title);
 
   if !(CustomCommand {
     bash_c: format!(
-      "sudo docker build -t {}/{} -f Dockerfile.{} .",
-      config.project_name, pipeline.title, exclusive_exec_tag
+      "sudo docker build {}-t {}/{} -f Dockerfile.{} .",
+      if env.new_build { "--no-cache " } else { "" },
+      config.project_name,
+      pipeline.title,
+      exclusive_exec_tag
     ),
     ignore_fails: false,
     only_when_fresh: None,

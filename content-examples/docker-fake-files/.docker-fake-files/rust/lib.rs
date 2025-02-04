@@ -1,4 +1,4 @@
-#[allow(unused_code)]
+#[allow(dead_code)]
 fn l() {
   println!("Hello world!");
 }
