@@ -281,6 +281,9 @@ impl DescribedAction {
       Action::SyncToRemote { .. } | Action::SyncFromRemote { .. } => {
         actions.push(i18n::EDIT_REMOTE_SHORT_NAME);
       }
+      Action::SubPipeline(_) => {
+        actions.push(i18n::EDIT_PIPELINE);
+      }
       Action::Interrupt | Action::UseFromStorage { .. } => {}
     }
     actions.extend_from_slice(&[
@@ -395,6 +398,9 @@ impl DescribedAction {
           } else {
             None
           };
+        }
+        i18n::EDIT_PIPELINE if let Action::SubPipeline(pipeline) = &mut self.action => {
+          pipeline.edit_pipeline_from_prompt(&mut Default::default())?;
         }
         _ => {}
       }

@@ -40,6 +40,7 @@ use crate::entities::{
 use crate::hmap;
 #[cfg(feature = "tui")]
 use crate::i18n;
+use crate::pipelines::DescribedPipeline;
 #[cfg(feature = "tui")]
 use crate::rw::read_checked;
 
@@ -132,6 +133,9 @@ pub enum Action {
   /// Action to apply `smart-patcher` patches
   /// (see [`smart-patcher` repository](https://github.com/impulse-sw/smart-patcher)).
   Patch(PatchAction),
+
+  /// Action to execute another pipeline.
+  SubPipeline(Box<DescribedPipeline>),
 }
 
 /// Prints all available Actions on the screen.

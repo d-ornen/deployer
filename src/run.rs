@@ -562,7 +562,8 @@ pub fn execute_pipeline(
       env
     };
     let observer = matches!(&action.action, Action::Observe(_));
-    let no_pipe = observer | env.no_pipe;
+    let sub_pipeline = matches!(&action.action, Action::SubPipeline(_));
+    let no_pipe = observer | sub_pipeline | env.no_pipe;
 
     if !env.silent_build {
       if !no_pipe {
@@ -640,6 +641,10 @@ pub fn execute_pipeline(
       Action::AddToStorage(rules) => {
         place_artifacts(config, env, false)?;
         rules.execute(env)?
+      }
+      Action::SubPipeline(pipeline) => {
+        execute_pipeline(config, env, pipeline)?;
+        (true, vec![])
       }
     };
 

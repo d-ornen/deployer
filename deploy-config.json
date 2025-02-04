@@ -721,6 +721,45 @@
         }
       ],
       "default": false
+    },
+    {
+      "title": "test-sub-pipeline",
+      "desc": "",
+      "info": "test-subpipeline@0.1.0",
+      "tags": [],
+      "actions": [
+        {
+          "title": "Sub-pipeline running Action",
+          "desc": "Получено из `Sub Pipe Test Action`.",
+          "info": "sub-pipe-test@0.1.0",
+          "tags": [],
+          "action": {
+            "type": "sub_pipeline",
+            "title": "Sub-pipeline running Action",
+            "desc": "Получено из `Test Sub-Pipeline 2.0 (Inner)`.",
+            "info": "test-subpipeline@0.2.0",
+            "tags": [],
+            "actions": [
+              {
+                "title": "List files",
+                "desc": "Получено из `List files and folders`.",
+                "info": "ls@0.1.0",
+                "tags": [],
+                "action": {
+                  "type": "custom",
+                  "bash_c": "ls",
+                  "ignore_fails": false,
+                  "show_success_output": true,
+                  "show_bash_c": true,
+                  "only_when_fresh": false
+                },
+                "exec_in_project_dir": false
+              }
+            ]
+          },
+          "exec_in_project_dir": false
+        }
+      ]
     }
   ],
   "artifacts": [

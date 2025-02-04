@@ -274,6 +274,7 @@ tr!(
   EDIT_EXEC_IN_PROJECT_DIR,
   "Изменить путь выполнения Действия (папка проекта или папка выполнения)"
 );
+tr!(EDIT_PIPELINE, "Редактировать Пайплайн");
 
 tr!(DEPL_TOOLKIT, "Введите название инструментария развёртывания");
 
@@ -348,6 +349,7 @@ tr!(SELECT_PIPELINE_TO_CHANGE, "Выберите Пайплайн для ред�
 tr!(PIPELINE, "Пайплайн");
 tr!(PIPELINE_REORDER_ACTIONS, "Упорядочьте Действия в Пайплайне:");
 tr!(PIPELINE_REMOVE, "Удалить Пайплайн `{1}` - `{2}`");
+tr!(SELECT_PIPELINE_TO_ADD_TO, "Выберите Пайплайн:");
 
 tr!(STARTING_PIPELINE, "Запуск Пайплайна `{}`...");
 tr!(STARTING_ACTION, "Действие");

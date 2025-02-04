@@ -10,7 +10,7 @@ use crate::actions::{
   Action, DescribedAction, buildlike::*, check::CheckAction, deploylike::*, new_action, observe::ObserveAction,
   packlike::*, patch::PatchAction, storage_add::AddToStorageAction,
 };
-use crate::cmd::NewActionArgs;
+use crate::cmd::{NewActionArgs, NewPipelineArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
 use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
@@ -24,7 +24,7 @@ use crate::entities::{
 };
 use crate::hmap;
 use crate::i18n;
-use crate::pipelines::DescribedPipeline;
+use crate::pipelines::{DescribedPipeline, new_pipeline};
 use crate::utils::{str2regex_simple, tags_custom_type};
 
 impl DeployerProjectOptions {
@@ -107,6 +107,7 @@ impl DescribedAction {
       "Post-deploy",
       "Observe",
       "Automatical push artifacts to the common storage",
+      "Another Pipeline",
     ];
 
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
@@ -193,6 +194,7 @@ impl DescribedAction {
       "Sync build artifacts from remote" => Action::SyncFromRemote {
         remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
       },
+      "Another Pipeline" => Action::SubPipeline(Box::new(select_pipeline(opts)?)),
       _ => unreachable!(),
     };
 
@@ -451,6 +453,58 @@ pub fn select_action(globals: &mut DeployerGlobalConfig) -> anyhow::Result<Descr
     action.title = new_title;
 
     return Ok(action);
+  }
+
+  let mut action = (*actions.get(&selected_action).unwrap()).clone();
+
+  let new_title = Text::new(i18n::PIPELINE_DESCRIBE_ACTION_IN).prompt()?;
+  action.desc = format!(
+    r#"{} `{}`.{}{}"#,
+    i18n::GOT_FROM,
+    action.title,
+    if action.desc.is_empty() { "" } else { " " },
+    action.desc
+  );
+  action.title = new_title;
+
+  Ok(action)
+}
+
+pub fn select_pipeline(globals: &mut DeployerGlobalConfig) -> anyhow::Result<DescribedPipeline> {
+  use inquire::{Select, Text};
+
+  let (actions, keys) = {
+    let mut h = hmap!();
+    let mut k = vec![];
+
+    for key in globals.pipelines_registry.keys() {
+      let pipeline = globals.pipelines_registry.get(key).unwrap();
+      let new_key = format!("{} - {}", pipeline.info.to_str(), pipeline.title);
+      h.insert(new_key.clone(), pipeline);
+      k.push(new_key);
+    }
+
+    k.sort();
+    k.push(i18n::PIPELINE_SPECIFY_ANOTHER.to_string());
+
+    (h, k)
+  };
+
+  let selected_action = Select::new(i18n::SELECT_PIPELINE_TO_ADD_TO, keys).prompt()?;
+
+  if selected_action.as_str().eq(i18n::PIPELINE_SPECIFY_ANOTHER) {
+    let mut pipeline = new_pipeline(globals, &NewPipelineArgs { from: None })?;
+    let new_title = Text::new(i18n::PIPELINE_DESCRIBE_ACTION_IN).prompt()?;
+    pipeline.desc = format!(
+      r#"{} `{}`.{}{}"#,
+      i18n::GOT_FROM,
+      pipeline.title,
+      if pipeline.desc.is_empty() { "" } else { " " },
+      pipeline.desc
+    );
+    pipeline.title = new_title;
+
+    return Ok(pipeline);
   }
 
   let mut action = (*actions.get(&selected_action).unwrap()).clone();

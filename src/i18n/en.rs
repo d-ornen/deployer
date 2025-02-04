@@ -253,6 +253,7 @@ tr!(
   EDIT_EXEC_IN_PROJECT_DIR,
   "Change Action's execution path (run or project folder)"
 );
+tr!(EDIT_PIPELINE, "Edit Pipeline");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -330,6 +331,7 @@ tr!(SELECT_PIPELINE_TO_CHANGE, "Select a concrete Pipeline to change");
 tr!(PIPELINE, "Pipeline");
 tr!(PIPELINE_REORDER_ACTIONS, "Reorder Pipeline's Actions:");
 tr!(PIPELINE_REMOVE, "Remove Pipeline `{1}` - `{2}`");
+tr!(SELECT_PIPELINE_TO_ADD_TO, "Select a Pipeline:");
 
 tr!(STARTING_PIPELINE, "Starting the `{}` Pipeline...");
 tr!(STARTING_ACTION, "Action");

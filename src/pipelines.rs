@@ -62,6 +62,59 @@ pub struct DescribedPipeline {
   pub exclusive_exec_tag: Option<String>,
 }
 
+impl DescribedPipeline {
+  pub fn return_all_cmds(&self) -> Vec<String> {
+    let mut cmds = vec![];
+
+    for action in &self.actions {
+      match &action.action {
+        Action::Interrupt => {}
+        Action::SyncToRemote { .. } => cmds.push("<sync-to-remote>".to_string()),
+        Action::SyncFromRemote { .. } => cmds.push("<sync-from-remote>".to_string()),
+        Action::Custom(cmd) => cmds.push(cmd.bash_c.to_owned()),
+        Action::Check(check) => cmds.push(format!("<check> {}", check.command.bash_c)),
+        Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => cmds.extend_from_slice(
+          a.commands
+            .iter()
+            .map(|c| c.bash_c.to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
+        ),
+        Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => cmds.extend_from_slice(
+          a.commands
+            .iter()
+            .map(|c| c.bash_c.to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
+        ),
+        Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => cmds.extend_from_slice(
+          a.commands
+            .iter()
+            .map(|c| c.bash_c.to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
+        ),
+        Action::Observe(a) => cmds.push(format!("<observe> {}", a.command.bash_c)),
+        Action::UseFromStorage { .. } => cmds.push("<use-from-storage>".to_string()),
+        Action::AddToStorage(_) => cmds.push("<add-to-storage>".to_string()),
+        Action::Patch(p) => cmds.push(format!("<patch-with-file> {:?}", p.patch)),
+        Action::SubPipeline(sp) => {
+          cmds.push(format!("<sub-pipeline {}>", sp.info.to_str()));
+          let sp_cmds = sp
+            .return_all_cmds()
+            .iter()
+            .map(|v| format!("  {}", v))
+            .collect::<Vec<_>>();
+          cmds.extend_from_slice(&sp_cmds);
+          cmds.push("</sub-pipeline>".to_string());
+        }
+      }
+    }
+
+    cmds
+  }
+}
+
 /// Lists all available Pipelines.
 #[cfg(feature = "tui")]
 pub fn list_pipelines(globals: &DeployerGlobalConfig) -> anyhow::Result<()> {
@@ -98,15 +151,17 @@ pub fn list_pipelines(globals: &DeployerGlobalConfig) -> anyhow::Result<()> {
 
 /// Creates a new Pipeline.
 #[cfg(feature = "tui")]
-pub fn new_pipeline(globals: &mut DeployerGlobalConfig, args: &NewPipelineArgs) -> anyhow::Result<()> {
+pub fn new_pipeline(globals: &mut DeployerGlobalConfig, args: &NewPipelineArgs) -> anyhow::Result<DescribedPipeline> {
   if let Some(from_file) = &args.from {
     let pipeline = read_checked::<DescribedPipeline>(from_file)
       .map_err(|e| {
         panic!("Can't read provided Pipeline file due to: {}", e);
       })
       .unwrap();
-    globals.pipelines_registry.insert(pipeline.info.clone(), pipeline);
-    return Ok(());
+    globals
+      .pipelines_registry
+      .insert(pipeline.info.clone(), pipeline.clone());
+    return Ok(pipeline);
   }
 
   let described_pipeline = DescribedPipeline::new_from_prompt(globals)?;
@@ -115,14 +170,14 @@ pub fn new_pipeline(globals: &mut DeployerGlobalConfig, args: &NewPipelineArgs) 
     && !inquire::Confirm::new(&i18n::PIPELINE_REG_ALREADY_HAVE.replace("{}", &described_pipeline.info.to_str()))
       .prompt()?
   {
-    return Ok(());
+    return Ok(described_pipeline);
   }
 
   globals
     .pipelines_registry
-    .insert(described_pipeline.info.clone(), described_pipeline);
+    .insert(described_pipeline.info.clone(), described_pipeline.clone());
 
-  Ok(())
+  Ok(described_pipeline)
 }
 
 /// Removes a Pipeline.
@@ -192,42 +247,7 @@ pub fn cat_project_pipelines(config: &DeployerProjectOptions, args: CatProjectAr
       let pipeline_json = serde_json::to_string_pretty(&pipeline).unwrap();
       println!("{}", pipeline_json);
     } else {
-      let mut cmds = vec![];
-      for action in &pipeline.actions {
-        match &action.action {
-          Action::Interrupt => {}
-          Action::SyncToRemote { .. } => cmds.push("<sync-to-remote>".to_string()),
-          Action::SyncFromRemote { .. } => cmds.push("<sync-from-remote>".to_string()),
-          Action::Custom(cmd) => cmds.push(cmd.bash_c.to_owned()),
-          Action::Check(check) => cmds.push(format!("<check> {}", check.command.bash_c)),
-          Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => cmds.extend_from_slice(
-            a.commands
-              .iter()
-              .map(|c| c.bash_c.to_owned())
-              .collect::<Vec<_>>()
-              .as_slice(),
-          ),
-          Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => cmds.extend_from_slice(
-            a.commands
-              .iter()
-              .map(|c| c.bash_c.to_owned())
-              .collect::<Vec<_>>()
-              .as_slice(),
-          ),
-          Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => cmds.extend_from_slice(
-            a.commands
-              .iter()
-              .map(|c| c.bash_c.to_owned())
-              .collect::<Vec<_>>()
-              .as_slice(),
-          ),
-          Action::Observe(a) => cmds.push(format!("<observe> {}", a.command.bash_c)),
-          Action::UseFromStorage { .. } => cmds.push("<use-from-storage>".to_string()),
-          Action::AddToStorage(_) => cmds.push("<add-to-storage>".to_string()),
-          Action::Patch(p) => cmds.push(format!("<patch-with-file> {:?}", p.patch)),
-        }
-      }
-
+      let cmds = pipeline.return_all_cmds();
       println!("{} `{}`:", i18n::PIPELINE, pipeline.title.blue().italic());
       for cmd in cmds {
         println!(">>> {}", cmd.green());

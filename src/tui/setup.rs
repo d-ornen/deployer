@@ -158,6 +158,13 @@ impl DescribedAction {
         Action::PostDeploy(self.setup_deploylike_action(pd_action, deploy_toolkit, variables, artifacts)?)
       }
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
+      Action::SubPipeline(pipe) => Action::SubPipeline({
+        let mut pipe = pipe.clone();
+        for action in &mut pipe.actions {
+          *action = action.prompt_setup_for_project(langs, deploy_toolkit, targets, variables, artifacts)?;
+        }
+        pipe
+      }),
       Action::Interrupt
       | Action::Patch(_)
       | Action::UseFromStorage { .. }
