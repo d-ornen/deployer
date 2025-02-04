@@ -28,6 +28,10 @@ pub struct ContaineredOpts {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub preflight_deployer_build_deps: Option<String>,
 
+  /// Commands to build Deployer itself.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub deployer_build_cmds: Option<Vec<String>>,
+
   #[serde(skip_serializing_if = "Option::is_none")]
   pub run_strategies: Option<Vec<ContainerizedRunStrategy>>,
 }

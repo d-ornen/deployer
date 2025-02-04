@@ -19,16 +19,14 @@ pub const GENERIC_DOCKERFILE: &str = r#"# generated file
 FROM {deployer-base-image} AS deployer-builder
 WORKDIR /app
 {preflight-install-deployer-deps}
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git && cd deployer && cargo build --release
+{deployer-build-cmds}
 
 FROM {base-image} AS deployer-executor
 WORKDIR /app
 {preflight-commands}
 {run-strategy}
 COPY --from=deployer-builder /app/deployer/target/release/deployer .
-CMD ["/app/deployer", "run", "{pipeline-name}", "--containered"{no-pipe}]
+CMD ["/app/deployer", "run", "{pipeline-name}", "--link-cache", "--containered"{no-pipe}]
 
 "#;
 
@@ -67,6 +65,18 @@ fn generate_dockerfile(
         .preflight_deployer_build_deps
         .as_deref()
         .unwrap_or(DEPLOYER_DEFAULT_PREFLIGHT),
+    )
+    .replace(
+      "{deployer-build-cmds}",
+      &opts
+        .deployer_build_cmds
+        .as_ref()
+        .map(|v| v.join("\n"))
+        .unwrap_or([
+          "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+          r#"ENV PATH="/root/.cargo/bin:${PATH}""#,
+          "RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git && cd deployer && cargo build --release",
+        ].join("\n")),
     )
     .replace("{base-image}", opts.base_image.as_deref().unwrap_or(BASE_IMAGE))
     .replace(
@@ -133,7 +143,7 @@ pub fn execute_pipeline_containered(
     show_bash_c: true,
     show_success_output: true,
   })
-  .execute(env)?
+  .execute(RunEnvironment { no_pipe: true, ..env })?
   .0
   {
     panic!("Image wasn't build!")
@@ -155,7 +165,7 @@ pub fn execute_pipeline_containered(
     show_bash_c: true,
     show_success_output: true,
   })
-  .execute(env)?
+  .execute(RunEnvironment { no_pipe: true, ..env })?
   .0
   {
     panic!("Deployer didn't run!")
