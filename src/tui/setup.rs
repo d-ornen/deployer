@@ -160,10 +160,10 @@ impl DescribedAction {
       Action::Observe(o_action) => Action::Observe(self.setup_observe_action(o_action, variables, artifacts)?),
       Action::Interrupt
       | Action::Patch(_)
-      | Action::UseFromStorage(_)
+      | Action::UseFromStorage { .. }
       | Action::AddToStorage(_)
-      | Action::SyncToRemote(_)
-      | Action::SyncFromRemote(_) => self.action.clone(),
+      | Action::SyncToRemote { .. }
+      | Action::SyncFromRemote { .. } => self.action.clone(),
     };
 
     let mut described_action = self.clone();

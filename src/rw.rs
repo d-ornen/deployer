@@ -35,7 +35,7 @@ pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
 
   read_checked(&path).unwrap_or_else(|_| {
     T::migrate(&path).unwrap_or_else(|e| {
-      log(format!("Error on file read: {:?}", e));
+      log(format!("Error on file read & migration: {:?}", e));
       Default::default()
     })
   })

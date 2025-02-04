@@ -176,7 +176,7 @@ impl DescribedAction {
 
         let info = ContentInfo::new_for_using(short_name, version)?;
 
-        Action::UseFromStorage(info)
+        Action::UseFromStorage { content_info: info }
       }
       "Automatical push artifacts to the common storage" => {
         let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
@@ -187,12 +187,12 @@ impl DescribedAction {
           auto_version_rule,
         })
       }
-      "Sync build folder to remote" => {
-        Action::SyncToRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?)
-      }
-      "Sync build artifacts from remote" => {
-        Action::SyncFromRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?)
-      }
+      "Sync build folder to remote" => Action::SyncToRemote {
+        remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
+      },
+      "Sync build artifacts from remote" => Action::SyncFromRemote {
+        remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
+      },
       _ => unreachable!(),
     };
 

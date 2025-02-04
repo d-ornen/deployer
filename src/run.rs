@@ -594,8 +594,8 @@ pub fn execute_pipeline(
     let now = Instant::now();
 
     let (status, output) = match &action.action {
-      Action::SyncToRemote(remote_name) => {
-        if let Some(remote) = env.remotes.get(remote_name) {
+      Action::SyncToRemote { remote_host_name } => {
+        if let Some(remote) = env.remotes.get(remote_host_name) {
           if let Err(e) = sync_to_remote(env.run_dir, remote, env.ignore) {
             (false, vec![e.to_string()])
           } else {
@@ -605,8 +605,8 @@ pub fn execute_pipeline(
           (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
         }
       }
-      Action::SyncFromRemote(remote_name) => {
-        if let Some(remote) = env.remotes.get(remote_name) {
+      Action::SyncFromRemote { remote_host_name } => {
+        if let Some(remote) = env.remotes.get(remote_host_name) {
           if let Err(e) = sync_from_remote(env.run_dir, remote) {
             (false, vec![e.to_string()])
           } else {
@@ -633,7 +633,7 @@ pub fn execute_pipeline(
         }
         (true, vec![])
       }
-      Action::UseFromStorage(content_info) => match use_from_storage(env.storage_dir, env.run_dir, content_info) {
+      Action::UseFromStorage { content_info } => match use_from_storage(env.storage_dir, env.run_dir, content_info) {
         Ok(_) => (true, vec![]),
         Err(e) => (false, vec![e.to_string()]),
       },

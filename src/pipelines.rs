@@ -196,8 +196,8 @@ pub fn cat_project_pipelines(config: &DeployerProjectOptions, args: CatProjectAr
       for action in &pipeline.actions {
         match &action.action {
           Action::Interrupt => {}
-          Action::SyncToRemote(_) => cmds.push("<sync-to-remote>".to_string()),
-          Action::SyncFromRemote(_) => cmds.push("<sync-from-remote>".to_string()),
+          Action::SyncToRemote { .. } => cmds.push("<sync-to-remote>".to_string()),
+          Action::SyncFromRemote { .. } => cmds.push("<sync-from-remote>".to_string()),
           Action::Custom(cmd) => cmds.push(cmd.bash_c.to_owned()),
           Action::Check(check) => cmds.push(format!("<check> {}", check.command.bash_c)),
           Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => cmds.extend_from_slice(
@@ -222,7 +222,7 @@ pub fn cat_project_pipelines(config: &DeployerProjectOptions, args: CatProjectAr
               .as_slice(),
           ),
           Action::Observe(a) => cmds.push(format!("<observe> {}", a.command.bash_c)),
-          Action::UseFromStorage(_) => cmds.push("<use-from-storage>".to_string()),
+          Action::UseFromStorage { .. } => cmds.push("<use-from-storage>".to_string()),
           Action::AddToStorage(_) => cmds.push("<add-to-storage>".to_string()),
           Action::Patch(p) => cmds.push(format!("<patch-with-file> {:?}", p.patch)),
         }

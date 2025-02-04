@@ -78,14 +78,15 @@ pub struct DescribedAction {
 ///
 /// See [DOCS.en.md](/DOCS.en.md) and [DOCS.ru.md](/DOCS.ru.md).
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum Action {
   /// Used when the user needs to perform actions independently.
   Interrupt,
 
   /// Action to synchronize build folder with remote host.
-  SyncToRemote(ShortName),
+  SyncToRemote { remote_host_name: ShortName },
   /// Action to synchronize build folder from remote host.
-  SyncFromRemote(ShortName),
+  SyncFromRemote { remote_host_name: ShortName },
 
   /// Custom Pipeline commands.
   Custom(CustomCommand),
@@ -121,8 +122,10 @@ pub enum Action {
   Observe(ObserveAction),
 
   /// Action to copy content with given info from Deployer's storage.
-  #[serde(serialize_with = "info2str", deserialize_with = "str2info_wl")]
-  UseFromStorage(ContentInfo),
+  UseFromStorage {
+    #[serde(serialize_with = "info2str", deserialize_with = "str2info_wl")]
+    content_info: ContentInfo,
+  },
   /// Action to add all available artifacts to Deployer's storage.
   AddToStorage(AddToStorageAction),
 

@@ -2,12 +2,16 @@
 //!
 //! Defines global and project configurations.
 
+mod migrations;
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::actions::{Action, DescribedAction, buildlike::BuildAction};
+use crate::configs::migrations::project_config_v2_to_v3_migrations::*;
 use crate::entities::{
+  // containered_opts::ContaineredOpts,
   custom_command::CustomCommand,
   info::{Info, ShortName},
   programming_languages::ProgrammingLanguage,
@@ -21,7 +25,7 @@ use crate::pipelines::DescribedPipeline;
 use crate::utils::{ordered_map, ordered_set};
 use crate::{hmap, hset};
 
-const CURRENT_PROJECT_CONF_VERSION: u8 = 2;
+const CURRENT_PROJECT_CONF_VERSION: u8 = 3;
 fn get_default_project_conf_version() -> u8 {
   CURRENT_PROJECT_CONF_VERSION
 }
@@ -66,65 +70,24 @@ pub struct DeployerProjectOptions {
   /// `artifacts` folder in project's directory.
   pub place_artifacts_into_project_root: Vec<(PathBuf, PathBuf)>,
 
+  // /// Information for containered builds.
+  // #[serde(skip_serializing_if = "Option::is_none")]
+  // pub containered_options: Option<ContaineredOpts>,
   /// Configuration version
   #[serde(default = "get_default_project_conf_version")]
   pub version: u8,
 }
 
 impl ConfigAutoMigrate<DeployerProjectOptions> for DeployerProjectOptions {
+  #[allow(clippy::let_and_return)]
   fn migrate(path: &Path) -> anyhow::Result<DeployerProjectOptions> {
     let file = std::fs::File::open(path)?;
     let reader = std::io::BufReader::new(file);
     let val = serde_json::from_reader::<_, serde_json::Value>(reader).map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let mut config = DeployerProjectOptions::default();
+    let intermediate = if val.get("version").is_none_or(|v| v.as_u64().is_some_and(|v| v < 2)) {
+      let mut config = DeployerProjectOptionsV2::default();
 
-    if let Some(version) = val.get("version").and_then(|v| v.as_u64()) {
-      config.version = version
-        .try_into()
-        .map_err(|_| anyhow::anyhow!("Error converting `version` to u8!"))?;
-
-      if let Some(project_name) = val.get("project_name").and_then(|v| v.as_str()) {
-        config.project_name = project_name.to_owned();
-      } else {
-        anyhow::bail!("No `project_name` field!");
-      }
-
-      if let Some(langs) = val.get("langs") {
-        config.langs =
-          serde_json::from_value(langs.clone()).map_err(|e| anyhow::anyhow!("Error parsing `langs`: {}", e))?;
-      }
-      if let Some(targets) = val.get("targets") {
-        config.targets =
-          serde_json::from_value(targets.clone()).map_err(|e| anyhow::anyhow!("Error parsing `targets`: {}", e))?;
-      }
-      if let Some(toolkit) = val.get("deploy_toolkit") {
-        config.deploy_toolkit = serde_json::from_value(toolkit.clone())
-          .map_err(|e| anyhow::anyhow!("Error parsing `deploy_toolkit`: {}", e))?;
-      }
-      if let Some(cache_files) = val.get("cache_files") {
-        config.cache_files = serde_json::from_value(cache_files.clone())
-          .map_err(|e| anyhow::anyhow!("Error parsing `cache_files`: {}", e))?;
-      }
-      if let Some(pipelines) = val.get("pipelines") {
-        config.pipelines =
-          serde_json::from_value(pipelines.clone()).map_err(|e| anyhow::anyhow!("Error parsing `pipelines`: {}", e))?;
-      }
-      if let Some(artifacts) = val.get("artifacts") {
-        config.artifacts =
-          serde_json::from_value(artifacts.clone()).map_err(|e| anyhow::anyhow!("Error parsing `artifacts`: {}", e))?;
-      }
-      if let Some(variables) = val.get("variables") {
-        config.variables =
-          serde_json::from_value(variables.clone()).map_err(|e| anyhow::anyhow!("Error parsing `variables`: {}", e))?;
-      }
-      if let Some(placement) = val.get("place_artifacts_into_project_root") {
-        config.place_artifacts_into_project_root = serde_json::from_value(placement.clone())
-          .map_err(|e| anyhow::anyhow!("Error parsing `place_artifacts_into_project_root`: {}", e))?;
-      }
-
-      Ok(config)
-    } else {
       if let Some(project_name) = val.get("project_name").and_then(|v| v.as_str()) {
         config.project_name = project_name.to_owned();
       } else {
@@ -164,8 +127,87 @@ impl ConfigAutoMigrate<DeployerProjectOptions> for DeployerProjectOptions {
           .map_err(|e| anyhow::anyhow!("Error parsing `inplace_artifacts_into_project_root`: {}", e))?;
       }
 
+      config.version = 2;
+
       Ok(config)
-    }
+    } else {
+      let file = std::fs::File::open(path)?;
+      let reader = std::io::BufReader::new(file);
+      serde_json::from_reader::<_, DeployerProjectOptionsV2>(reader).map_err(|e| anyhow::anyhow!("{}", e))
+    };
+
+    let intermediate = if let Ok(intermediate) = intermediate
+      && intermediate.version < 3
+    {
+      let config = DeployerProjectOptions {
+        artifacts: intermediate.artifacts,
+        cache_files: intermediate.cache_files,
+        deploy_toolkit: intermediate.deploy_toolkit,
+        langs: intermediate.langs,
+        pipelines: {
+          let mut new_pipelines = vec![];
+          for pipeline in &intermediate.pipelines {
+            new_pipelines.push({
+              let mut new_actions = vec![];
+              for action in &pipeline.actions {
+                new_actions.push(DescribedAction {
+                  action: match action.action.to_owned() {
+                    ActionV2::AddToStorage(a) => Action::AddToStorage(a),
+                    ActionV2::Build(b) => Action::Build(b),
+                    ActionV2::Check(c) => Action::Check(c),
+                    ActionV2::ConfigureDeploy(cd) => Action::ConfigureDeploy(cd),
+                    ActionV2::Custom(cu) => Action::Custom(cu),
+                    ActionV2::Deliver(del) => Action::Deliver(del),
+                    ActionV2::Deploy(dep) => Action::Deploy(dep),
+                    ActionV2::Install(ins) => Action::Install(ins),
+                    ActionV2::Interrupt => Action::Interrupt,
+                    ActionV2::Observe(obs) => Action::Observe(obs),
+                    ActionV2::Pack(p) => Action::Pack(p),
+                    ActionV2::Patch(pa) => Action::Patch(pa),
+                    ActionV2::PostBuild(pb) => Action::PostBuild(pb),
+                    ActionV2::PreBuild(prb) => Action::PreBuild(prb),
+                    ActionV2::PostDeploy(ptd) => Action::PostDeploy(ptd),
+                    ActionV2::SyncFromRemote(sfr) => Action::SyncToRemote { remote_host_name: sfr },
+                    ActionV2::SyncToRemote(stre) => Action::SyncToRemote { remote_host_name: stre },
+                    ActionV2::Test(t) => Action::Test(t),
+                    ActionV2::UseFromStorage(u) => Action::UseFromStorage { content_info: u },
+                  },
+                  desc: action.desc.to_owned(),
+                  exec_in_project_dir: action.exec_in_project_dir,
+                  info: action.info.to_owned(),
+                  requirements: action.requirements.to_owned(),
+                  tags: action.tags.to_owned(),
+                  title: action.title.to_owned(),
+                });
+              }
+              DescribedPipeline {
+                actions: new_actions,
+                default: pipeline.default,
+                desc: pipeline.desc.to_owned(),
+                exclusive_exec_tag: pipeline.exclusive_exec_tag.to_owned(),
+                info: pipeline.info.to_owned(),
+                tags: pipeline.tags.to_owned(),
+                title: pipeline.title.to_owned(),
+              }
+            });
+          }
+          new_pipelines
+        },
+        place_artifacts_into_project_root: intermediate.place_artifacts_into_project_root,
+        project_name: intermediate.project_name,
+        targets: intermediate.targets,
+        variables: intermediate.variables,
+        version: 3,
+      };
+
+      Ok(config)
+    } else {
+      let file = std::fs::File::open(path)?;
+      let reader = std::io::BufReader::new(file);
+      serde_json::from_reader::<_, DeployerProjectOptions>(reader).map_err(|e| anyhow::anyhow!("{}", e))
+    };
+
+    intermediate
   }
 }
 
@@ -181,12 +223,13 @@ impl Default for DeployerProjectOptions {
       artifacts: vec![],
       variables: vec![],
       place_artifacts_into_project_root: vec![],
+      // containered_options: None,
       version: CURRENT_PROJECT_CONF_VERSION,
     }
   }
 }
 
-const CURRENT_GLOBAL_CONF_VERSION: u8 = 2;
+const CURRENT_GLOBAL_CONF_VERSION: u8 = 3;
 fn get_default_global_conf_version() -> u8 {
   CURRENT_GLOBAL_CONF_VERSION
 }
@@ -215,18 +258,14 @@ pub struct DeployerGlobalConfig {
 }
 
 impl ConfigAutoMigrate<DeployerGlobalConfig> for DeployerGlobalConfig {
+  #[allow(clippy::let_and_return)]
   fn migrate(path: &Path) -> anyhow::Result<DeployerGlobalConfig> {
     let file = std::fs::File::open(path)?;
     let reader = std::io::BufReader::new(file);
     let val = serde_json::from_reader::<_, serde_json::Value>(reader).map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let mut config = DeployerGlobalConfig::default();
-
-    // Parse version
-    if let Some(version) = val.get("version").and_then(|v| v.as_u64()) {
-      config.version = version
-        .try_into()
-        .map_err(|_| anyhow::anyhow!("Error converting `version` to u8!"))?;
+    let intermediate = if val.get("version").is_none_or(|v| v.as_u64().is_some_and(|v| v < 2)) {
+      let mut config = DeployerGlobalConfigV2::default();
 
       if let Some(projects) = val.get("projects") {
         config.projects =
@@ -247,25 +286,111 @@ impl ConfigAutoMigrate<DeployerGlobalConfig> for DeployerGlobalConfig {
 
       Ok(config)
     } else {
-      if let Some(projects) = val.get("projects") {
-        config.projects =
-          serde_json::from_value(projects.clone()).map_err(|e| anyhow::anyhow!("Error parsing `projects`: {}", e))?;
+      let file = std::fs::File::open(path)?;
+      let reader = std::io::BufReader::new(file);
+      serde_json::from_reader::<_, DeployerGlobalConfigV2>(reader).map_err(|e| anyhow::anyhow!("{}", e))
+    };
+
+    let intermediate = if let Ok(intermediate) = intermediate
+      && intermediate.version < 3
+    {
+      let mut config = DeployerGlobalConfig {
+        projects: intermediate.projects,
+        remote_hosts: intermediate.remote_hosts,
+        version: 3,
+        ..Default::default()
+      };
+
+      let mut new_actions = hmap!();
+      for action in &intermediate.actions_registry {
+        new_actions.insert(action.0.to_owned(), DescribedAction {
+          action: match action.1.action.to_owned() {
+            ActionV2::AddToStorage(a) => Action::AddToStorage(a),
+            ActionV2::Build(b) => Action::Build(b),
+            ActionV2::Check(c) => Action::Check(c),
+            ActionV2::ConfigureDeploy(cd) => Action::ConfigureDeploy(cd),
+            ActionV2::Custom(cu) => Action::Custom(cu),
+            ActionV2::Deliver(del) => Action::Deliver(del),
+            ActionV2::Deploy(dep) => Action::Deploy(dep),
+            ActionV2::Install(ins) => Action::Install(ins),
+            ActionV2::Interrupt => Action::Interrupt,
+            ActionV2::Observe(obs) => Action::Observe(obs),
+            ActionV2::Pack(p) => Action::Pack(p),
+            ActionV2::Patch(pa) => Action::Patch(pa),
+            ActionV2::PostBuild(pb) => Action::PostBuild(pb),
+            ActionV2::PreBuild(prb) => Action::PreBuild(prb),
+            ActionV2::PostDeploy(ptd) => Action::PostDeploy(ptd),
+            ActionV2::SyncFromRemote(sfr) => Action::SyncToRemote { remote_host_name: sfr },
+            ActionV2::SyncToRemote(stre) => Action::SyncToRemote { remote_host_name: stre },
+            ActionV2::Test(t) => Action::Test(t),
+            ActionV2::UseFromStorage(u) => Action::UseFromStorage { content_info: u },
+          },
+          desc: action.1.desc.to_owned(),
+          exec_in_project_dir: action.1.exec_in_project_dir,
+          info: action.1.info.to_owned(),
+          requirements: action.1.requirements.to_owned(),
+          tags: action.1.tags.to_owned(),
+          title: action.1.title.to_owned(),
+        });
       }
-      if let Some(actions) = val.get("actions_registry") {
-        config.actions_registry = serde_json::from_value(actions.clone())
-          .map_err(|e| anyhow::anyhow!("Error parsing `actions_registry`: {}", e))?;
+      config.actions_registry = new_actions;
+
+      let mut new_pipelines = hmap!();
+      for pipeline in &intermediate.pipelines_registry {
+        new_pipelines.insert(pipeline.0.to_owned(), {
+          let mut new_actions = vec![];
+          for action in &pipeline.1.actions {
+            new_actions.push(DescribedAction {
+              action: match action.action.to_owned() {
+                ActionV2::AddToStorage(a) => Action::AddToStorage(a),
+                ActionV2::Build(b) => Action::Build(b),
+                ActionV2::Check(c) => Action::Check(c),
+                ActionV2::ConfigureDeploy(cd) => Action::ConfigureDeploy(cd),
+                ActionV2::Custom(cu) => Action::Custom(cu),
+                ActionV2::Deliver(del) => Action::Deliver(del),
+                ActionV2::Deploy(dep) => Action::Deploy(dep),
+                ActionV2::Install(ins) => Action::Install(ins),
+                ActionV2::Interrupt => Action::Interrupt,
+                ActionV2::Observe(obs) => Action::Observe(obs),
+                ActionV2::Pack(p) => Action::Pack(p),
+                ActionV2::Patch(pa) => Action::Patch(pa),
+                ActionV2::PostBuild(pb) => Action::PostBuild(pb),
+                ActionV2::PreBuild(prb) => Action::PreBuild(prb),
+                ActionV2::PostDeploy(ptd) => Action::PostDeploy(ptd),
+                ActionV2::SyncFromRemote(sfr) => Action::SyncToRemote { remote_host_name: sfr },
+                ActionV2::SyncToRemote(stre) => Action::SyncToRemote { remote_host_name: stre },
+                ActionV2::Test(t) => Action::Test(t),
+                ActionV2::UseFromStorage(u) => Action::UseFromStorage { content_info: u },
+              },
+              desc: action.desc.to_owned(),
+              exec_in_project_dir: action.exec_in_project_dir,
+              info: action.info.to_owned(),
+              requirements: action.requirements.to_owned(),
+              tags: action.tags.to_owned(),
+              title: action.title.to_owned(),
+            });
+          }
+          DescribedPipeline {
+            actions: new_actions,
+            default: pipeline.1.default,
+            desc: pipeline.1.desc.to_owned(),
+            exclusive_exec_tag: pipeline.1.exclusive_exec_tag.to_owned(),
+            info: pipeline.1.info.to_owned(),
+            tags: pipeline.1.tags.to_owned(),
+            title: pipeline.1.title.to_owned(),
+          }
+        });
       }
-      if let Some(pipelines) = val.get("pipelines_registry") {
-        config.pipelines_registry = serde_json::from_value(pipelines.clone())
-          .map_err(|e| anyhow::anyhow!("Error parsing `pipelines_registry`: {}", e))?;
-      }
-      if let Some(hosts) = val.get("remote_hosts") {
-        config.remote_hosts =
-          serde_json::from_value(hosts.clone()).map_err(|e| anyhow::anyhow!("Error parsing `remote_hosts`: {}", e))?;
-      }
+      config.pipelines_registry = new_pipelines;
 
       Ok(config)
-    }
+    } else {
+      let file = std::fs::File::open(path)?;
+      let reader = std::io::BufReader::new(file);
+      serde_json::from_reader::<_, DeployerGlobalConfig>(reader).map_err(|e| anyhow::anyhow!("{}", e))
+    };
+
+    intermediate
   }
 }
 

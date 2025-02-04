@@ -278,10 +278,10 @@ impl DescribedAction {
       Action::AddToStorage(_) => {
         actions.push(i18n::EDIT_ATS);
       }
-      Action::SyncToRemote(_) | Action::SyncFromRemote(_) => {
+      Action::SyncToRemote { .. } | Action::SyncFromRemote { .. } => {
         actions.push(i18n::EDIT_REMOTE_SHORT_NAME);
       }
-      Action::Interrupt | Action::UseFromStorage(_) => {}
+      Action::Interrupt | Action::UseFromStorage { .. } => {}
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
@@ -369,17 +369,17 @@ impl DescribedAction {
         }
         i18n::EDIT_REQS => self.requirements.edit_from_prompt()?,
         i18n::EDIT_REMOTE_SHORT_NAME => match &mut self.action {
-          Action::SyncToRemote(a) => {
-            *a = ShortName::new(
+          Action::SyncToRemote { remote_host_name } => {
+            *remote_host_name = ShortName::new(
               inquire::Text::new(i18n::REMOTE_SHORT_NAME)
-                .with_initial_value(a.as_str())
+                .with_initial_value(remote_host_name.as_str())
                 .prompt()?,
             )?
           }
-          Action::SyncFromRemote(a) => {
-            *a = ShortName::new(
+          Action::SyncFromRemote { remote_host_name } => {
+            *remote_host_name = ShortName::new(
               inquire::Text::new(i18n::REMOTE_SHORT_NAME)
-                .with_initial_value(a.as_str())
+                .with_initial_value(remote_host_name.as_str())
                 .prompt()?,
             )?
           }
