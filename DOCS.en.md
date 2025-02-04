@@ -1,4 +1,4 @@
-# Deployer: documentation for version `1.3.X`
+# Deployer: documentation for version `1.4.X`
 
 ## Description of working principles
 
@@ -23,30 +23,29 @@ As part of Pipelines or in the Deployer's Action Registry, an Action looks like 
     "upx"
   ],
   "action": {
-    "PostBuild": {
-      "supported_langs": [
-        "Rust",
-        "Go",
-        "C",
-        "Cpp",
-        "Python",
-        {
-          "Other": "any"
-        }
-      ],
-      "commands": [
-        {
-          "bash_c": "upx <artifact>",
-          "placeholders": [
-            "<artifact>"
-          ],
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": false,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "post_build",
+    "supported_langs": [
+      "Rust",
+      "Go",
+      "C",
+      "Cpp",
+      "Python",
+      {
+        "Other": "any"
+      }
+    ],
+    "commands": [
+      {
+        "bash_c": "upx <artifact>",
+        "placeholders": [
+          "<artifact>"
+        ],
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": false,
+        "only_when_fresh": false
+      }
+    ]
   },
   "requirements": [
     {
@@ -100,18 +99,18 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
 
 There are 3 categories of basic Actions and 9 additional types of Actions:
 
-1. Build Actions (`PreBuild`, `Build`, `PostBuild` and `Test`)
-2. Install Actions (`Pack`, `Deliver`, `Install`)
-3. `Deploy` Actions (`ConfigureDeploy`, `Deploy`, `PostDeploy`)
-4. `Observe` action
-5. `Interrupt` action
-6. Action with custom command `Custom`
-7. Action of checking the output of the custom command `Check`
-8. Action of adding content to the Deployer's storage `AddToStorage` and using this content `UseFromStorage`
-9. The action of applying a `Patch`
-10. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
+1. Build Actions (`pre_build`, `build`, `post_build` and `test`)
+2. Install Actions (`pack`, `deliver`, `install`)
+3. Deploy Actions (`configure_deploy`, `deploy`, `post_deploy`)
+4. `observe` action
+5. `interrupt` action
+6. Action with custom command `custom`
+7. Action of checking the output of the custom command `check`
+8. Action of adding content to the Deployer's storage `add_to_storage` and using this content `use_from_storage`
+9. The action of applying a `patch`
+10. Actions of synchronization build folders - from current to remote host `sync_to_remote` and vice versa `sync_from_remote`
 
-The concept of a custom command, a command for the terminal shell, is fundamental. The `Custom`, `Observe`, and the three main categories of Actions contain one or more custom commands inside.
+The concept of a custom command, a command for the terminal shell, is fundamental. The `custom`, `observe`, and the three main categories of Actions contain one or more custom commands inside.
 
 #### 1.1. Custom Command
 
@@ -211,7 +210,7 @@ When a command is specialized for a particular project, it gains an additional p
 
 In the above example only one placeholder `<artifact>` is used, but there can be several of them, including different options for executing the command.
 
-Accordingly, if you just want to execute commands that cannot be assigned to one of the three main types of Actions, you should use an Action of type `Custom`:
+Accordingly, if you just want to execute commands that cannot be assigned to one of the three main types of Actions, you should use an Action of type `custom`:
 
 ```json
 {
@@ -231,7 +230,7 @@ Accordingly, if you just want to execute commands that cannot be assigned to one
 }
 ```
 
-#### 1.2. Build Actions - `PreBuild`, `Build`, `PostBuild` and `Test`
+#### 1.2. Build Actions - `pre_build`, `build`, `post_build` and `test`
 
 For Build Actions, specialization in programming languages is specific: depending on whether the set of languages used in the project matches the set specified in the Build Action, Deployer will warn you about using Actions that are incompatible with the project.
 
@@ -242,34 +241,33 @@ In the below example, we see an action that should be executed after the build:
 
 ```json
 {
-  "PostBuild": {
-    "supported_langs": [
-      "Rust",
-      "Go",
-      "C",
-      "Cpp",
-      "Python",
-      {
-        "Other": "any"
-      }
-    ],
-    "commands": [
-      {
-        "bash_c": "upx <artifact>",
-        "placeholders": [
-          "<artifact>"
-        ],
-        "ignore_fails": false,
-        "show_success_output": false,
-        "show_bash_c": false,
-        "only_when_fresh": false
-      }
-    ]
-  }
+  "type": "post_build",
+  "supported_langs": [
+    "Rust",
+    "Go",
+    "C",
+    "Cpp",
+    "Python",
+    {
+      "Other": "any"
+    }
+  ],
+  "commands": [
+    {
+      "bash_c": "upx <artifact>",
+      "placeholders": [
+        "<artifact>"
+      ],
+      "ignore_fails": false,
+      "show_success_output": false,
+      "show_bash_c": false,
+      "only_when_fresh": false
+    }
+  ]
 }
 ```
 
-#### 1.3. Installation Actions - `Pack`, `Deliver` and `Install`
+#### 1.3. Installation Actions - `pack`, `deliver` and `install`
 
 For this group of Actions, the key specialization factor is the *target* object of the installation. If the characteristics of the project target - hardware or software platform - do not match the characteristics of the Installation Action, a warning will be issued.
 
@@ -284,26 +282,25 @@ We are happy to note that UPX refers to the Packaging Action rather than the Pos
     "upx"
   ],
   "action": {
-    "Pack": {
-      "target": {
-        "arch": "x86_64",
-        "os": "Linux",
-        "derivative": "any",
-        "version": "No"
-      },
-      "commands": [
-        {
-          "bash_c": "upx <af>",
-          "placeholders": [
-            "<af>"
-          ],
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": false,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "pack",
+    "target": {
+      "arch": "x86_64",
+      "os": "Linux",
+      "derivative": "any",
+      "version": "No"
+    },
+    "commands": [
+      {
+        "bash_c": "upx <af>",
+        "placeholders": [
+          "<af>"
+        ],
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": false,
+        "only_when_fresh": false
+      }
+    ]
   }
 }
 ```
@@ -315,7 +312,7 @@ We are happy to note that UPX refers to the Packaging Action rather than the Pos
 
 If `derivative` is missing, it is recommended to write `any`.
 
-#### 1.4. `Deployment` Actions - `ConfigureDeploy`, `Deploy`, `PostDeploy`
+#### 1.4. `Deployment` Actions - `configure_deploy`, `deploy`, `post_deploy`
 
 For this group of Actions, the key specialization factor is the deployment tulkit - Docker, Docker Compose, Podman, k8s or other containerization or virtualization toolkit. If the wrong tulkit is specified in the project, Deployer will issue a warning.
 
@@ -331,27 +328,26 @@ Here is an example with Docker Compose:
     "compose"
   ],
   "action": {
-    "ConfigureDeploy": {
-      "deploy_toolkit": "docker-compose",
-      "tags": [
-        "docker",
-        "compose"
-      ],
-      "commands": [
-        {
-          "bash_c": "docker compose build",
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": true,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "configure_deploy",
+    "deploy_toolkit": "docker-compose",
+    "tags": [
+      "docker",
+      "compose"
+    ],
+    "commands": [
+      {
+        "bash_c": "docker compose build",
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": true,
+        "only_when_fresh": false
+      }
+    ]
   }
 }
 ```
 
-#### 1.5. The actions of adding `AddToStorage` content, `using UseFromStorage` content, and applying a `Patch`
+#### 1.5. The actions of adding `add_to_storage` content, using `use_from_storage` content, and applying a `patch`
 
 Often projects can be sufficiently templated that the same files are copied between projects, but not modified and only required during build or deployment. Such files can be located in a special folder with relative paths preserved and added to the Deployer repository:
 
@@ -359,7 +355,7 @@ Often projects can be sufficiently templated that the same files are copied betw
 deployer new content
 ```
 
-Then a new Action - `UseFromStorage` - can be added to the Build Pipeline for projects that need to `use` these files:
+Then a new Action - `use_from_storage` - can be added to the Build Pipeline for projects that need to use these files:
 
 ```json
 {
@@ -368,14 +364,15 @@ Then a new Action - `UseFromStorage` - can be added to the Build Pipeline for pr
   "info": "content-sync@0.1.0",
   "tags": [],
   "action": {
-    "UseFromStorage": "test-dockerfile-content@0.1.0"
+    "type": "use_from_storage",
+    "content_info": "test-dockerfile-content@0.1.0"
   }
 }
 ```
 
 This will eventually add the content you need to the build folder when the Pipeline is executed.
 
-Time after time, you will start to notice that some projects are overused in other projects as dependencies and need to be published somewhere. Package repositories are the best place for this, but if you don't want to publish your project, you can add it to the Deployer repository as content. Moreover, you can add it automatically using the `AddToStorage` action:
+Time after time, you will start to notice that some projects are overused in other projects as dependencies and need to be published somewhere. Package repositories are the best place for this, but if you don't want to publish your project, you can add it to the Deployer repository as content. Moreover, you can add it automatically using the `add_to_storage` action:
 
 ```json
 {
@@ -384,11 +381,10 @@ Time after time, you will start to notice that some projects are overused in oth
   "info": "content-add@0.1.0",
   "tags": [],
   "action": {
-    "AddToStorage": {
-      "short_name": "my-project",
-      "auto_version_rule": {
-        "plain_file": "file-with-current-version.txt"
-      }
+    "type": "add_to_storage",
+    "short_name": "my-project",
+    "auto_version_rule": {
+      "plain_file": "file-with-current-version.txt"
     }
   }
 }
@@ -439,9 +435,8 @@ The action of a patch looks like this:
   "info": "my-patch@0.1.0",
   "tags": [],
   "action": {
-    "Patch": {
-      "patch": "my_path.json"
-    }
+    "type": "patch",
+    "patch": "my_path.json"
   }
 }
 ```
@@ -450,9 +445,9 @@ The patch *should be located in the build folder* when you run Pipeline. A very 
 
 When a patch is applied, Deployer displays the number of times it has been applied in the project. If the patch has not been applied once during the Pipeline process, *Deployer will generate an error*.
 
-#### 1.6. Actions of synchronization build folders - from current to remote host `SyncToRemote` and vice versa `SyncFromRemote`
+#### 1.6. Actions of synchronization build folders - from current to remote host `sync_to_remote` and vice versa `sync_from_remote`
 
-Sometimes you need to synchronize build files between remote hosts and the current host. For example, when some actions must be performed on one host, and some on another. To do this, you can use the built-in Actions `SyncToRemote` and `SyncFromRemote`:
+Sometimes you need to synchronize build files between remote hosts and the current host. For example, when some actions must be performed on one host, and some on another. To do this, you can use the built-in Actions `sync_to_remote` and `sync_from_remote`:
 
 ```json
 {
@@ -461,37 +456,37 @@ Sometimes you need to synchronize build files between remote hosts and the curre
   "info": "send-to-remote@0.1.0",
   "tags": [],
   "action": {
-    "SyncToRemote": "remote-pc"
+    "type": "sync_to_remote",
+    "remote_host_name": "remote-pc"
   }
 }
 ```
 
-#### 1.7. Other actions - `Interrupt` `Observe` and `Check`
+#### 1.7. Other actions - `interrupt`, `observe` and `check`
 
 > NOTE: Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
 
-`Interrupt` is used to manually interrupt the build/deployment of a project. When Deployer reaches this action, it waits for user input to continue when you perform the necessary manual actions.
+`interrupt` is used to manually interrupt the build/deployment of a project. When Deployer reaches this action, it waits for user input to continue when you perform the necessary manual actions.
 
-`Observe` is an action that is almost identical to `Custom`. It is used, for example, to start Prometheus, Jaeger or anything else. The distinctive feature is that it runs without I/O redirection, i.e. you can interact with programs in it.
+`observe` is an action that is almost identical to `custom`. It is used, for example, to start Prometheus, Jaeger or anything else. The distinctive feature is that it runs without I/O redirection, i.e. you can interact with programs in it.
 
-And `Check` is a special action that allows you to check what the command outputs to `stdout/stderr`:
+And `check` is a special action that allows you to check what the command outputs to `stdout/stderr`:
 
 ```json
 {
-  "Check": {
-    "command": {
-      "bash_c": "<af>",
-      "placeholders": [
-        "<af>"
-      ],
-      "ignore_fails": true,
-      "show_success_output": false,
-      "show_bash_c": false,
-      "only_when_fresh": false
-    },
-    "success_when_found": "some rust regex",
-    "success_when_not_found": null
-  }
+  "type": "check",
+  "command": {
+    "bash_c": "<af>",
+    "placeholders": [
+      "<af>"
+    ],
+    "ignore_fails": true,
+    "show_success_output": false,
+    "show_bash_c": false,
+    "only_when_fresh": false
+  },
+  "success_when_found": "some rust regex",
+  "success_when_not_found": null
 }
 ```
 
@@ -527,20 +522,19 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
         "clippy"
       ],
       "action": {
-        "PreBuild": {
-          "supported_langs": [
-            "Rust"
-          ],
-          "commands": [
-            {
-              "bash_c": "cargo clippy",
-              "ignore_fails": false,
-              "show_success_output": true,
-              "show_bash_c": true,
-              "only_when_fresh": null
-            }
-          ]
-        }
+        "type": "pre_build",
+        "supported_langs": [
+          "Rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo clippy",
+            "ignore_fails": false,
+            "show_success_output": true,
+            "show_bash_c": true,
+            "only_when_fresh": null
+          }
+        ]
       }
     },
     {
@@ -552,20 +546,19 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
         "cargo"
       ],
       "action": {
-        "Build": {
-          "supported_langs": [
-            "Rust"
-          ],
-          "commands": [
-            {
-              "bash_c": "cargo build --release",
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": true,
-              "only_when_fresh": null
-            }
-          ]
-        }
+        "type": "build",
+        "supported_langs": [
+          "Rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo build --release",
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": true,
+            "only_when_fresh": null
+          }
+        ]
       }
     },
     {
@@ -576,44 +569,43 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
         "upx"
       ],
       "action": {
-        "PostBuild": {
-          "supported_langs": [
-            "Rust",
-            "Go",
-            "C",
-            "Cpp",
-            "Python",
-            {
-              "Other": "any"
-            }
-          ],
-          "commands": [
-            {
-              "bash_c": "upx <artifact>",
-              "placeholders": [
-                "<artifact>"
-              ],
-              "replacements": [
+        "type": "post_build",
+        "supported_langs": [
+          "Rust",
+          "Go",
+          "C",
+          "Cpp",
+          "Python",
+          {
+            "Other": "any"
+          }
+        ],
+        "commands": [
+          {
+            "bash_c": "upx <artifact>",
+            "placeholders": [
+              "<artifact>"
+            ],
+            "replacements": [
+              [
                 [
-                  [
-                    "<artifact>",
-                    {
-                      "title": "target/release/deployer",
-                      "is_secret": false,
-                      "value": {
-                        "Plain": "target/release/deployer"
-                      }
+                  "<artifact>",
+                  {
+                    "title": "target/release/deployer",
+                    "is_secret": false,
+                    "value": {
+                      "Plain": "target/release/deployer"
                     }
-                  ]
+                  }
                 ]
-              ],
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": false,
-              "only_when_fresh": null
-            }
-          ]
-        }
+              ]
+            ],
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": false,
+            "only_when_fresh": null
+          }
+        ]
       }
     },
     {
@@ -624,40 +616,39 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
         "cargo"
       ],
       "action": {
-        "Install": {
-          "target": {
-            "arch": "x86_64",
-            "os": "Linux",
-            "derivative": "any",
-            "version": "No"
-          },
-          "commands": [
-            {
-              "bash_c": "cp -f <artifact> ~/.cargo/bin",
-              "placeholders": [
-                "<artifact>"
-              ],
-              "replacements": [
+        "type": "install",
+        "target": {
+          "arch": "x86_64",
+          "os": "Linux",
+          "derivative": "any",
+          "version": "No"
+        },
+        "commands": [
+          {
+            "bash_c": "cp -f <artifact> ~/.cargo/bin",
+            "placeholders": [
+              "<artifact>"
+            ],
+            "replacements": [
+              [
                 [
-                  [
-                    "<artifact>",
-                    {
-                      "title": "target/release/deployer",
-                      "is_secret": false,
-                      "value": {
-                        "Plain": "target/release/deployer"
-                      }
+                  "<artifact>",
+                  {
+                    "title": "target/release/deployer",
+                    "is_secret": false,
+                    "value": {
+                      "Plain": "target/release/deployer"
                     }
-                  ]
+                  }
                 ]
-              ],
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": false,
-              "only_when_fresh": null
-            }
-          ]
-        }
+              ]
+            ],
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": false,
+            "only_when_fresh": null
+          }
+        ]
       }
     }
   ],

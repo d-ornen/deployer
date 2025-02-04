@@ -10,10 +10,19 @@ use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 
 pub const BASE_IMAGE: &str = "ubuntu:latest";
+
+#[cfg(feature = "python")]
 pub const PREFLIGHT_DEFAULT: &str =
   "RUN apt-get update && apt-get install -y python3-dev && rm -rf /var/lib/apt/lists/*";
+#[cfg(not(feature = "python"))]
+pub const PREFLIGHT_DEFAULT: &str = "";
+
+#[cfg(feature = "python")]
 pub const DEPLOYER_DEFAULT_PREFLIGHT: &str =
   "RUN apt-get update && apt-get install -y build-essential curl git python3-dev && rm -rf /var/lib/apt/lists/*";
+#[cfg(not(feature = "python"))]
+pub const DEPLOYER_DEFAULT_PREFLIGHT: &str =
+  "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*";
 
 pub const GENERIC_DOCKERFILE: &str = r#"# generated file
 FROM {deployer-base-image} AS deployer-builder
@@ -23,8 +32,8 @@ WORKDIR /app
 
 FROM {base-image} AS deployer-executor
 WORKDIR /app
-COPY --from=deployer-builder /app/deployer/target/release/deployer .
 {preflight-commands}
+COPY --from=deployer-builder /app/deployer/target/release/deployer .
 {run-strategy}
 CMD ["/app/deployer", "run", "{pipeline-name}", "--current", "--containered"{no-pipe}]
 

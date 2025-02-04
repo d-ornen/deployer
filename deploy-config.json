@@ -655,7 +655,96 @@
       ]
     },
     {
-      "title": "test-containered",
+      "title": "containered",
+      "desc": "Got from `Deployer Pipeline`.",
+      "info": "deployer-default@0.1.2",
+      "tags": ["cargo", "clippy", "build"],
+      "actions": [
+        {
+          "title": "Lint",
+          "desc": "Got from `Cargo Clippy`.",
+          "info": "cargo-clippy@0.1.0",
+          "tags": ["cargo", "clippy"],
+          "action": {
+            "type": "pre_build",
+            "supported_langs": ["Rust"],
+            "commands": [
+              {
+                "bash_c": "cargo clippy --no-default-features --features=lua,rhai,tui,containered",
+                "ignore_fails": false,
+                "show_success_output": true,
+                "show_bash_c": true
+              }
+            ]
+          },
+          "requirements": [
+            {
+              "ExistsAny": ["/bin/cargo", "~/.cargo/bin/cargo"]
+            }
+          ]
+        },
+        {
+          "title": "Build",
+          "desc": "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode",
+          "info": "cargo-rel@0.1",
+          "tags": ["rust", "cargo"],
+          "action": {
+            "type": "build",
+            "supported_langs": ["Rust"],
+            "commands": [
+              {
+                "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered",
+                "ignore_fails": false,
+                "show_success_output": false,
+                "show_bash_c": true
+              }
+            ]
+          },
+          "requirements": [
+            {
+              "ExistsAny": ["/bin/cargo", "~/.cargo/bin/cargo"]
+            }
+          ]
+        }
+      ],
+      "default": false,
+      "containered_opts": {
+        "preflight_cmds": [
+          "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
+          "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+          "ENV PATH=\"/root/.cargo/bin:${PATH}\"",
+          "RUN rustup component add clippy"
+        ],
+        "run_strategies": [
+          {
+            "fake_content": "docker-fake-files@0.1.0",
+            "copy_cmds": [
+              "COPY rust-toolchain.toml .",
+              "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
+              "COPY .docker-fake-files/rust/main.rs src/main.rs",
+              "COPY Cargo.toml .",
+              "COPY deploy-config.json ."
+            ],
+            "pre_cache_cmds": [
+              "RUN /app/deployer run containered --current --containered --no-pipe"
+            ]
+          },
+          {
+            "copy_cmds": ["COPY src/ src/"],
+            "pre_cache_cmds": [
+              "COPY DOCS.en.md .",
+              "COPY DOCS.ru.md .",
+              "RUN touch src/main.rs",
+              "RUN touch src/lib.rs",
+              "RUN /app/deployer run containered --current --containered --no-pipe"
+            ]
+          }
+        ]
+      },
+      "exclusive_exec_tag": "containered"
+    },
+    {
+      "title": "ru-containered",
       "desc": "Got from `Deployer Pipeline`.",
       "info": "deployer-default@0.1.2",
       "tags": ["cargo", "clippy", "build"],
@@ -710,7 +799,7 @@
       "default": false,
       "containered_opts": {
         "preflight_cmds": [
-          "RUN apt-get update && apt-get install -y build-essential curl git python3-dev && rm -rf /var/lib/apt/lists/*",
+          "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
           "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
           "ENV PATH=\"/root/.cargo/bin:${PATH}\"",
           "RUN rustup component add clippy"
@@ -720,17 +809,24 @@
             "fake_content": "docker-fake-files@0.1.0",
             "copy_cmds": [
               "COPY rust-toolchain.toml .",
-              "COPY DOCS.en.md .",
-              "COPY DOCS.ru.md .",
               "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
               "COPY .docker-fake-files/rust/main.rs src/main.rs",
-              "COPY Cargo.toml ."
+              "COPY Cargo.toml .",
+              "COPY deploy-config.json ."
             ],
-            "pre_cache_cmds": ["RUN cargo build", "RUN cargo build --release"]
+            "pre_cache_cmds": [
+              "RUN /app/deployer run ru-containered --current --containered --no-pipe"
+            ]
           },
           {
-            "copy_cmds": ["COPY src/ src/", "COPY deploy-config.json ."],
-            "pre_cache_cmds": ["RUN touch src/main.rs", "RUN touch src/lib.rs"]
+            "copy_cmds": ["COPY src/ src/"],
+            "pre_cache_cmds": [
+              "COPY DOCS.en.md .",
+              "COPY DOCS.ru.md .",
+              "RUN touch src/main.rs",
+              "RUN touch src/lib.rs",
+              "RUN /app/deployer run ru-containered --current --containered --no-pipe"
+            ]
           }
         ]
       },
