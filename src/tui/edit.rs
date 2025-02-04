@@ -1094,15 +1094,10 @@ impl TargetDescription {
       match action {
         i18n::EDIT_ARCH => self.arch = Text::new(i18n::TARGET_ARCH).prompt()?,
         i18n::EDIT_OS => {
-          let os = Select::new(i18n::TARGET_OS_SELECT, vec![
-            "Android",
-            "iOS",
-            "Linux",
-            "Unix-like",
-            "Windows",
-            "macOS",
-            "Other",
-          ])
+          let os = Select::new(
+            i18n::TARGET_OS_SELECT,
+            vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"],
+          )
           .prompt()?;
 
           self.os = match os {
@@ -1124,11 +1119,10 @@ impl TargetDescription {
 
           self.derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
 
-          let version_type = Select::new(i18n::TARGET_OS_VER_S, vec![
-            i18n::TARGET_OS_VER_NS,
-            i18n::TARGET_OS_VER_WS,
-            i18n::TARGET_OS_VER_SS,
-          ])
+          let version_type = Select::new(
+            i18n::TARGET_OS_VER_S,
+            vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS],
+          )
           .prompt()?;
 
           self.version = match version_type {
@@ -1412,10 +1406,10 @@ impl CheckAction {
 
 impl Edit for CheckAction {
   fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    while let Some(selected) = inquire::Select::new(i18n::CHECK_SPECIFY_WHAT, vec![
-      i18n::CHECK_EDIT_CMD,
-      i18n::CHECK_EDIT_REGEXES,
-    ])
+    while let Some(selected) = inquire::Select::new(
+      i18n::CHECK_SPECIFY_WHAT,
+      vec![i18n::CHECK_EDIT_CMD, i18n::CHECK_EDIT_REGEXES],
+    )
     .prompt_skippable()?
     {
       match selected {
@@ -1461,10 +1455,10 @@ impl Edit for AddToStorageAction {
     .with_default(false)
     .prompt()?
     {
-      let new_autover_rule = inquire::Select::new(i18n::SPECIFY_AUTO_VER, vec![
-        i18n::AUTO_VER_CMD_STDOUT,
-        i18n::AUTO_VER_PLAIN_FILE,
-      ])
+      let new_autover_rule = inquire::Select::new(
+        i18n::SPECIFY_AUTO_VER,
+        vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+      )
       .prompt()?;
       self.auto_version_rule = match new_autover_rule {
         i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({

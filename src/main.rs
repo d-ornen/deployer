@@ -15,7 +15,7 @@
 //!
 //! For further reading, check `README.md`, `DOCS.en.md` and `DOCS.ru.md`.
 
-#![feature(let_chains, if_let_guard, once_wait, string_from_utf8_lossy_owned, str_as_str)]
+#![feature(let_chains, if_let_guard, string_from_utf8_lossy_owned, str_as_str)]
 #![deny(warnings, clippy::todo, clippy::unimplemented)]
 
 #[cfg(feature = "tests")]

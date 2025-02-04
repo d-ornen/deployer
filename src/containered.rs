@@ -6,6 +6,7 @@ use crate::entities::containered_opts::ContaineredOpts;
 use crate::entities::custom_command::CustomCommand;
 use crate::entities::environment::RunEnvironment;
 use crate::entities::traits::Execute;
+use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 
 pub const BASE_IMAGE: &str = "ubuntu:latest";
@@ -19,8 +20,7 @@ pub const GENERIC_DOCKERFILE: &str = r#"# generated file
 FROM {deployer-base-image} AS deployer-builder
 WORKDIR /app
 {preflight-install-deployer-deps}
-RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git
-RUN cd deployer && cargo build --release
+RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git && cd deployer && cargo build --release
 
 FROM {base-image} AS deployer-executor
 WORKDIR /app

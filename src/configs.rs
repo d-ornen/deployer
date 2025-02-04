@@ -304,35 +304,38 @@ impl ConfigAutoMigrate<DeployerGlobalConfig> for DeployerGlobalConfig {
 
       let mut new_actions = hmap!();
       for action in &intermediate.actions_registry {
-        new_actions.insert(action.0.to_owned(), DescribedAction {
-          action: match action.1.action.to_owned() {
-            ActionV2::AddToStorage(a) => Action::AddToStorage(a),
-            ActionV2::Build(b) => Action::Build(b),
-            ActionV2::Check(c) => Action::Check(c),
-            ActionV2::ConfigureDeploy(cd) => Action::ConfigureDeploy(cd),
-            ActionV2::Custom(cu) => Action::Custom(cu),
-            ActionV2::Deliver(del) => Action::Deliver(del),
-            ActionV2::Deploy(dep) => Action::Deploy(dep),
-            ActionV2::Install(ins) => Action::Install(ins),
-            ActionV2::Interrupt => Action::Interrupt,
-            ActionV2::Observe(obs) => Action::Observe(obs),
-            ActionV2::Pack(p) => Action::Pack(p),
-            ActionV2::Patch(pa) => Action::Patch(pa),
-            ActionV2::PostBuild(pb) => Action::PostBuild(pb),
-            ActionV2::PreBuild(prb) => Action::PreBuild(prb),
-            ActionV2::PostDeploy(ptd) => Action::PostDeploy(ptd),
-            ActionV2::SyncFromRemote(sfr) => Action::SyncToRemote { remote_host_name: sfr },
-            ActionV2::SyncToRemote(stre) => Action::SyncToRemote { remote_host_name: stre },
-            ActionV2::Test(t) => Action::Test(t),
-            ActionV2::UseFromStorage(u) => Action::UseFromStorage { content_info: u },
+        new_actions.insert(
+          action.0.to_owned(),
+          DescribedAction {
+            action: match action.1.action.to_owned() {
+              ActionV2::AddToStorage(a) => Action::AddToStorage(a),
+              ActionV2::Build(b) => Action::Build(b),
+              ActionV2::Check(c) => Action::Check(c),
+              ActionV2::ConfigureDeploy(cd) => Action::ConfigureDeploy(cd),
+              ActionV2::Custom(cu) => Action::Custom(cu),
+              ActionV2::Deliver(del) => Action::Deliver(del),
+              ActionV2::Deploy(dep) => Action::Deploy(dep),
+              ActionV2::Install(ins) => Action::Install(ins),
+              ActionV2::Interrupt => Action::Interrupt,
+              ActionV2::Observe(obs) => Action::Observe(obs),
+              ActionV2::Pack(p) => Action::Pack(p),
+              ActionV2::Patch(pa) => Action::Patch(pa),
+              ActionV2::PostBuild(pb) => Action::PostBuild(pb),
+              ActionV2::PreBuild(prb) => Action::PreBuild(prb),
+              ActionV2::PostDeploy(ptd) => Action::PostDeploy(ptd),
+              ActionV2::SyncFromRemote(sfr) => Action::SyncToRemote { remote_host_name: sfr },
+              ActionV2::SyncToRemote(stre) => Action::SyncToRemote { remote_host_name: stre },
+              ActionV2::Test(t) => Action::Test(t),
+              ActionV2::UseFromStorage(u) => Action::UseFromStorage { content_info: u },
+            },
+            desc: action.1.desc.to_owned(),
+            exec_in_project_dir: action.1.exec_in_project_dir,
+            info: action.1.info.to_owned(),
+            requirements: action.1.requirements.to_owned(),
+            tags: action.1.tags.to_owned(),
+            title: action.1.title.to_owned(),
           },
-          desc: action.1.desc.to_owned(),
-          exec_in_project_dir: action.1.exec_in_project_dir,
-          info: action.1.info.to_owned(),
-          requirements: action.1.requirements.to_owned(),
-          tags: action.1.tags.to_owned(),
-          title: action.1.title.to_owned(),
-        });
+        );
       }
       config.actions_registry = new_actions;
 
@@ -400,15 +403,18 @@ impl DeployerGlobalConfig {
   /// Appends global configuration by Actions that can't be added by TUI.
   pub fn make_sure_contain_defaults(actions_registry: &mut HashMap<Info, DescribedAction>) {
     let info = Info::new("interrupt", "0.1").unwrap();
-    actions_registry.insert(info.clone(), DescribedAction {
-      title: "Interrupt Pipeline".into(),
-      desc: "Interrupt Pipeline execution until user press a button.".into(),
-      info,
-      tags: vec![],
-      action: Action::Interrupt,
-      requirements: None,
-      exec_in_project_dir: None,
-    });
+    actions_registry.insert(
+      info.clone(),
+      DescribedAction {
+        title: "Interrupt Pipeline".into(),
+        desc: "Interrupt Pipeline execution until user press a button.".into(),
+        info,
+        tags: vec![],
+        action: Action::Interrupt,
+        requirements: None,
+        exec_in_project_dir: None,
+      },
+    );
   }
 }
 
@@ -419,27 +425,30 @@ impl Default for DeployerGlobalConfig {
     DeployerGlobalConfig::make_sure_contain_defaults(&mut actions_registry);
 
     let info = Info::new("cargo-rel", "0.1").unwrap();
-    actions_registry.insert(info.clone(), DescribedAction {
-      title: "Cargo Build (Release)".into(),
-      desc: "Build the Rust project with Cargo default settings in release mode".into(),
-      info,
-      tags: vec!["rust".into(), "cargo".into()],
-      action: Action::Build(BuildAction {
-        supported_langs: vec![ProgrammingLanguage::Rust],
-        commands: vec![CustomCommand {
-          bash_c: "cargo build --release".into(),
-          placeholders: None,
-          replacements: None,
-          ignore_fails: false,
-          show_success_output: false,
-          show_bash_c: true,
-          only_when_fresh: None,
-          remote_exec: None,
-        }],
-      }),
-      requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
-      exec_in_project_dir: None,
-    });
+    actions_registry.insert(
+      info.clone(),
+      DescribedAction {
+        title: "Cargo Build (Release)".into(),
+        desc: "Build the Rust project with Cargo default settings in release mode".into(),
+        info,
+        tags: vec!["rust".into(), "cargo".into()],
+        action: Action::Build(BuildAction {
+          supported_langs: vec![ProgrammingLanguage::Rust],
+          commands: vec![CustomCommand {
+            bash_c: "cargo build --release".into(),
+            placeholders: None,
+            replacements: None,
+            ignore_fails: false,
+            show_success_output: false,
+            show_bash_c: true,
+            only_when_fresh: None,
+            remote_exec: None,
+          }],
+        }),
+        requirements: Some(vec![Requirement::Exists(PathBuf::from("/bin/cargo"))]),
+        exec_in_project_dir: None,
+      },
+    );
 
     Self {
       projects: vec![],

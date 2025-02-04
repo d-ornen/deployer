@@ -596,13 +596,16 @@ pub fn execute_pipeline(
           action.title.blue().italic()
         );
       }
-      build_log(&log_file, &[format!(
-        "[{}/{}] {} `{}`...",
-        cntr,
-        total,
-        i18n::STARTING_ACTION,
-        action.title
-      )])?;
+      build_log(
+        &log_file,
+        &[format!(
+          "[{}/{}] {} `{}`...",
+          cntr,
+          total,
+          i18n::STARTING_ACTION,
+          action.title
+        )],
+      )?;
     }
     stdout().flush()?;
     let now = Instant::now();
@@ -673,14 +676,17 @@ pub fn execute_pipeline(
     if !no_pipe {
       build_log(&log_file, &output)?;
     }
-    build_log(&log_file, &[format!(
-      "[{}/{}] {} -{} ({:.2?}).",
-      cntr,
-      total,
-      i18n::STARTING_ACTION.replace("{}", &action.title),
-      if status { i18n::DONE } else { i18n::GOT_ERROR },
-      elapsed,
-    )])?;
+    build_log(
+      &log_file,
+      &[format!(
+        "[{}/{}] {} -{} ({:.2?}).",
+        cntr,
+        total,
+        i18n::STARTING_ACTION.replace("{}", &action.title),
+        if status { i18n::DONE } else { i18n::GOT_ERROR },
+        elapsed,
+      )],
+    )?;
 
     if !env.silent_build {
       if !no_pipe {

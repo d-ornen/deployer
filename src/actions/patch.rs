@@ -39,10 +39,13 @@ impl Execute for PatchAction {
     match patches.patch(env.run_dir, env.run_dir) {
       Err(e) => Ok((false, vec![format!("{}: {}", i18n::PATCH_ERROR, e)])),
       Ok(0) => Ok((false, vec![format!("{}", i18n::PATCH_DONE_ZERO_TIMES)])),
-      Ok(num) => Ok((true, vec![format!(
-        "{}",
-        i18n::PATCH_DONE.replace("{}", format!("{}", num).as_str())
-      )])),
+      Ok(num) => Ok((
+        true,
+        vec![format!(
+          "{}",
+          i18n::PATCH_DONE.replace("{}", format!("{}", num).as_str())
+        )],
+      )),
     }
   }
 }

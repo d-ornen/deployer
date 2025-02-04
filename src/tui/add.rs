@@ -793,15 +793,10 @@ impl TargetDescription {
 
     let arch = Text::new(i18n::TARGET_ARCH).prompt()?;
 
-    let os = Select::new(i18n::TARGET_OS_SELECT, vec![
-      "Android",
-      "iOS",
-      "Linux",
-      "Unix-like",
-      "Windows",
-      "macOS",
-      "Other",
-    ])
+    let os = Select::new(
+      i18n::TARGET_OS_SELECT,
+      vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"],
+    )
     .prompt()?;
 
     let os_variant = match os {
@@ -823,11 +818,10 @@ impl TargetDescription {
 
     let derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
 
-    let version_type = Select::new(i18n::TARGET_OS_VER_S, vec![
-      i18n::TARGET_OS_VER_NS,
-      i18n::TARGET_OS_VER_WS,
-      i18n::TARGET_OS_VER_SS,
-    ])
+    let version_type = Select::new(
+      i18n::TARGET_OS_VER_S,
+      vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS],
+    )
     .prompt()?;
 
     let version = match version_type {
@@ -854,10 +848,10 @@ impl TargetDescription {
 
 impl AutoVersionExtractFromRule {
   pub fn new_from_prompt() -> anyhow::Result<Self> {
-    let new_autover_rule = inquire::Select::new(i18n::SPECIFY_AUTO_VER, vec![
-      i18n::AUTO_VER_CMD_STDOUT,
-      i18n::AUTO_VER_PLAIN_FILE,
-    ])
+    let new_autover_rule = inquire::Select::new(
+      i18n::SPECIFY_AUTO_VER,
+      vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+    )
     .prompt()?;
     let auto_version_rule = match new_autover_rule {
       i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({
