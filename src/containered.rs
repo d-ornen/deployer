@@ -131,10 +131,12 @@ pub fn execute_pipeline_containered(
   }
   println!("Image was built successfully.");
 
+  let volume_path = env.artifacts_dir.join(&pipeline.title);
+
   if !(CustomCommand {
     bash_c: format!(
-      "sudo docker run -v ./artifacts/{}/{}:/app/artifacts {}/{}",
-      config.project_name, pipeline.title, config.project_name, pipeline.title
+      "sudo docker run -v {:?}:/app/artifacts {}/{}",
+      volume_path, config.project_name, pipeline.title
     ),
     ignore_fails: false,
     only_when_fresh: None,
