@@ -19,7 +19,7 @@ pub const GENERIC_DOCKERFILE: &str = r#"# generated file
 FROM {deployer-base-image} AS deployer-builder
 WORKDIR /app
 {preflight-install-deployer-deps}
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN git clone --single-branch --branch unstable https://github.com/impulse-sw/deployer.git && cd deployer && cargo build --release
 
@@ -66,7 +66,7 @@ fn generate_dockerfile(
         .map(|v| v.join("\n"))
         .unwrap_or(PREFLIGHT_DEFAULT.to_string()),
     )
-    .replace("{pipeline-name}", pipeline.info.short_name())
+    .replace("{pipeline-name}", &pipeline.title)
     .replace(
       "{deployer-base-image}",
       opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE),
