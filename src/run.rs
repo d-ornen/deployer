@@ -500,7 +500,6 @@ pub fn execute_pipeline(
   if pipeline.containered_opts.is_some() && !env.containered {
     let env = RunEnvironment {
       silent_build: false,
-      no_pipe: true,
       ..env
     };
 

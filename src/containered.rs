@@ -28,7 +28,7 @@ WORKDIR /app
 {preflight-commands}
 {run-strategy}
 COPY --from=deployer-builder /app/deployer/target/release/deployer .
-CMD ["/app/deployer", "run", "{pipeline-name}", "--containered"]
+CMD ["/app/deployer", "run", "{pipeline-name}", "--containered"{no-pipe}]
 
 "#;
 
@@ -81,7 +81,8 @@ fn generate_dockerfile(
       "{run-strategy}",
       &opts.concat_strategies().unwrap_or("COPY . .".to_string()),
     )
-    .replace("{pipeline-name}", &pipeline.title);
+    .replace("{pipeline-name}", &pipeline.title)
+    .replace("{no-pipe}", if env.no_pipe { r#", "--no-pipe"# } else { "" });
   let filepath = env.run_dir.join(format!("Dockerfile.{}", exclusive_exec_tag));
   let mut dockerfile = fs::File::options()
     .create(true)
