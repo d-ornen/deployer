@@ -726,15 +726,11 @@
               "COPY .docker-fake-files/rust/main.rs src/main.rs",
               "COPY Cargo.toml ."
             ],
-            "pre_cache_cmds": ["RUN cargo build --release"]
+            "pre_cache_cmds": ["RUN cargo build", "RUN cargo build --release"]
           },
           {
-            "copy_cmds": ["COPY src/ src/"],
-            "pre_cache_cmds": [
-              "RUN touch src/main.rs",
-              "RUN touch src/lib.rs",
-              "RUN cargo build --release"
-            ]
+            "copy_cmds": ["COPY src/ src/", "COPY deploy-config.json ."],
+            "pre_cache_cmds": ["RUN touch src/main.rs", "RUN touch src/lib.rs"]
           }
         ]
       },
