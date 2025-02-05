@@ -465,7 +465,8 @@ Sometimes you need to synchronize build files between remote hosts and the curre
 
 #### 1.7. Other actions - `interrupt`, `observe` and `test`
 
-> NOTE: Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
+> [!NOTE]
+> Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
 
 `interrupt` is used to manually interrupt the build/deployment of a project. When Deployer reaches this action, it waits for user input to continue when you perform the necessary manual actions.
 
