@@ -43,12 +43,12 @@ tr!(NOT_FOUND, "not found");
 tr!(CMD_SPECIFY_BASH_C, "Enter a command for terminal");
 tr!(CMD_PLACEHOLDERS, "Enter command placeholders, if any:");
 tr!(CMD_IGNORE_FAILS, "Ignore command failures?");
-tr!(CMD_SHOW_BASH_C, "Show an entire command at build stage?");
+tr!(CMD_SHOW_BASH_C, "Show an entire command at Pipeline's run?");
 tr!(
   CMD_SHOW_SUCC_OUT,
   "Show an output of command if it executed successfully?"
 );
-tr!(CMD_ONLY_WHEN_FRESH, "Start a command only in fresh builds?");
+tr!(CMD_ONLY_WHEN_FRESH, "Start a command only in fresh runs?");
 
 tr!(CUSTOM_CMD_GUIDE_TITLE, "Shell Commands for Deployer");
 tr!(
@@ -82,7 +82,7 @@ tr!(
 );
 tr!(
   CMD_HIDDEN_VAR,
-  "At build stage the command will be hidden due to usage of secret variable."
+  "At run stage the command will be hidden due to usage of secret variable."
 );
 tr!(
   CMD_ONE_MORE_TIME,
@@ -96,17 +96,17 @@ tr!(CMD_CHANGE_PLACEHOLDERS, "Change command placeholders");
 tr!(CMD_CHANGE_FAILURE_IGNORANCE, "Change command failure ignorance");
 tr!(
   CMD_CHANGE_VISIBILITY_AT_BUILD,
-  "Change whether command is displayed or not on build stage"
+  "Change whether command is displayed or not on run stage"
 );
 tr!(
   CMD_CHANGE_VISIBILITY_ON_SUCC,
   "Change whether command output is displayed or not when it executed successfully"
 );
-tr!(CMD_CHANGE_ON_FRESH, "Change command executing only at fresh builds");
+tr!(CMD_CHANGE_ON_FRESH, "Change command executing only at fresh runs");
 
 tr!(CMDS_REORDER, "Reorder Action's commands:");
 
-tr!(CMD_SKIP_DUE_TO_NOT_FRESH, "Skip a command due to not a fresh build...");
+tr!(CMD_SKIP_DUE_TO_NOT_FRESH, "Skip a command due to not a fresh run...");
 tr!(EXECUTING, "Executing");
 tr!(EXECUTING_HIDDEN, "Executing the command:");
 tr!(ERRORS, "Errors:");
@@ -137,7 +137,6 @@ tr!(
 // Targets
 tr!(TARGET_ARCH, "Enter the target's architecture:");
 tr!(TARGET_OS_SELECT, "Select OS:");
-tr!(TARGET_OS_UNIX_LIKE, "Enter Unix-like OS name:");
 tr!(TARGET_OS_OTHER, "Enter OS name:");
 tr!(TARGET_OS_DER, "Enter OS derivative:");
 tr!(TARGET_OS_VER_S, "Select version specification type:");
@@ -161,11 +160,11 @@ tr!(VAR_TITLE, "Enter your variable's title:");
 tr!(NOTE, "Note");
 tr!(
   VAR_NOTE,
-  "if variable is a secret, then no command containing this variable will be printed during the build stage."
+  "if variable is a secret, then no command containing this variable will be printed during the run stage."
 );
 tr!(
   KV2_NOTE,
-  "before assembly, you must specify two environment variables for the Deployer:"
+  "before run, you must specify two environment variables for the Deployer:"
 );
 tr!(VAR_IS_SECRET, "Is this variable a secret?");
 tr!(SPECIFY_VAR_TYPE, "Select the variable type:");
@@ -251,8 +250,9 @@ tr!(EDIT_REQS, "Edit Action requirements");
 tr!(EDIT_REMOTE_SHORT_NAME, "Edit remote host short name");
 tr!(
   EDIT_EXEC_IN_PROJECT_DIR,
-  "Change Action's execution path (build or project folder)"
+  "Change Action's execution path (run or project folder)"
 );
+tr!(EDIT_PIPELINE, "Edit Pipeline");
 
 tr!(DEPL_TOOLKIT, "Enter deploy toolkit name");
 
@@ -263,7 +263,7 @@ tr!(TAGS, "tags");
 
 tr!(
   EXEC_IN_PROJECT_DIR,
-  "Do you need execute this Action in project's directory instead of build directory?"
+  "Do you need execute this Action in project's directory instead of run directory?"
 );
 
 // Pipelines
@@ -330,13 +330,14 @@ tr!(SELECT_PIPELINE_TO_CHANGE, "Select a concrete Pipeline to change");
 tr!(PIPELINE, "Pipeline");
 tr!(PIPELINE_REORDER_ACTIONS, "Reorder Pipeline's Actions:");
 tr!(PIPELINE_REMOVE, "Remove Pipeline `{1}` - `{2}`");
+tr!(SELECT_PIPELINE_TO_ADD_TO, "Select a Pipeline:");
 
 tr!(STARTING_PIPELINE, "Starting the `{}` Pipeline...");
 tr!(STARTING_ACTION, "Action");
 tr!(ARTIFACT_ENPLACE_FAIL, "There is no such artifact");
 tr!(INTERRUPT, "The Pipeline is interrupted. Hit `Enter` to continue");
 
-tr!(BUILD_PATH, "Build path");
+tr!(BUILD_PATH, "Run path");
 tr!(DONE_IN, "Done in");
 
 tr!(DONE, " done");
@@ -367,19 +368,19 @@ tr!(TARGET, "Target");
 tr!(EDIT_TARGET, "Edit target");
 tr!(SELECT_TARGET_TO_CHANGE, "Select a concrete target to change");
 tr!(SELECT_TARGET_TO_REMOVE, "Select a target to remove:");
-tr!(ADD_NEW_TARGET, "Add new build target?");
+tr!(ADD_NEW_TARGET, "Add new run target?");
 
-tr!(ADD_NEW_AF, "Add new build/deploy artifact?");
+tr!(ADD_NEW_AF, "Add new run artifact?");
 tr!(ADD_NEW_VAR, "Add new project-related variable or secret?");
 tr!(
   ADD_NEW_INPLACEMENT_FIRST,
-  "Do you want to create artifact inplacement from build directory to your project's location (inside `artifacts` subfolder)?"
+  "Do you want to create artifact inplacement from run directory to your project's location (inside `artifacts` subfolder)?"
 );
 tr!(ADD_NEW_INPLACEMENT_SECOND, "Add one more artifact inplacement?");
 
 tr!(
   INIT_SUCC,
-  "Setup is completed. Don't forget to assign at least one Pipeline to the project to build/deploy!"
+  "Setup is completed. Don't forget to assign at least one Pipeline to the project to run!"
 );
 tr!(
   PROJECT_NO_PIPELINES,
@@ -411,11 +412,11 @@ tr!(
 );
 tr!(
   CONTENT_GUIDE_2,
-  "The content in it must be located in such a way that the paths to the required files are relative to the assembly folder."
+  "The content in it must be located in such a way that the paths to the required files are relative to the run folder."
 );
 tr!(
   CONTENT_GUIDE_3,
-  "For example, if you need to place a Dockerfile at the root of the build folder, you place the file at the root of the content folder; if you need the file to be located in a subfolder, you place it in a subfolder with the same name inside the content folder."
+  "For example, if you need to place a Dockerfile at the root of the run folder, you place the file at the root of the content folder; if you need the file to be located in a subfolder, you place it in a subfolder with the same name inside the content folder."
 );
 tr!(
   CONTENT_GUIDE_4,
@@ -439,7 +440,7 @@ tr!(ABSOLUTE_PATH, "Enter the absolute path:");
 tr!(RELATIVE_PATH, "Enter the relative path:");
 tr!(
   INCORRECT_PATH,
-  "Incorrect path! Entity must be placed inside build folder!"
+  "Incorrect path! Entity must be placed inside run folder!"
 );
 tr!(
   INCORRECT_AF_INPL_PATH,
@@ -522,8 +523,8 @@ tr!(
   "Do you want to execute this command remotely on one or many remote hosts? If yes, the command won't be executed on this host."
 );
 tr!(REMOTE_ADD_TO_CMD_ANOTHER, "Add one more remote host?");
-tr!(START_BUILD_AT_REMOTE, "Starting build on remote host");
-tr!(BUILT_AT_REMOTE, "Build at remote and got artifacts from host:");
+tr!(START_BUILD_AT_REMOTE, "Starting run on remote host");
+tr!(BUILT_AT_REMOTE, "Run at remote and got artifacts from host:");
 tr!(REMOTE_NO_DEPLOYER, "There is no Deployer installed remotely.");
 tr!(
   REMOTE_CONSIDER_UPGRADE,

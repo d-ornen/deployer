@@ -1,25 +1,27 @@
-//! Build module.
+//! Run module.
 //!
-//! Deployer's build process both complicated and flexible enough.
-//! The main functions is `build` and `execute_pipeline`.
+//! Deployer's run process both complicated and flexible enough.
+//! The main functions is `run` and `execute_pipeline`.
 
 use anyhow::bail;
 use colored::Colorize;
 use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
-use crate::cmd::{BuildArgs, CleanArgs};
-use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
-use crate::entities::environment::BuildEnvironment;
+use crate::cmd::{CleanArgs, RunArgs};
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
+#[cfg(feature = "containered")]
+use crate::containered::execute_pipeline_containered;
+use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
-use crate::entities::requirements::{Requirement, Satisfy, SatisfyErr};
-use crate::entities::traits::Execute;
+use crate::entities::requirements::{Satisfy, SatisfyErr};
+use crate::entities::traits::{Execute, Merge};
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::remote::{sync_artifacts_from_remote, sync_from_remote, sync_to_remote};
@@ -27,25 +29,75 @@ use crate::rw::{build_log, copy_all, generate_build_log_filepath, log, symlink, 
 use crate::storage::use_from_storage;
 use crate::utils::get_current_working_dir;
 use crate::{ARTIFACTS_DIR, BUILD_CACHE_LIST, CACHE_DIR};
+use crate::{hmap, hset};
 
-/// List of all builds at this host.
-#[derive(Deserialize, Serialize, Default)]
-pub struct Builds {
-  pub projects: Vec<ProjectBuilds>,
+/// List of all Pipelines runs at this host.
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Runs {
+  pub projects: Vec<ProjectRuns>,
 }
 
-/// Builds of chosen project.
-#[derive(Deserialize, Serialize, Clone)]
-pub struct ProjectBuilds {
+impl Merge for Runs {
+  fn merge(&self, other: Self) -> anyhow::Result<Self> {
+    let mut projects = hmap!();
+    for p in &self.projects {
+      projects.insert(p.name.to_owned(), vec![]);
+    }
+    for p in &other.projects {
+      projects.insert(p.name.to_owned(), vec![]);
+    }
+
+    for p in &other.projects {
+      let project = projects.get_mut(&p.name).unwrap();
+      for run in &p.runs {
+        if !project.contains(&run) {
+          project.push(run)
+        };
+      }
+    }
+    for p in &self.projects {
+      if other
+        .projects
+        .iter()
+        .find(|v| v.name.as_str().eq(p.name.as_str()))
+        .is_some_and(|v| v.runs.is_empty())
+      {
+        // Considering that project is cleared, continuing
+        continue;
+      }
+      let project = projects.get_mut(&p.name).unwrap();
+      for run in &p.runs {
+        if !project.contains(&run) {
+          project.push(run)
+        };
+      }
+    }
+
+    let mut runs = Runs { projects: vec![] };
+    projects.iter().for_each(|(k, v)| {
+      let pr_runs = v.iter().map(|v| (*v).to_owned()).collect::<Vec<_>>();
+      runs.projects.push(ProjectRuns {
+        name: k.to_owned(),
+        runs: pr_runs,
+      });
+    });
+
+    Ok(runs)
+  }
+}
+
+/// Runs of chosen project.
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+pub struct ProjectRuns {
   /// Project name (see `DeployerProjectOptions::project_name`).
   pub name: String,
-  /// List of build folders.
-  pub builds: Vec<Build>,
+  /// List of run folders.
+  pub runs: Vec<Run>,
 }
 
-/// Build information.
-#[derive(Deserialize, Serialize, Clone)]
-pub struct Build {
+/// Run information.
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
+pub struct Run {
   /// If is set, this folder will be used only for Pipelines with this exclusive tag.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub exclusive_tag: Option<String>,
@@ -53,37 +105,30 @@ pub struct Build {
   pub folder: PathBuf,
 }
 
-impl Build {
-  /// Checks the exclusive tag on both build folder and given Pipeline.
-  pub fn works_with(&self, pipeline: &DescribedPipeline) -> bool {
-    self.exclusive_tag.as_ref().is_some_and(|a| {
-      pipeline
-        .exclusive_exec_tag
-        .as_ref()
-        .is_some_and(|b| a.as_str().eq(b.as_str()))
-    }) || (self.exclusive_tag.is_none() && pipeline.exclusive_exec_tag.is_none())
-  }
-}
-
 /// Places Pipeline artifacts in the `artifacts` folder inside project's directory.
 ///
 /// `panic_when_not_found` is set to `false` on all function's usages now.
 pub fn place_artifacts(
   config: &DeployerProjectOptions,
-  env: BuildEnvironment,
+  env: RunEnvironment,
   panic_when_not_found: bool,
 ) -> anyhow::Result<()> {
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
   ignore.extend(config.cache_files.iter().cloned());
 
-  for (from, to) in &config.place_artifacts_into_project_root {
-    let artifact_path = env.build_dir.join(from);
+  for Placement { from, to } in &config.place_artifacts_into_project_root {
+    let artifact_path = env.run_dir.join(from);
     if !std::fs::exists(artifact_path.clone())? {
       if panic_when_not_found {
         panic!("{}: {:?}!", i18n::ARTIFACT_ENPLACE_FAIL, artifact_path);
       }
     } else if artifact_path.as_path().is_dir() || artifact_path.as_path().is_file() {
-      copy_all(artifact_path.as_path(), env.artifacts_dir.join(to).as_path(), &ignore)?;
+      copy_all(
+        artifact_path.as_path(),
+        artifact_path.as_path(),
+        env.artifacts_dir.join(to).as_path(),
+        &ignore,
+      )?;
     }
   }
 
@@ -91,7 +136,7 @@ pub fn place_artifacts(
 }
 
 /// Creates the artifacts folder, if it isn't exist.
-fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<PathBuf> {
   let artifacts_dir = current_dir.join(ARTIFACTS_DIR);
   std::fs::create_dir_all(artifacts_dir.as_path())
     .unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", artifacts_dir));
@@ -99,145 +144,140 @@ fn prepare_artifacts_folder(current_dir: &std::path::Path) -> anyhow::Result<Pat
   Ok(artifacts_dir)
 }
 
-/// Gets a compatible or creates a new build folder to perform Pipeline Actions.
+/// Gets a compatible or creates a new run folder to perform Pipeline Actions.
 ///
-/// You can specify next `deployer build` command flags:
+/// You can specify next `deployer run` command flags:
 ///
-/// - `build_at` to specify concrete build folder
-/// - `fresh` to create new build folder
+/// - `run_at` to specify concrete run folder
+/// - `fresh` to create new run folder
 /// - `copy_cache` to copy cache files from project's folder
 /// - `link_cache` to create symlinks to cache files from project's folder
-fn prepare_build_folder(
+pub(crate) fn prepare_run_folder(
   config: &DeployerProjectOptions,
-  builds: &mut Builds,
-  selected_pipeline: &DescribedPipeline,
+  runs: &mut Runs,
+  exclusive_exec_tag: &Option<String>,
   current_dir: &std::path::Path,
   cache_dir: &Path,
-  args: &BuildArgs,
+  args: &RunArgs,
 ) -> anyhow::Result<(PathBuf, bool)> {
-  let build_path = if let Some(build_at) = args.build_at.as_ref() {
-    build_at.to_owned()
+  let run_path = if let Some(run_at) = args.run_at.as_ref() {
+    run_at.to_owned()
   } else {
-    let mut build_path = PathBuf::new();
-    build_path.push(cache_dir);
-    build_path.push(CACHE_DIR);
+    let mut run_path = PathBuf::new();
+    run_path.push(cache_dir);
+    run_path.push(CACHE_DIR);
 
-    let mut project_builds = match builds
+    let mut project_runs = match runs
       .projects
       .iter()
       .position(|p| p.name.as_str().eq(config.project_name.as_str()))
     {
-      None => ProjectBuilds {
+      None => ProjectRuns {
         name: config.project_name.to_owned(),
-        builds: vec![],
+        runs: vec![],
       },
-      Some(project_builds) => {
-        let copy = builds.projects.get(project_builds).unwrap().clone();
-        builds.projects.remove(project_builds);
+      Some(project_runs) => {
+        let copy = runs.projects.get(project_runs).unwrap().clone();
+        runs.projects.remove(project_runs);
         copy
       }
     };
 
-    let folder = match project_builds
-      .builds
-      .iter()
-      .rev()
-      .find(|b| b.works_with(selected_pipeline))
-    {
+    let folder = match project_runs.runs.iter().rev().find(|b| {
+      b.exclusive_tag
+        .as_ref()
+        .is_some_and(|a| exclusive_exec_tag.as_ref().is_some_and(|b| a.as_str().eq(b.as_str())))
+        || (b.exclusive_tag.is_none() && exclusive_exec_tag.is_none())
+    }) {
       Some(b_stats) if !args.fresh => b_stats.folder.to_owned(),
       _ => {
         let uuid = format!("deploy-build-{}", Uuid::new_v4());
-        let folder = build_path.join(uuid);
-        let b_stats = Build {
-          exclusive_tag: selected_pipeline.exclusive_exec_tag.clone(),
+        let folder = run_path.join(uuid);
+        let b_stats = Run {
+          exclusive_tag: exclusive_exec_tag.clone(),
           folder: folder.to_owned(),
         };
-        project_builds.builds.push(b_stats);
+        project_runs.runs.push(b_stats);
         folder.to_owned()
       }
     };
 
-    builds.projects.push(project_builds);
+    runs.projects.push(project_runs);
 
     folder
   };
 
-  let fresh = !build_path.exists() || args.fresh;
-  std::fs::create_dir_all(build_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", build_path));
+  let fresh = !run_path.exists() || args.fresh;
+  std::fs::create_dir_all(run_path.as_path()).unwrap_or_else(|_| panic!("Can't create `{:?}` folder!", run_path));
 
   let mut ignore = vec![
     PathBuf::from(ARTIFACTS_DIR),
-    PathBuf::from(build_path.file_name().unwrap()),
+    PathBuf::from(run_path.file_name().unwrap()),
   ];
   ignore.extend(config.cache_files.iter().cloned());
 
-  copy_all(get_current_working_dir().unwrap(), build_path.as_path(), &ignore)?;
-  write(cache_dir, BUILD_CACHE_LIST, &builds);
+  let cwd = get_current_working_dir().unwrap();
+  copy_all(&cwd, &cwd, run_path.as_path(), &ignore)?;
+  write(cache_dir, BUILD_CACHE_LIST, &runs);
 
   if args.link_cache {
     for cache_item in &config.cache_files {
-      symlink(current_dir.join(cache_item), build_path.join(cache_item));
+      symlink(current_dir.join(cache_item), run_path.join(cache_item));
       log(format!("-> {:?}", cache_item));
     }
   }
 
   if args.copy_cache {
     for cache_item in &config.cache_files {
-      copy_all(current_dir.join(cache_item), build_path.join(cache_item), &[""])?;
+      let cache_item_path = current_dir.join(cache_item);
+      copy_all(&cache_item_path, &cache_item_path, run_path.join(cache_item), &[""])?;
       log(format!("-> {:?}", cache_item));
     }
   }
 
-  Ok((build_path, fresh))
+  Ok((run_path, fresh))
 }
 
-/// Decides where and how to build the project.
+/// Decides where and how to run the project.
 ///
-/// You can specify next `deployer build` command flags:
+/// You can specify next `deployer run` command flags:
 ///
-/// - `remote_build_folder` to run Deployer as worker node
+/// - `remote_folder` to run Deployer as worker node
 /// - `remote_host_short_names` to run Deployer as controller
-/// - `current` to build at project's folder instead of build folder
-/// - `silent` to build without any out to display
-/// - `no_pipe` to build without I/O redirection from Actions' commands
-/// - `build_at` to specify concrete build folder
-/// - `fresh` to create new build folder
+/// - `current` to run at project's folder instead of run folder
+/// - `silent` to run without any out to display
+/// - `no_pipe` to run without I/O redirection from Actions' commands
+/// - `run_at` to specify concrete run folder
+/// - `fresh` to create new run folder
 /// - `copy_cache` to copy cache files from project's folder
 /// - `link_cache` to create symlinks to cache files from project's folder
-pub fn build(
+pub fn run(
   config: &mut DeployerProjectOptions,
   globals: &DeployerGlobalConfig,
-  builds: &mut Builds,
+  runs: &mut Runs,
   cache_dir: &Path,
   config_dir: &Path,
   storage_dir: &Path,
-  args: &BuildArgs,
+  args: &RunArgs,
 ) -> anyhow::Result<()> {
-  if *config == Default::default() && args.remote_build_folder.is_none() {
+  if *config == Default::default() && args.remote_folder.is_none() {
     panic!("{}", i18n::CFG_INVALID);
   }
   check_args_on_conflicts(args)?;
 
-  if let Some(build_dir) = &args.remote_build_folder
+  if let Some(run_dir) = &args.remote_folder
     && !args.pipeline_tags.is_empty()
   {
-    return build_as_worker(
-      build_dir,
-      cache_dir,
-      config_dir,
-      storage_dir,
-      &globals.remote_hosts,
-      args,
-    );
+    return run_as_worker(run_dir, cache_dir, config_dir, storage_dir, &globals.remote_hosts, args);
   }
 
   let curr_dir = std::env::current_dir().expect("Can't get current dir!");
   let artifacts_dir = prepare_artifacts_folder(&curr_dir)?;
 
   if !args.remote_host_short_names.is_empty() {
-    return build_as_controller(
+    return run_as_controller(
       config,
-      builds,
+      runs,
       &artifacts_dir,
       &curr_dir,
       cache_dir,
@@ -257,14 +297,14 @@ pub fn build(
     }
 
     for pipeline in config.pipelines.iter().filter(|p| p.default.is_some_and(|v| v)) {
-      let (build_path, new_build) = if args.current {
+      let (run_path, new_build) = if args.current {
         (curr_dir.clone(), false)
       } else {
-        prepare_build_folder(config, builds, pipeline, &curr_dir, cache_dir, args)?
+        prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
       };
 
-      let env = BuildEnvironment {
-        build_dir: &build_path,
+      let env = RunEnvironment {
+        run_dir: &run_path,
         cache_dir,
         config_dir,
         storage_dir,
@@ -275,6 +315,8 @@ pub fn build(
         no_pipe: args.no_pipe,
         ignore: &config.cache_files,
         remotes: &globals.remote_hosts,
+        #[cfg(feature = "containered")]
+        containered: args.containered,
       };
 
       execute_pipeline(config, env, pipeline)?;
@@ -283,14 +325,14 @@ pub fn build(
   } else {
     for pipeline_tag in &args.pipeline_tags {
       if let Some(pipeline) = config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
-        let (build_path, new_build) = if args.current {
+        let (run_path, new_build) = if args.current {
           (curr_dir.clone(), false)
         } else {
-          prepare_build_folder(config, builds, pipeline, &curr_dir, cache_dir, args)?
+          prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
         };
 
-        let env = BuildEnvironment {
-          build_dir: &build_path,
+        let env = RunEnvironment {
+          run_dir: &run_path,
           cache_dir,
           config_dir,
           storage_dir,
@@ -301,6 +343,8 @@ pub fn build(
           no_pipe: args.no_pipe,
           ignore: &config.cache_files,
           remotes: &globals.remote_hosts,
+          #[cfg(feature = "containered")]
+          containered: args.containered,
         };
 
         execute_pipeline(config, env, pipeline)?;
@@ -318,23 +362,23 @@ pub fn build(
   Ok(())
 }
 
-/// Builds project as worker node (e.g., without project directory itself
-/// and with given build folder path from controller's node).
-pub fn build_as_worker(
-  build_dir: &Path,
+/// Runs project as worker node (e.g., without project directory itself
+/// and with given run folder path from controller's node).
+pub fn run_as_worker(
+  run_dir: &Path,
   cache_dir: &Path,
   config_dir: &Path,
   storage_dir: &Path,
   remotes: &HashMap<ShortName, RemoteHost>,
-  args: &BuildArgs,
+  args: &RunArgs,
 ) -> anyhow::Result<()> {
-  let config = crate::rw::read::<DeployerProjectOptions>(build_dir, crate::PROJECT_CONF);
-  let artifacts_dir = prepare_artifacts_folder(build_dir)?;
+  let config = crate::rw::read::<DeployerProjectOptions>(run_dir, crate::PROJECT_CONF);
+  let artifacts_dir = prepare_artifacts_folder(run_dir)?;
 
   for pipeline_tag in &args.pipeline_tags {
     if let Some(pipeline) = &config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
-      let env = BuildEnvironment {
-        build_dir,
+      let env = RunEnvironment {
+        run_dir,
         cache_dir,
         config_dir,
         storage_dir,
@@ -345,6 +389,8 @@ pub fn build_as_worker(
         no_pipe: false,
         ignore: &config.cache_files,
         remotes,
+        #[cfg(feature = "containered")]
+        containered: args.containered,
       };
 
       execute_pipeline(&config, env, pipeline)?;
@@ -361,19 +407,19 @@ pub fn build_as_worker(
   Ok(())
 }
 
-/// Builds project as controller (e.g., sends build folder to worker node
+/// Runs project as controller (e.g., sends run folder to worker node
 /// and starts Deployer on this node remotely).
 ///
-/// After remote build Deployer automatically copies all built artifacts
+/// After remote run Deployer automatically copies all built artifacts
 /// to this host from the remote.
-pub fn build_as_controller(
+pub fn run_as_controller(
   config: &DeployerProjectOptions,
-  builds: &mut Builds,
+  runs: &mut Runs,
   artifacts_dir: &Path,
   current_dir: &Path,
   cache_dir: &Path,
   remotes: &HashMap<ShortName, RemoteHost>,
-  args: &BuildArgs,
+  args: &RunArgs,
 ) -> anyhow::Result<()> {
   let mut remote = vec![];
   for short_name in &args.remote_host_short_names {
@@ -387,7 +433,8 @@ pub fn build_as_controller(
 
   for pipeline_tag in &args.pipeline_tags {
     if let Some(pipeline) = config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
-      let (build_path, _) = prepare_build_folder(config, builds, pipeline, current_dir, cache_dir, args)?;
+      let (build_path, _) =
+        prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, current_dir, cache_dir, args)?;
 
       for host in remote.iter() {
         if !args.silent {
@@ -443,11 +490,21 @@ pub fn build_as_controller(
 /// 3. Execute all Pipeline's Actions.
 pub fn execute_pipeline(
   config: &DeployerProjectOptions,
-  env: BuildEnvironment,
+  env: RunEnvironment,
   pipeline: &DescribedPipeline,
 ) -> anyhow::Result<()> {
   use std::io::{Write, stdout};
   use std::time::{Duration, Instant};
+
+  #[cfg(feature = "containered")]
+  if pipeline.containered_opts.is_some() && !env.containered {
+    let env = RunEnvironment {
+      silent_build: false,
+      ..env
+    };
+
+    return execute_pipeline_containered(config, env, pipeline);
+  }
 
   let mut total_time = Duration::from_secs(0);
   let log_file = generate_build_log_filepath(&config.project_name, &pipeline.title, env.cache_dir);
@@ -457,7 +514,7 @@ pub fn execute_pipeline(
   }
   build_log(&log_file, &[format!("Starting the `{}` Pipeline...", pipeline.title)])?;
 
-  let canonicalized = env.build_dir.canonicalize()?;
+  let canonicalized = env.run_dir.canonicalize()?;
   let canonicalized = canonicalized.to_str().expect("Can't convert `Path` to string!");
   if !env.silent_build {
     println!("{}: {}", i18n::BUILD_PATH, canonicalized);
@@ -467,7 +524,7 @@ pub fn execute_pipeline(
   let now = Instant::now();
 
   #[allow(clippy::mutable_key_type)]
-  let mut requirements = HashSet::<Requirement>::new();
+  let mut requirements = hset!();
   for action in &pipeline.actions {
     if let Some(action_reqs) = &action.requirements {
       for action_req in action_reqs {
@@ -509,15 +566,16 @@ pub fn execute_pipeline(
     let env = if action.exec_in_project_dir.is_some_and(|v| v)
       && let Some(project_dir) = env.project_dir
     {
-      BuildEnvironment {
-        build_dir: project_dir,
+      RunEnvironment {
+        run_dir: project_dir,
         ..env
       }
     } else {
       env
     };
     let observer = matches!(&action.action, Action::Observe(_));
-    let no_pipe = observer | env.no_pipe;
+    let sub_pipeline = matches!(&action.action, Action::SubPipeline(_));
+    let no_pipe = observer | sub_pipeline | env.no_pipe;
 
     if !env.silent_build {
       if !no_pipe {
@@ -537,21 +595,24 @@ pub fn execute_pipeline(
           action.title.blue().italic()
         );
       }
-      build_log(&log_file, &[format!(
-        "[{}/{}] {} `{}`...",
-        cntr,
-        total,
-        i18n::STARTING_ACTION,
-        action.title
-      )])?;
+      build_log(
+        &log_file,
+        &[format!(
+          "[{}/{}] {} `{}`...",
+          cntr,
+          total,
+          i18n::STARTING_ACTION,
+          action.title
+        )],
+      )?;
     }
     stdout().flush()?;
     let now = Instant::now();
 
     let (status, output) = match &action.action {
-      Action::SyncToRemote(remote_name) => {
-        if let Some(remote) = env.remotes.get(remote_name) {
-          if let Err(e) = sync_to_remote(env.build_dir, remote, env.ignore) {
+      Action::SyncToRemote { remote_host_name } => {
+        if let Some(remote) = env.remotes.get(remote_host_name) {
+          if let Err(e) = sync_to_remote(env.run_dir, remote, env.ignore) {
             (false, vec![e.to_string()])
           } else {
             (true, vec![])
@@ -560,9 +621,9 @@ pub fn execute_pipeline(
           (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
         }
       }
-      Action::SyncFromRemote(remote_name) => {
-        if let Some(remote) = env.remotes.get(remote_name) {
-          if let Err(e) = sync_from_remote(env.build_dir, remote) {
+      Action::SyncFromRemote { remote_host_name } => {
+        if let Some(remote) = env.remotes.get(remote_host_name) {
+          if let Err(e) = sync_from_remote(env.run_dir, remote) {
             (false, vec![e.to_string()])
           } else {
             (true, vec![])
@@ -572,8 +633,8 @@ pub fn execute_pipeline(
         }
       }
       Action::Custom(cmd) => cmd.execute(env)?,
-      Action::Check(check) => check.execute(env)?,
-      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
+      Action::Test(test) => test.execute(env)?,
+      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => a.execute(env)?,
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
       Action::Observe(o_action) => o_action.execute_observer(env)?,
@@ -588,13 +649,17 @@ pub fn execute_pipeline(
         }
         (true, vec![])
       }
-      Action::UseFromStorage(content_info) => match use_from_storage(env.storage_dir, env.build_dir, content_info) {
+      Action::UseFromStorage { content_info } => match use_from_storage(env.storage_dir, env.run_dir, content_info) {
         Ok(_) => (true, vec![]),
         Err(e) => (false, vec![e.to_string()]),
       },
       Action::AddToStorage(rules) => {
         place_artifacts(config, env, false)?;
         rules.execute(env)?
+      }
+      Action::SubPipeline(pipeline) => {
+        execute_pipeline(config, env, pipeline)?;
+        (true, vec![])
       }
     };
 
@@ -610,14 +675,17 @@ pub fn execute_pipeline(
     if !no_pipe {
       build_log(&log_file, &output)?;
     }
-    build_log(&log_file, &[format!(
-      "[{}/{}] {} -{} ({:.2?}).",
-      cntr,
-      total,
-      i18n::STARTING_ACTION.replace("{}", &action.title),
-      if status { i18n::DONE } else { i18n::GOT_ERROR },
-      elapsed,
-    )])?;
+    build_log(
+      &log_file,
+      &[format!(
+        "[{}/{}] {} -{} ({:.2?}).",
+        cntr,
+        total,
+        i18n::STARTING_ACTION.replace("{}", &action.title),
+        if status { i18n::DONE } else { i18n::GOT_ERROR },
+        elapsed,
+      )],
+    )?;
 
     if !env.silent_build {
       if !no_pipe {
@@ -650,13 +718,13 @@ pub fn execute_pipeline(
   Ok(())
 }
 
-/// Cleans all project builds.
+/// Cleans all project runs.
 ///
 /// You can also specify `include_artifacts` option (`deployer clean -i`)
 /// to cleanup `artifacts` folder.
-pub fn clean_builds(
+pub fn clean_runs(
   config: &DeployerProjectOptions,
-  builds: &mut Builds,
+  runs: &mut Runs,
   cache_dir: &Path,
   args: &CleanArgs,
 ) -> anyhow::Result<()> {
@@ -666,16 +734,16 @@ pub fn clean_builds(
 
   let mut total: u64 = 0;
 
-  if let Some(project_builds) = builds
+  if let Some(project_builds) = runs
     .projects
     .iter_mut()
     .find(|p| p.name.as_str().eq(config.project_name.as_str()))
   {
-    for folder in project_builds.builds.iter().map(|b| b.folder.clone()) {
+    for folder in project_builds.runs.iter().map(|b| b.folder.clone()) {
       total += get_size(&folder)?;
       let _ = std::fs::remove_dir_all(folder);
     }
-    project_builds.builds.clear();
+    project_builds.runs.clear();
   }
 
   if args.include_artifacts {
@@ -692,16 +760,16 @@ pub fn clean_builds(
   Ok(())
 }
 
-fn check_args_on_conflicts(args: &BuildArgs) -> anyhow::Result<()> {
+fn check_args_on_conflicts(args: &RunArgs) -> anyhow::Result<()> {
   if args.link_cache && args.copy_cache {
     panic!(
       "Select only one option from `{}` and `{}`. See help via `{}`.",
       "c".green(),
       "C".green(),
-      "deployer build -h".green()
+      "deployer run -h".green()
     );
   }
-  if (args.fresh || args.link_cache || args.copy_cache || args.build_at.is_some()) && args.current {
+  if (args.fresh || args.link_cache || args.copy_cache || args.run_at.is_some()) && args.current {
     panic!(
       "Select either `{}` or `{}`/{}`/`{}`/`{}` options. See help via `{}`.",
       "o".green(),
@@ -709,7 +777,7 @@ fn check_args_on_conflicts(args: &BuildArgs) -> anyhow::Result<()> {
       "f".green(),
       "c".green(),
       "C".green(),
-      "deployer build -h".green(),
+      "deployer run -h".green(),
     );
   }
   if args.silent && args.no_pipe {
@@ -717,23 +785,23 @@ fn check_args_on_conflicts(args: &BuildArgs) -> anyhow::Result<()> {
       "Select only one option from `{}` and `{}`. See help via `{}`.",
       "s".green(),
       "t".green(),
-      "deployer build -h".green()
+      "deployer run -h".green()
     );
   }
-  if args.remote_build_folder.is_some() && args.pipeline_tags.is_empty() {
+  if args.remote_folder.is_some() && args.pipeline_tags.is_empty() {
     panic!("You always should specify Pipeline tags for executing while remote builds.")
   }
   if !args.remote_host_short_names.is_empty()
-    && (args.remote_build_folder.is_some()
+    && (args.remote_folder.is_some()
       || args.pipeline_tags.is_empty()
       || args.link_cache
       || args.copy_cache
       || args.fresh
-      || args.build_at.is_some()
+      || args.run_at.is_some()
       || args.current)
   {
     panic!(
-      "If you specify remote hosts to build on, you should specify only Pipelines list, `{}`/`{}` flags and nothing more.",
+      "If you specify remote hosts to run on, you should specify only Pipelines list, `{}`/`{}` flags and nothing more.",
       "silent".green(),
       "no_pipe".green(),
     )

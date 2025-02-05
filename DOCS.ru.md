@@ -1,10 +1,12 @@
-# Деплойер: документация по версии `1.3.X`
+# Деплойер: документация по версии `1.4.X`
+
+Актуальная документация доступна через `deployer docs`.
 
 ## Описание принципов работы
 
 Деплойер, по своей сути, - локальный CI/CD. Иными словами, менеджер `bash`-команд.
 
-Как правило, запускает сборку Деплойер в отдельной папке, чтобы сохранять кэш и при этом держать папку с кодом чистой. Однако вы можете указать как любую папку, так и папку с кодом; если у вас уже есть кэши, вы можете их копировать из исходной папки, делать на них симлинки или полностью их игнорировать и собирать с нуля.
+Как правило, Деплойер запускается в отдельной папке, чтобы сохранять кэш и при этом держать папку с кодом чистой. Однако вы можете указать как любую папку, так и папку с кодом; если у вас уже есть кэши, вы можете их копировать из исходной папки, делать на них симлинки или полностью их игнорировать и выполнять Пайплайны с нуля.
 
 ## Описание основных сущностей
 
@@ -23,34 +25,34 @@
     "upx"
   ],
   "action": {
-    "PostBuild": {
-      "supported_langs": [
-        "Rust",
-        "Go",
-        "C",
-        "Cpp",
-        "Python",
-        {
-          "Other": "any"
-        }
-      ],
-      "commands": [
-        {
-          "bash_c": "upx <artifact>",
-          "placeholders": [
-            "<artifact>"
-          ],
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": false,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "post_build",
+    "supported_langs": [
+      "Rust",
+      "Go",
+      "C",
+      "Cpp",
+      "Python",
+      {
+        "Other": "any"
+      }
+    ],
+    "commands": [
+      {
+        "bash_c": "upx <artifact>",
+        "placeholders": [
+          "<artifact>"
+        ],
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": false,
+        "only_when_fresh": false
+      }
+    ]
   },
   "requirements": [
     {
-      "ExistsAny": [
+      "type": "exists_any",
+      "paths": [
         "/usr/bin/upx",
         "~/.local/bin/upx"
       ]
@@ -67,51 +69,52 @@
 [
   {
     // если один из этих путей будет найден, требование будет считаться удовлетворённым
-    "ExistsAny": [
-      "path-1",
-      "path-2"
+    "type": "exists_any",
+    "paths": [
+      "/usr/bin/upx",
+      "~/.local/bin/upx"
     ]
   },
   {
     // если данный путь существует, требование считается удовлетворённым
-    "Exists": "path"
+    "type": "exists",
+    "path": "/usr/bin/mold"
   },
   {
     // если данная проверка будет пройдена, требование будет считаться удовлетворённым (подробности см. ниже - Действие `Check`)
-    "CheckSuccess": {
-      "command": {
-        "bash_c": "/usr/bin/python -V",
-        "ignore_fails": true,
-        "show_success_output": false,
-        "show_bash_c": false,
-        "only_when_fresh": false
-      },
-      "success_when_found": "Python 3.",
-      "success_when_not_found": null
-    }
+    "type": "check_success",
+    "command": {
+      "bash_c": "/usr/bin/python -V",
+      "ignore_fails": true,
+      "show_success_output": false,
+      "show_bash_c": false,
+      "only_when_fresh": false
+    },
+    "success_when_found": "Python 3."
   },
   {
     // если данный удалённый хост существует в Реестре, доступен, и его версия Деплойера идентична версии запущенного Деплойера,
     // требование будет считаться удовлетворённым
-    "RemoteAccessibleAndReady": "short-name"
+    "type": "remote_accessible_and_ready",
+    "remote_host_name": "short-name"
   }
 ]
 ```
 
 Существует 3 категории основных Действий и 9 дополнительных видов Действий:
 
-1. Действия сборки (`PreBuild`, `Build`, `PostBuild` и `Test`)
-2. Действия установки (`Pack`, `Deliver`, `Install`)
-3. Действия развёртывания (`ConfigureDeploy`, `Deploy`, `PostDeploy`)
-4. Действие наблюдения `Observe`
-5. Действие прерывания `Interrupt`
-6. Действие с кастомной командой `Custom`
-7. Действие проверки вывода кастомной команды `Check`
-8. Действия добавления контента в хранилище Деплойера `AddToStorage` и использования этого контента `UseFromStorage`
-9. Действие применения патча `Patch`
-10. Действия синхронизации папок сборки - с текущего хоста на удалённый `SyncToRemote` и наоборот `SyncFromRemote`
+1. Действия сборки (`pre_build`, `build`, `post_build` и `test`)
+2. Действия установки (`pack`, `deliver`, `install`)
+3. Действия развёртывания (`configure_deploy`, `deploy`, `post_deploy`)
+4. Действие наблюдения `observe`
+5. Действие прерывания `interrupt`
+6. Действие с кастомной командой `custom`
+7. Действие проверки вывода кастомной команды `check`
+8. Действия добавления контента в хранилище Деплойера `add_to_storage` и использования этого контента `use_from_storage`
+9. Действие применения патча `patch`
+10. Действия синхронизации папок сборки - с текущего хоста на удалённый `sync_to_remote` и наоборот `sync_from_remote`
 
-Основополагающим является концепт кастомной команды - команды для оболочки терминала. Действия `Custom`, `Observe` и три основные категории Действий содержат внутри одну или больше кастомных команд.
+Основополагающим является концепт кастомной команды - команды для оболочки терминала. Действия `custom`, `observe` и три основные категории Действий содержат внутри одну или больше кастомных команд.
 
 #### 1.1. Кастомная команда
 
@@ -148,18 +151,21 @@
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -177,30 +183,36 @@
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ],
-    [
-      [
-        "<artifact>",
+    },
+    {
+      "group": [
         {
-          "title": "target/release/another",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/another"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/another",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/another"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -211,7 +223,7 @@
 
 В указанном примере используется только один плейсхолдер `<artifact>`, но их может быть несколько, в т.ч. - различные опции для выполнения команды.
 
-Соответственно, если вы хотите просто выполнять команды, которые нельзя отнести к одному из трёх основных видов Действий, следует использовать Действие типа `Custom`:
+Соответственно, если вы хотите просто выполнять команды, которые нельзя отнести к одному из трёх основных видов Действий, следует использовать Действие типа `custom`:
 
 ```json
 {
@@ -220,18 +232,17 @@
   "info": "ls@0.1.0",
   "tags": [],
   "action": {
-    "Custom": {
-      "bash_c": "ls",
-      "ignore_fails": false,
-      "show_success_output": true,
-      "show_bash_c": true,
-      "only_when_fresh": false
-    }
+    "type": "custom",
+    "bash_c": "ls",
+    "ignore_fails": false,
+    "show_success_output": true,
+    "show_bash_c": true,
+    "only_when_fresh": false
   }
 }
 ```
 
-#### 1.2. Действия сборки - `PreBuild`, `Build`, `PostBuild` и `Test`
+#### 1.2. Действия сборки - `pre_build`, `build` и `post_build`
 
 Для Действий сборки является специфичной специализация на языках программирования: в зависимости от того, соответствует ли набор языков, используемых в проекте, тому набору, который указан в действиях по сборке, Деплойер будет предупреждать вас об использовании несовместимых с проектом Действий.
 
@@ -242,34 +253,26 @@
 
 ```json
 {
-  "PostBuild": {
-    "supported_langs": [
-      "Rust",
-      "Go",
-      "C",
-      "Cpp",
-      "Python",
-      {
-        "Other": "any"
-      }
-    ],
-    "commands": [
-      {
-        "bash_c": "upx <artifact>",
-        "placeholders": [
-          "<artifact>"
-        ],
-        "ignore_fails": false,
-        "show_success_output": false,
-        "show_bash_c": false,
-        "only_when_fresh": false
-      }
-    ]
-  }
+  "type": "post_build",
+  "supported_langs": [
+    "any"
+  ],
+  "commands": [
+    {
+      "bash_c": "upx <artifact>",
+      "placeholders": [
+        "<artifact>"
+      ],
+      "ignore_fails": false,
+      "show_success_output": false,
+      "show_bash_c": false,
+      "only_when_fresh": false
+    }
+  ]
 }
 ```
 
-#### 1.3. Действия установки - `Pack`, `Deliver` и `Install`
+#### 1.3. Действия установки - `pack`, `deliver` и `install`
 
 Для этой группы Действий ключевым фактором специализации является целевой объект установки - *таргет* (*цель*). Если характеристики таргета проекта - аппаратная или программная платформа - не соответствуют характеристикам Действия установки, будет выдано предупреждение.
 
@@ -284,38 +287,39 @@
     "upx"
   ],
   "action": {
-    "Pack": {
-      "target": {
-        "arch": "x86_64",
-        "os": "Linux",
-        "derivative": "any",
-        "version": "No"
-      },
-      "commands": [
-        {
-          "bash_c": "upx <af>",
-          "placeholders": [
-            "<af>"
-          ],
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": false,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "pack",
+    "target": {
+      "arch": "x86_64",
+      "os": "Linux",
+      "os_derivative": "any",
+      "os_version": {
+        "type": "no"
+      }
+    },
+    "commands": [
+      {
+        "bash_c": "upx <af>",
+        "placeholders": [
+          "<af>"
+        ],
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": false,
+        "only_when_fresh": false
+      }
+    ]
   }
 }
 ```
 
 - `arch` - это строковое обозначение архитектуры аппаратного обеспечения таргета
 - `os` - это один из вариантов (`android`|`ios`|`linux`|`unix-{unix-name}`|`windows`|`macos`) или любое другое строковое обозначение операционнной системы
-- `derivative` - это дополнительное описание операционной системы или программной платформы
-- `version` - это версия операционной системы или программной платформы
+- `os_derivative` - это дополнительное описание операционной системы или программной платформы
+- `os_version` - это версия операционной системы или программной платформы
 
-Если `derivative` отсутствует, рекомендуется писать `any`.
+Если `os_derivative` отсутствует, рекомендуется писать `any`.
 
-#### 1.4. Действия развёртывания - `ConfigureDeploy`, `Deploy`, `PostDeploy`
+#### 1.4. Действия развёртывания - `configure_deploy`, `deploy`, `post_deploy`
 
 Для этой группы Действий ключевым фактором специализации является тулкит для развёртывания - Docker, Docker Compose, Podman, k8s или иной инструментарий контейнеризации или виртуализации. Если в проекте будет указан не тот тулкит, Деплойер выдаст предупреждение.
 
@@ -331,27 +335,26 @@
     "compose"
   ],
   "action": {
-    "ConfigureDeploy": {
-      "deploy_toolkit": "docker-compose",
-      "tags": [
-        "docker",
-        "compose"
-      ],
-      "commands": [
-        {
-          "bash_c": "docker compose build",
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": true,
-          "only_when_fresh": false
-        }
-      ]
-    }
+    "type": "configure_deploy",
+    "deploy_toolkit": "docker-compose",
+    "tags": [
+      "docker",
+      "compose"
+    ],
+    "commands": [
+      {
+        "bash_c": "docker compose build",
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": true,
+        "only_when_fresh": false
+      }
+    ]
   }
 }
 ```
 
-#### 1.5. Действия добавления контента `AddToStorage`, использования контента `UseFromStorage` и применения патча `Patch`
+#### 1.5. Действия добавления контента `add_to_storage`, использования контента `use_from_storage` и применения патча `patch`
 
 Часто проекты могут быть достаточно шаблонными, чтобы одни и те же файлы копировались между проектами, но не изменялись и требовались только при сборке или развёртывании. Такие файлы могут быть расположены в специальной папке с сохранением относительных путей и добавлены в хранилище Деплойера:
 
@@ -359,7 +362,7 @@
 deployer new content
 ```
 
-Тогда для проектов, которые должны использовать эти файлы, можно добавить в Пайплайн сборки новое Действие - `UseFromStorage`:
+Тогда для проектов, которые должны использовать эти файлы, можно добавить в Пайплайн сборки новое Действие - `use_from_storage`:
 
 ```json
 {
@@ -368,14 +371,15 @@ deployer new content
   "info": "content-sync@0.1.0",
   "tags": [],
   "action": {
-    "UseFromStorage": "test-dockerfile-content@0.1.0"
+    "type": "use_from_storage",
+    "content_info": "test-dockerfile-content@0.1.0"
   }
 }
 ```
 
 В итоге при выполнении Пайплайна в папку сборки будет добавляться нужный вам контент.
 
-Раз за разом вы начнёте замечать, что некоторые проекты переиспользуются в других проектах как зависимости, и их необходимо где-то публиковать. Для этого как нельзя лучше подходят репозитории пакетов, но если вы не хотите публиковать свой проект, то можете добавлять его в хранилище Деплойера в качестве контента. Более того, добавлять его можно автоматически - при помощи Действия `AddToStorage`:
+Раз за разом вы начнёте замечать, что некоторые проекты переиспользуются в других проектах как зависимости, и их необходимо где-то публиковать. Для этого как нельзя лучше подходят репозитории пакетов, но если вы не хотите публиковать свой проект, то можете добавлять его в хранилище Деплойера в качестве контента. Более того, добавлять его можно автоматически - при помощи Действия `add_to_storage`:
 
 ```json
 {
@@ -384,11 +388,10 @@ deployer new content
   "info": "content-add@0.1.0",
   "tags": [],
   "action": {
-    "AddToStorage": {
-      "short_name": "my-project",
-      "auto_version_rule": {
-        "plain_file": "file-with-current-version.txt"
-      }
+    "type": "add_to_storage",
+    "short_name": "my-project",
+    "auto_version_rule": {
+      "plain_file": "file-with-current-version.txt"
     }
   }
 }
@@ -439,9 +442,8 @@ deployer new content
   "info": "my-patch@0.1.0",
   "tags": [],
   "action": {
-    "Patch": {
-      "patch": "my_path.json"
-    }
+    "type": "patch",
+    "patch": "my_path.json"
   }
 }
 ```
@@ -450,9 +452,9 @@ deployer new content
 
 При применении патча Деплойер выводит количество его применений в проекте. Если патч не был применён ни разу в процессе выполнения Пайплайна, *Деплойер выдаст ошибку*.
 
-#### 1.6. Действия синхронизации папок сборки - с текущего хоста на удалённый `SyncToRemote` и наоборот `SyncFromRemote`
+#### 1.6. Действия синхронизации папок сборки - с текущего хоста на удалённый `sync_to_remote` и наоборот `sync_from_remote`
 
-Иногда нужно синхронизировать файлы сборки между удалёнными хостами и текущим хостом. Например, когда часть действий нужно обязательно выполнить на одном хосте, а часть - на другом. Для этого можно использовать встроенные Действия `SyncToRemote` и `SyncFromRemote`:
+Иногда нужно синхронизировать файлы сборки между удалёнными хостами и текущим хостом. Например, когда часть действий нужно обязательно выполнить на одном хосте, а часть - на другом. Для этого можно использовать встроенные Действия `sync_to_remote` и `sync_from_remote`:
 
 ```json
 {
@@ -461,37 +463,37 @@ deployer new content
   "info": "send-to-remote@0.1.0",
   "tags": [],
   "action": {
-    "SyncToRemote": "remote-pc"
+    "type": "sync_to_remote",
+    "remote_host_name": "remote-pc"
   }
 }
 ```
 
-#### 1.7. Другие действия - `Interrupt`, `Observe` и `Check`
+#### 1.7. Другие действия - `Interrupt`, `Observe` и `Test`
 
 > NOTE: Нет нужного примера конфигурации? Создайте действие самостоятельно при помощи команды `deployer new action` и выведите его на экран при помощи `deployer cat action my-action@x.y.z`.
 
-`Interrupt` используется для ручного прерывания сборки/развёртывания проекта. Когда Деплойер доходит до этого действия, он ожидает пользовательского ввода, чтобы продолжить, когда вы выполните необходимые действия вручную.
+`interrupt` используется для ручного прерывания сборки/развёртывания проекта. Когда Деплойер доходит до этого действия, он ожидает пользовательского ввода, чтобы продолжить, когда вы выполните необходимые действия вручную.
 
-`Observe` - Действие, которое практически идентично `Custom`. Оно используется, например, чтобы запустить Prometheus, Jaeger или что угодно ещё. Отличительной особенностью является то, что оно запускается без перенаправления ввода-вывода, т.е. в нём можно взаимодействовать с программами.
+`observe` - Действие, которое практически идентично `custom`. Оно используется, например, чтобы запустить Prometheus, Jaeger или что угодно ещё. Отличительной особенностью является то, что оно запускается без перенаправления ввода-вывода, т.е. в нём можно взаимодействовать с программами.
 
-А вот `Check` - особенное действие, позволяющее проверять, что вывела команда в `stdout`/`stderr`:
+А вот `test` - особенное действие, позволяющее проверять, что вывела команда в `stdout`/`stderr`:
 
 ```json
 {
-  "Check": {
-    "command": {
-      "bash_c": "<af>",
-      "placeholders": [
-        "<af>"
-      ],
-      "ignore_fails": true,
-      "show_success_output": false,
-      "show_bash_c": false,
-      "only_when_fresh": false
-    },
-    "success_when_found": "some rust regex",
-    "success_when_not_found": null
-  }
+  "type": "test",
+  "command": {
+    "bash_c": "<af>",
+    "placeholders": [
+      "<af>"
+    ],
+    "ignore_fails": true,
+    "show_success_output": false,
+    "show_bash_c": false,
+    "only_when_fresh": false
+  },
+  "success_when_found": "some rust regex",
+  "success_when_not_found": null
 }
 ```
 
@@ -527,20 +529,18 @@ deployer new content
         "clippy"
       ],
       "action": {
-        "PreBuild": {
-          "supported_langs": [
-            "Rust"
-          ],
-          "commands": [
-            {
-              "bash_c": "cargo clippy",
-              "ignore_fails": false,
-              "show_success_output": true,
-              "show_bash_c": true,
-              "only_when_fresh": null
-            }
-          ]
-        }
+        "type": "pre_build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo clippy",
+            "ignore_fails": false,
+            "show_success_output": true,
+            "show_bash_c": true
+          }
+        ]
       }
     },
     {
@@ -552,20 +552,18 @@ deployer new content
         "cargo"
       ],
       "action": {
-        "Build": {
-          "supported_langs": [
-            "Rust"
-          ],
-          "commands": [
-            {
-              "bash_c": "cargo build --release",
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": true,
-              "only_when_fresh": null
-            }
-          ]
-        }
+        "type": "build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo build --release",
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": true
+          }
+        ]
       }
     },
     {
@@ -576,44 +574,38 @@ deployer new content
         "upx"
       ],
       "action": {
-        "PostBuild": {
-          "supported_langs": [
-            "Rust",
-            "Go",
-            "C",
-            "Cpp",
-            "Python",
-            {
-              "Other": "any"
-            }
-          ],
-          "commands": [
-            {
-              "bash_c": "upx <artifact>",
-              "placeholders": [
-                "<artifact>"
-              ],
-              "replacements": [
-                [
-                  [
-                    "<artifact>",
-                    {
+        "type": "post_build",
+        "supported_langs": [
+          "any"
+        ],
+        "commands": [
+          {
+            "bash_c": "upx <artifact>",
+            "placeholders": [
+              "<artifact>"
+            ],
+            "replacements": [
+              {
+                "group": [
+                  {
+                    "from": "<artifact>",
+                    "to": {
                       "title": "target/release/deployer",
                       "is_secret": false,
                       "value": {
-                        "Plain": "target/release/deployer"
+                        "type": "plain",
+                        "value": "target/release/deployer"
                       }
                     }
-                  ]
+                  }
                 ]
-              ],
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": false,
-              "only_when_fresh": null
-            }
-          ]
-        }
+              }
+            ],
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": false
+          }
+        ]
       }
     },
     {
@@ -624,40 +616,43 @@ deployer new content
         "cargo"
       ],
       "action": {
-        "Install": {
-          "target": {
-            "arch": "x86_64",
-            "os": "Linux",
-            "derivative": "any",
-            "version": "No"
-          },
-          "commands": [
-            {
-              "bash_c": "cp -f <artifact> ~/.cargo/bin",
-              "placeholders": [
-                "<artifact>"
-              ],
-              "replacements": [
-                [
-                  [
-                    "<artifact>",
-                    {
+        "type": "install",
+        "target": {
+          "arch": "x86_64",
+          "os": "Linux",
+          "os_derivative": "any",
+          "os_version": {
+            "type": "no"
+          }
+        },
+        "commands": [
+          {
+            "bash_c": "cp -f <artifact> ~/.cargo/bin",
+            "placeholders": [
+              "<artifact>"
+            ],
+            "replacements": [
+              {
+                "group": [
+                  {
+                    "from": "<artifact>",
+                    "to": {
                       "title": "target/release/deployer",
                       "is_secret": false,
                       "value": {
-                        "Plain": "target/release/deployer"
+                        "type": "plain",
+                        "value": "target/release/deployer"
                       }
                     }
-                  ]
+                  }
                 ]
-              ],
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": false,
-              "only_when_fresh": null
-            }
-          ]
-        }
+              }
+            ],
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": false
+          }
+        ]
       }
     }
   ],
@@ -678,7 +673,8 @@ deployer new content
   "title": "deployer artifact location",
   "is_secret": false,
   "value": {
-    "Plain": "target/release/deployer"
+    "type": "plain",
+    "value": "target/release/deployer"
   }
 }
 ```
@@ -701,10 +697,9 @@ deployer new content
   "title": "Grafana token",
   "is_secret": true,
   "value": {
-    "FromEnvFile": {
-      "env_file_path": ".env",
-      "key": "GRAFANA_TOKEN"
-    }
+    "type": "from_env_file",
+    "env_file_path": ".env",
+    "key": "GRAFANA_TOKEN"
   }
 }
 ```
@@ -714,7 +709,8 @@ deployer new content
   "title": "Simple env var",
   "is_secret": false,
   "value": {
-    "FromEnvVar": "variable-key"
+    "type": "from_env_var",
+    "var_name": "variable-key"
   }
 }
 ```
@@ -724,10 +720,9 @@ deployer new content
   "title": "Secret!",
   "is_secret": true,
   "value": {
-    "FromHCVaultKv2": {
-      "mount_path": "The mount path where your KV2 secrets engine is mounted",
-      "secret_path": "Path to your secret"
-    }
+    "type": "from_hc_vault_kv2",
+    "mount_path": "The mount path where your KV2 secrets engine is mounted",
+    "secret_path": "Path to your secret"
   }
 }
 ```
@@ -759,10 +754,10 @@ deployer new remote                            # добавить в Реест�
 deployer init                                  # инициализировать проект, указать все свойства
 deployer with                                  # проверить совместимость и назначить Пайплайн для проекта,
                                                # а также указать необходимые переменные и артефакты вместо плейсхолдеров
-deployer build                                 # запустить Пайплайн, назначенный по умолчанию
-deployer build my-pipe                         # запустить Пайплайн по короткому имени
-deployer build configure,build -o build-folder # запустить Пайплайны `configure` и `build` в папке `build-folder`
-deployer build -R my-remote my-pipe            # запустить Пайплайн `my-pipe` на удалённом хосте `my-remote`
+deployer run                                   # запустить Пайплайн, назначенный по умолчанию
+deployer run my-pipe                           # запустить Пайплайн по короткому имени
+deployer run configure,build -o build-folder   # запустить Пайплайны `configure` и `build` в папке `build-folder`
+deployer run -R my-remote my-pipe              # запустить Пайплайн `my-pipe` на удалённом хосте `my-remote`
 ```
 
 ### Интерфейс консоли (TUI)

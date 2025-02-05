@@ -5,11 +5,11 @@ use colored::Colorize;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::actions::check::CheckAction;
 use crate::actions::patch::PatchAction;
 use crate::actions::storage_add::AddToStorageAction;
+use crate::actions::test::TestAction;
 use crate::actions::{Action, DescribedAction};
-use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 use crate::entities::auto_version::AutoVersionExtractFromRule;
 use crate::entities::custom_command::CustomCommand;
 use crate::entities::info::ShortName;
@@ -20,13 +20,13 @@ use crate::entities::requirements::Requirement;
 use crate::entities::targets::{OsVariant, OsVersionSpecification, TargetDescription};
 use crate::entities::traits::{Edit, EditExtended};
 use crate::entities::variables::{VarValue, Variable};
-use crate::hmap;
 use crate::i18n;
 use crate::pipelines::DescribedPipeline;
 use crate::tui::add::{
   collect_af_inplacement, collect_artifact, collect_path, specify_bash_c, specify_programming_languages, specify_regex,
 };
 use crate::utils::tags_custom_type;
+use crate::{hmap, hset};
 
 impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
   fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
@@ -260,10 +260,10 @@ impl DescribedAction {
       Action::Custom(_) | Action::Observe(_) => {
         actions.push(i18n::EDIT_COMMAND);
       }
-      Action::Check(_) => {
+      Action::Test(_) => {
         actions.extend_from_slice(&[i18n::EDIT_COMMAND, i18n::CHECK_EDIT_REGEXES]);
       }
-      Action::PreBuild(_) | Action::Build(_) | Action::PostBuild(_) | Action::Test(_) => {
+      Action::PreBuild(_) | Action::Build(_) | Action::PostBuild(_) => {
         actions.extend_from_slice(&[i18n::EDIT_COMMANDS, i18n::EDIT_PLS]);
       }
       Action::Pack(_) | Action::Deliver(_) | Action::Install(_) => {
@@ -278,10 +278,13 @@ impl DescribedAction {
       Action::AddToStorage(_) => {
         actions.push(i18n::EDIT_ATS);
       }
-      Action::SyncToRemote(_) | Action::SyncFromRemote(_) => {
+      Action::SyncToRemote { .. } | Action::SyncFromRemote { .. } => {
         actions.push(i18n::EDIT_REMOTE_SHORT_NAME);
       }
-      Action::Interrupt | Action::UseFromStorage(_) => {}
+      Action::SubPipeline(_) => {
+        actions.push(i18n::EDIT_PIPELINE);
+      }
+      Action::Interrupt | Action::UseFromStorage { .. } => {}
     }
     actions.extend_from_slice(&[
       i18n::EDIT_TITLE,
@@ -321,7 +324,7 @@ impl DescribedAction {
             cmd.edit_from_prompt()?;
           } else if let Action::Observe(o_command) = &mut self.action {
             o_command.command.edit_from_prompt()?;
-          } else if let Action::Check(c_command) = &mut self.action {
+          } else if let Action::Test(c_command) = &mut self.action {
             c_command.command.edit_from_prompt()?;
           }
         }
@@ -330,23 +333,22 @@ impl DescribedAction {
           Action::PreBuild(a) => a.commands.edit_from_prompt()?,
           Action::Build(a) => a.commands.edit_from_prompt()?,
           Action::PostBuild(a) => a.commands.edit_from_prompt()?,
-          Action::Test(a) => a.commands.edit_from_prompt()?,
           Action::Pack(a) => a.commands.edit_from_prompt()?,
           Action::Deliver(a) => a.commands.edit_from_prompt()?,
           Action::Install(a) => a.commands.edit_from_prompt()?,
           Action::ConfigureDeploy(a) => a.commands.edit_from_prompt()?,
           Action::Deploy(a) => a.commands.edit_from_prompt()?,
           Action::PostDeploy(a) => a.commands.edit_from_prompt()?,
-          Action::Check(a) => a.edit_from_prompt()?,
+          Action::Test(a) => a.edit_from_prompt()?,
           Action::Observe(a) => a.command.edit_from_prompt()?,
           Action::Custom(a) => a.edit_from_prompt()?,
           _ => {}
         },
-        i18n::CHECK_EDIT_REGEXES if let Action::Check(c_action) = &mut self.action => {
+        i18n::CHECK_EDIT_REGEXES if let Action::Test(c_action) = &mut self.action => {
           c_action.change_regexes_from_prompt()?
         }
         i18n::EDIT_PLS => match &mut self.action {
-          Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => {
+          Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => {
             a.supported_langs = specify_programming_languages()?;
           }
           _ => {}
@@ -369,17 +371,17 @@ impl DescribedAction {
         }
         i18n::EDIT_REQS => self.requirements.edit_from_prompt()?,
         i18n::EDIT_REMOTE_SHORT_NAME => match &mut self.action {
-          Action::SyncToRemote(a) => {
-            *a = ShortName::new(
+          Action::SyncToRemote { remote_host_name } => {
+            *remote_host_name = ShortName::new(
               inquire::Text::new(i18n::REMOTE_SHORT_NAME)
-                .with_initial_value(a.as_str())
+                .with_initial_value(remote_host_name.as_str())
                 .prompt()?,
             )?
           }
-          Action::SyncFromRemote(a) => {
-            *a = ShortName::new(
+          Action::SyncFromRemote { remote_host_name } => {
+            *remote_host_name = ShortName::new(
               inquire::Text::new(i18n::REMOTE_SHORT_NAME)
-                .with_initial_value(a.as_str())
+                .with_initial_value(remote_host_name.as_str())
                 .prompt()?,
             )?
           }
@@ -395,6 +397,9 @@ impl DescribedAction {
           } else {
             None
           };
+        }
+        i18n::EDIT_PIPELINE if let Action::SubPipeline(pipeline) = &mut self.action => {
+          pipeline.edit_pipeline_from_prompt(&mut Default::default())?;
         }
         _ => {}
       }
@@ -590,22 +595,22 @@ impl EditExtended<DeployerGlobalConfig> for Vec<DescribedPipeline> {
 impl Requirement {
   pub fn edit_requirement_from_prompt(&mut self) -> anyhow::Result<()> {
     match self {
-      Self::Exists(path) => {
+      Self::Exists { path } => {
         *path = PathBuf::from(
           inquire::Text::new(i18n::ABSOLUTE_PATH)
             .with_initial_value(path.to_str().unwrap())
             .prompt()?,
         )
       }
-      Self::ExistsAny(paths) => {
+      Self::ExistsAny { paths } => {
         let mut path_type = PathType::Absolute;
         paths.edit_from_prompt(&mut path_type)?;
       }
-      Self::CheckSuccess(check_action) => check_action.edit_from_prompt()?,
-      Self::RemoteAccessibleAndReady(remote) => {
-        *remote = ShortName::new(
+      Self::CheckSuccess { action } => action.edit_from_prompt()?,
+      Self::RemoteAccessibleAndReady { remote_host_name } => {
+        *remote_host_name = ShortName::new(
           inquire::Text::new(i18n::REMOTE_SHORT_NAME)
-            .with_initial_value(remote.as_str())
+            .with_initial_value(remote_host_name.as_str())
             .prompt()?,
         )?
       }
@@ -814,7 +819,7 @@ impl Edit for HashSet<PathBuf> {
 
     let selected = inquire::Select::new(i18n::VALUE_TO_REMOVE, cs.clone()).prompt()?;
 
-    let mut commands = HashSet::new();
+    let mut commands = hset!();
     for key in cs {
       if key.as_str().eq(selected.as_str()) {
         continue;
@@ -827,7 +832,7 @@ impl Edit for HashSet<PathBuf> {
   }
 }
 
-impl EditExtended<Vec<PathBuf>> for Vec<(PathBuf, PathBuf)> {
+impl EditExtended<Vec<PathBuf>> for Vec<Placement> {
   fn edit_from_prompt(&mut self, opts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     loop {
       let mut cmap = hmap!();
@@ -837,8 +842,8 @@ impl EditExtended<Vec<PathBuf>> for Vec<(PathBuf, PathBuf)> {
         let s = format!(
           "{} `{}` -> `{}`",
           i18n::INPLACEMENT,
-          c.0.to_string_lossy(),
-          c.1.to_string_lossy()
+          c.from.to_string_lossy(),
+          c.to.to_string_lossy()
         );
 
         cmap.insert(s.clone(), c);
@@ -881,8 +886,8 @@ impl EditExtended<Vec<PathBuf>> for Vec<(PathBuf, PathBuf)> {
       let s = format!(
         "{} `{}` -> `{}`",
         i18n::INPLACEMENT,
-        c.0.to_string_lossy(),
-        c.1.to_string_lossy()
+        c.from.to_string_lossy(),
+        c.to.to_string_lossy()
       );
 
       cmap.insert(s.clone(), c);
@@ -989,14 +994,14 @@ impl Variable {
             .prompt()?
         }
         i18n::EDIT_VALUE => match &mut self.value {
-          VarValue::Plain(plain) => {
-            *plain = inquire::Text::new(i18n::VAR_PLAIN_CONTENT)
-              .with_initial_value(plain)
+          VarValue::Plain { value } => {
+            *value = inquire::Text::new(i18n::VAR_PLAIN_CONTENT)
+              .with_initial_value(value)
               .prompt()?
           }
           VarValue::FromEnvFile(_) => self.value = Variable::new_env_file_from_prompt()?,
-          VarValue::FromHCVaultKv2(_) => self.value = Variable::new_kv2_from_prompt()?,
-          VarValue::FromEnvVar(_) => self.value = Variable::new_env_from_prompt()?,
+          VarValue::FromHcVaultKv2(_) => self.value = Variable::new_kv2_from_prompt()?,
+          VarValue::FromEnvVar { .. } => self.value = Variable::new_env_from_prompt()?,
         },
         _ => {}
       }
@@ -1088,25 +1093,17 @@ impl TargetDescription {
       match action {
         i18n::EDIT_ARCH => self.arch = Text::new(i18n::TARGET_ARCH).prompt()?,
         i18n::EDIT_OS => {
-          let os = Select::new(i18n::TARGET_OS_SELECT, vec![
-            "Android",
-            "iOS",
-            "Linux",
-            "Unix-like",
-            "Windows",
-            "macOS",
-            "Other",
-          ])
+          let os = Select::new(
+            i18n::TARGET_OS_SELECT,
+            vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"],
+          )
           .prompt()?;
 
           self.os = match os {
             "Android" => OsVariant::Android,
             "iOS" => OsVariant::iOS,
             "Linux" => OsVariant::Linux,
-            "Unix-like" => {
-              let name = Text::new(i18n::TARGET_OS_UNIX_LIKE).prompt()?;
-              OsVariant::UnixLike(name)
-            }
+            "Unix-like" => OsVariant::UnixLike,
             "Windows" => OsVariant::Windows,
             "macOS" => OsVariant::macOS,
             "Other" => {
@@ -1116,24 +1113,23 @@ impl TargetDescription {
             _ => unreachable!(),
           };
 
-          self.derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
+          self.os_derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
 
-          let version_type = Select::new(i18n::TARGET_OS_VER_S, vec![
-            i18n::TARGET_OS_VER_NS,
-            i18n::TARGET_OS_VER_WS,
-            i18n::TARGET_OS_VER_SS,
-          ])
+          let version_type = Select::new(
+            i18n::TARGET_OS_VER_S,
+            vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS],
+          )
           .prompt()?;
 
-          self.version = match version_type {
+          self.os_version = match version_type {
             i18n::TARGET_OS_VER_NS => OsVersionSpecification::No,
             i18n::TARGET_OS_VER_WS => {
               let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
-              OsVersionSpecification::Weak(ver)
+              OsVersionSpecification::Weak { version: ver }
             }
             i18n::TARGET_OS_VER_SS => {
               let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
-              OsVersionSpecification::Strong(ver)
+              OsVersionSpecification::Strong { version: ver }
             }
             _ => unreachable!(),
           };
@@ -1372,7 +1368,7 @@ impl Edit for Vec<ProgrammingLanguage> {
   }
 }
 
-impl CheckAction {
+impl TestAction {
   pub fn change_regexes_from_prompt(&mut self) -> anyhow::Result<()> {
     println!("{}", i18n::CHECK_CURR_REGEX);
     println!("`success_when_found` = {:?}", self.success_when_found);
@@ -1404,12 +1400,12 @@ impl CheckAction {
   }
 }
 
-impl Edit for CheckAction {
+impl Edit for TestAction {
   fn edit_from_prompt(&mut self) -> anyhow::Result<()> {
-    while let Some(selected) = inquire::Select::new(i18n::CHECK_SPECIFY_WHAT, vec![
-      i18n::CHECK_EDIT_CMD,
-      i18n::CHECK_EDIT_REGEXES,
-    ])
+    while let Some(selected) = inquire::Select::new(
+      i18n::CHECK_SPECIFY_WHAT,
+      vec![i18n::CHECK_EDIT_CMD, i18n::CHECK_EDIT_REGEXES],
+    )
     .prompt_skippable()?
     {
       match selected {
@@ -1455,10 +1451,10 @@ impl Edit for AddToStorageAction {
     .with_default(false)
     .prompt()?
     {
-      let new_autover_rule = inquire::Select::new(i18n::SPECIFY_AUTO_VER, vec![
-        i18n::AUTO_VER_CMD_STDOUT,
-        i18n::AUTO_VER_PLAIN_FILE,
-      ])
+      let new_autover_rule = inquire::Select::new(
+        i18n::SPECIFY_AUTO_VER,
+        vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+      )
       .prompt()?;
       self.auto_version_rule = match new_autover_rule {
         i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({

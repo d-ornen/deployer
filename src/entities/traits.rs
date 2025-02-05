@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use crate::entities::environment::BuildEnvironment;
+use crate::entities::environment::RunEnvironment;
 
 /// Allows to edit given entity via TUI.
 #[cfg(feature = "tui")]
@@ -43,12 +43,19 @@ pub trait EditExtended<T> {
 
 /// Executes given entity with build environment.
 pub trait Execute {
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)>;
-  fn execute_observer(&self, #[allow(unused_variables)] env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)>;
+  fn execute_observer(&self, #[allow(unused_variables)] env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     Ok((true, vec![]))
   }
 }
 
 pub trait ConfigAutoMigrate<T> {
   fn migrate(path: &Path) -> anyhow::Result<T>;
+}
+
+pub trait Merge
+where
+  Self: Sized,
+{
+  fn merge(&self, other: Self) -> anyhow::Result<Self>;
 }

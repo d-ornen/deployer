@@ -7,11 +7,11 @@ use safe_path::scoped_join;
 use std::path::PathBuf;
 
 use crate::actions::{
-  Action, DescribedAction, buildlike::*, check::CheckAction, deploylike::*, new_action, observe::ObserveAction,
-  packlike::*, patch::PatchAction, storage_add::AddToStorageAction,
+  Action, DescribedAction, buildlike::*, deploylike::*, new_action, observe::ObserveAction, packlike::*,
+  patch::PatchAction, storage_add::AddToStorageAction, test::TestAction,
 };
-use crate::cmd::NewActionArgs;
-use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
+use crate::cmd::{NewActionArgs, NewPipelineArgs};
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 use crate::entities::{
   auto_version::AutoVersionExtractFromRule,
   custom_command::CustomCommand,
@@ -24,7 +24,7 @@ use crate::entities::{
 };
 use crate::hmap;
 use crate::i18n;
-use crate::pipelines::DescribedPipeline;
+use crate::pipelines::{DescribedPipeline, new_pipeline};
 use crate::utils::{str2regex_simple, tags_custom_type};
 
 impl DeployerProjectOptions {
@@ -90,7 +90,6 @@ impl DescribedAction {
 
     let action_types: Vec<&str> = vec![
       "Custom",
-      "Check",
       "Use content from storage",
       "Patch",
       "Sync build folder to remote",
@@ -107,6 +106,7 @@ impl DescribedAction {
       "Post-deploy",
       "Observe",
       "Automatical push artifacts to the common storage",
+      "Another Pipeline",
     ];
 
     let selected_action_type = Select::new(i18n::ACTION_SELECT_TYPE, action_types).prompt()?;
@@ -116,8 +116,8 @@ impl DescribedAction {
         let command = CustomCommand::new_from_prompt()?;
         Action::Custom(command)
       }
-      "Check" => Action::Check(CheckAction::new_from_prompt()?),
-      action_type @ ("Pre-build" | "Build" | "Post-build" | "Test") => {
+      "Test" => Action::Test(TestAction::new_from_prompt()?),
+      action_type @ ("Pre-build" | "Build" | "Post-build") => {
         let supported_langs = specify_programming_languages()?;
         let commands = collect_multiple_commands()?;
 
@@ -130,7 +130,6 @@ impl DescribedAction {
           "Pre-build" => Action::PreBuild(action),
           "Build" => Action::Build(action),
           "Post-build" => Action::PostBuild(action),
-          "Test" => Action::Test(action),
           _ => unreachable!(),
         }
       }
@@ -176,7 +175,7 @@ impl DescribedAction {
 
         let info = ContentInfo::new_for_using(short_name, version)?;
 
-        Action::UseFromStorage(info)
+        Action::UseFromStorage { content_info: info }
       }
       "Automatical push artifacts to the common storage" => {
         let short_name = Text::new(i18n::CONTENT_INFO).prompt()?;
@@ -187,12 +186,13 @@ impl DescribedAction {
           auto_version_rule,
         })
       }
-      "Sync build folder to remote" => {
-        Action::SyncToRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?)
-      }
-      "Sync build artifacts from remote" => {
-        Action::SyncFromRemote(ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?)
-      }
+      "Sync build folder to remote" => Action::SyncToRemote {
+        remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
+      },
+      "Sync build artifacts from remote" => Action::SyncFromRemote {
+        remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
+      },
+      "Another Pipeline" => Action::SubPipeline(Box::new(select_pipeline(opts)?)),
       _ => unreachable!(),
     };
 
@@ -258,7 +258,7 @@ pub fn collect_requirements() -> anyhow::Result<Option<Vec<Requirement>>> {
   Ok(if reqs.is_empty() { None } else { Some(reqs) })
 }
 
-impl CheckAction {
+impl TestAction {
   pub fn new_from_prompt() -> anyhow::Result<Self> {
     let bash_c = specify_bash_c(None)?;
 
@@ -396,6 +396,7 @@ impl DescribedPipeline {
       actions: selected_actions_ordered,
       default: None,
       exclusive_exec_tag,
+      containered_opts: None,
     };
 
     Ok(described_pipeline)
@@ -451,6 +452,58 @@ pub fn select_action(globals: &mut DeployerGlobalConfig) -> anyhow::Result<Descr
     action.title = new_title;
 
     return Ok(action);
+  }
+
+  let mut action = (*actions.get(&selected_action).unwrap()).clone();
+
+  let new_title = Text::new(i18n::PIPELINE_DESCRIBE_ACTION_IN).prompt()?;
+  action.desc = format!(
+    r#"{} `{}`.{}{}"#,
+    i18n::GOT_FROM,
+    action.title,
+    if action.desc.is_empty() { "" } else { " " },
+    action.desc
+  );
+  action.title = new_title;
+
+  Ok(action)
+}
+
+pub fn select_pipeline(globals: &mut DeployerGlobalConfig) -> anyhow::Result<DescribedPipeline> {
+  use inquire::{Select, Text};
+
+  let (actions, keys) = {
+    let mut h = hmap!();
+    let mut k = vec![];
+
+    for key in globals.pipelines_registry.keys() {
+      let pipeline = globals.pipelines_registry.get(key).unwrap();
+      let new_key = format!("{} - {}", pipeline.info.to_str(), pipeline.title);
+      h.insert(new_key.clone(), pipeline);
+      k.push(new_key);
+    }
+
+    k.sort();
+    k.push(i18n::PIPELINE_SPECIFY_ANOTHER.to_string());
+
+    (h, k)
+  };
+
+  let selected_action = Select::new(i18n::SELECT_PIPELINE_TO_ADD_TO, keys).prompt()?;
+
+  if selected_action.as_str().eq(i18n::PIPELINE_SPECIFY_ANOTHER) {
+    let mut pipeline = new_pipeline(globals, &NewPipelineArgs { from: None })?;
+    let new_title = Text::new(i18n::PIPELINE_DESCRIBE_ACTION_IN).prompt()?;
+    pipeline.desc = format!(
+      r#"{} `{}`.{}{}"#,
+      i18n::GOT_FROM,
+      pipeline.title,
+      if pipeline.desc.is_empty() { "" } else { " " },
+      pipeline.desc
+    );
+    pipeline.title = new_title;
+
+    return Ok(pipeline);
   }
 
   let mut action = (*actions.get(&selected_action).unwrap()).clone();
@@ -558,7 +611,7 @@ pub fn collect_variables() -> anyhow::Result<Vec<Variable>> {
   Ok(v)
 }
 
-pub fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(PathBuf, PathBuf)> {
+pub fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<Placement> {
   use inquire::{Select, Text};
 
   let assume_root = PathBuf::from("/");
@@ -568,14 +621,14 @@ pub fn collect_af_inplacement(artifacts: &[impl AsRef<str>]) -> anyhow::Result<(
     let from = PathBuf::from(Select::new(i18n::SELECT_PROJECT_AF, artifacts.to_owned()).prompt()?);
     let to = PathBuf::from(Text::new(i18n::CHOOSE_AF_INPLACEMENT).prompt()?);
     if scoped_join(&assume_root, &to).is_ok() {
-      return Ok((from, to));
+      return Ok(Placement { from, to });
     } else {
       println!("{}", i18n::INCORRECT_AF_INPL_PATH)
     }
   }
 }
 
-pub fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<(PathBuf, PathBuf)>> {
+pub fn collect_af_inplacements(artifacts: &[PathBuf]) -> anyhow::Result<Vec<Placement>> {
   use inquire::Confirm;
 
   let artifacts = artifacts.iter().map(|v| v.to_str().unwrap()).collect::<Vec<_>>();
@@ -672,11 +725,15 @@ impl Variable {
   }
 
   pub fn new_plain_from_prompt() -> anyhow::Result<VarValue> {
-    Ok(VarValue::Plain(inquire::Text::new(i18n::VAR_PLAIN_CONTENT).prompt()?))
+    Ok(VarValue::Plain {
+      value: inquire::Text::new(i18n::VAR_PLAIN_CONTENT).prompt()?,
+    })
   }
 
   pub fn new_env_from_prompt() -> anyhow::Result<VarValue> {
-    Ok(VarValue::FromEnvVar(inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?))
+    Ok(VarValue::FromEnvVar {
+      var_name: inquire::Text::new(i18n::VAR_ENV_KEY).prompt()?,
+    })
   }
 
   pub fn new_env_file_from_prompt() -> anyhow::Result<VarValue> {
@@ -688,7 +745,7 @@ impl Variable {
 
   pub fn new_kv2_from_prompt() -> anyhow::Result<VarValue> {
     println!("{}: {}", i18n::NOTE.green().italic(), i18n::KV2_NOTE);
-    Ok(VarValue::FromHCVaultKv2(Kv2Paths {
+    Ok(VarValue::FromHcVaultKv2(Kv2Paths {
       mount_path: inquire::Text::new(i18n::VAR_MOUNT_PATH).prompt()?,
       secret_path: inquire::Text::new(i18n::VAR_SECRET_PATH).prompt()?,
     }))
@@ -714,21 +771,25 @@ impl Requirement {
   }
 
   pub fn new_exists_from_prompt() -> anyhow::Result<Self> {
-    Ok(Self::Exists(collect_path()?))
+    Ok(Self::Exists { path: collect_path()? })
   }
 
   pub fn new_exists_any_from_prompt() -> anyhow::Result<Self> {
-    Ok(Self::ExistsAny(collect_paths()?))
+    Ok(Self::ExistsAny {
+      paths: collect_paths()?,
+    })
   }
 
   pub fn new_check_from_prompt() -> anyhow::Result<Self> {
-    Ok(Self::CheckSuccess(CheckAction::new_wop_from_prompt()?))
+    Ok(Self::CheckSuccess {
+      action: TestAction::new_wop_from_prompt()?,
+    })
   }
 
   pub fn new_remote_from_prompt() -> anyhow::Result<Self> {
-    Ok(Self::RemoteAccessibleAndReady(ShortName::new(
-      inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?,
-    )?))
+    Ok(Self::RemoteAccessibleAndReady {
+      remote_host_name: ShortName::new(inquire::Text::new(i18n::REMOTE_SHORT_NAME).prompt()?)?,
+    })
   }
 }
 
@@ -738,25 +799,17 @@ impl TargetDescription {
 
     let arch = Text::new(i18n::TARGET_ARCH).prompt()?;
 
-    let os = Select::new(i18n::TARGET_OS_SELECT, vec![
-      "Android",
-      "iOS",
-      "Linux",
-      "Unix-like",
-      "Windows",
-      "macOS",
-      "Other",
-    ])
+    let os = Select::new(
+      i18n::TARGET_OS_SELECT,
+      vec!["Android", "iOS", "Linux", "Unix-like", "Windows", "macOS", "Other"],
+    )
     .prompt()?;
 
     let os_variant = match os {
       "Android" => OsVariant::Android,
       "iOS" => OsVariant::iOS,
       "Linux" => OsVariant::Linux,
-      "Unix-like" => {
-        let name = Text::new(i18n::TARGET_OS_UNIX_LIKE).prompt()?;
-        OsVariant::UnixLike(name)
-      }
+      "Unix-like" => OsVariant::UnixLike,
       "Windows" => OsVariant::Windows,
       "macOS" => OsVariant::macOS,
       "Other" => {
@@ -766,24 +819,23 @@ impl TargetDescription {
       _ => unreachable!(),
     };
 
-    let derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
+    let os_derivative = Text::new(i18n::TARGET_OS_DER).prompt()?;
 
-    let version_type = Select::new(i18n::TARGET_OS_VER_S, vec![
-      i18n::TARGET_OS_VER_NS,
-      i18n::TARGET_OS_VER_WS,
-      i18n::TARGET_OS_VER_SS,
-    ])
+    let version_type = Select::new(
+      i18n::TARGET_OS_VER_S,
+      vec![i18n::TARGET_OS_VER_NS, i18n::TARGET_OS_VER_WS, i18n::TARGET_OS_VER_SS],
+    )
     .prompt()?;
 
-    let version = match version_type {
+    let os_version = match version_type {
       i18n::TARGET_OS_VER_NS => OsVersionSpecification::No,
       i18n::TARGET_OS_VER_WS => {
         let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
-        OsVersionSpecification::Weak(ver)
+        OsVersionSpecification::Weak { version: ver }
       }
       i18n::TARGET_OS_VER_SS => {
         let ver = Text::new(i18n::TARGET_OS_VER).prompt()?;
-        OsVersionSpecification::Strong(ver)
+        OsVersionSpecification::Strong { version: ver }
       }
       _ => unreachable!(),
     };
@@ -791,18 +843,18 @@ impl TargetDescription {
     Ok(TargetDescription {
       arch,
       os: os_variant,
-      derivative,
-      version,
+      os_derivative,
+      os_version,
     })
   }
 }
 
 impl AutoVersionExtractFromRule {
   pub fn new_from_prompt() -> anyhow::Result<Self> {
-    let new_autover_rule = inquire::Select::new(i18n::SPECIFY_AUTO_VER, vec![
-      i18n::AUTO_VER_CMD_STDOUT,
-      i18n::AUTO_VER_PLAIN_FILE,
-    ])
+    let new_autover_rule = inquire::Select::new(
+      i18n::SPECIFY_AUTO_VER,
+      vec![i18n::AUTO_VER_CMD_STDOUT, i18n::AUTO_VER_PLAIN_FILE],
+    )
     .prompt()?;
     let auto_version_rule = match new_autover_rule {
       i18n::AUTO_VER_CMD_STDOUT => AutoVersionExtractFromRule::CmdStdout({

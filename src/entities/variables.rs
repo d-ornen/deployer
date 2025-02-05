@@ -35,14 +35,16 @@ impl Variable {
     Self {
       title: title.to_string(),
       is_secret: false,
-      value: VarValue::Plain(value.to_string()),
+      value: VarValue::Plain {
+        value: value.to_string(),
+      },
     }
   }
 
   /// Gets the variable's value.
   pub fn get_value(&self) -> anyhow::Result<String> {
     match &self.value {
-      VarValue::Plain(val) => Ok(val.to_owned()),
+      VarValue::Plain { value } => Ok(value.to_owned()),
       VarValue::FromEnvFile(info) => {
         let env_variables = read_file(&info.env_file_path)?;
         let val = env_variables
@@ -50,8 +52,8 @@ impl Variable {
           .ok_or(anyhow!("There is no such key in your ENV file."))?;
         Ok(val.to_owned())
       }
-      VarValue::FromEnvVar(key) => Ok(std::env::var(key)?),
-      VarValue::FromHCVaultKv2(info) => {
+      VarValue::FromEnvVar { var_name } => Ok(std::env::var(var_name)?),
+      VarValue::FromHcVaultKv2(info) => {
         let vault_addr = std::env::var(VAULT_ADDR_ENV)?;
         let vault_token = std::env::var(VAULT_ADDR_TOKEN)?;
 
@@ -72,15 +74,16 @@ impl Variable {
 
 /// Variable value type.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum VarValue {
   /// Plain (stored inside this struct).
-  Plain(String),
+  Plain { value: String },
   /// Environment file's variable (specified by env file path and var's name).
   FromEnvFile(FromEnvFile),
   /// Environment variable (specified by env var's name).
-  FromEnvVar(String),
+  FromEnvVar { var_name: String },
   /// Vault KV2 secret (specified by `mount_path` and `secret_path`).
-  FromHCVaultKv2(Kv2Paths),
+  FromHcVaultKv2(Kv2Paths),
 }
 
 /// Environment file's variable metadata.

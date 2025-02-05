@@ -1,6 +1,6 @@
-//! Build environment module.
+//! Run environment module.
 //!
-//! `BuildEnvironment` is just a struct that have all needed variables
+//! `RunEnvironment` is just a struct that have all needed variables
 //! and paths during Pipeline execution.
 
 use std::collections::{HashMap, HashSet};
@@ -9,11 +9,11 @@ use std::path::{Path, PathBuf};
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 
-/// Build environment.
+/// Run environment.
 #[derive(Clone, Copy)]
-pub struct BuildEnvironment<'a> {
-  /// Actual build folder. This is where Deployer runs all the Actions.
-  pub build_dir: &'a Path,
+pub struct RunEnvironment<'a> {
+  /// Actual run folder. This is where Deployer runs all the Actions.
+  pub run_dir: &'a Path,
   /// System-wide or local common cache folder (usually `~/.cache`).
   pub cache_dir: &'a Path,
   /// System-wide or local common configuration folder (usually `~/.config`).
@@ -28,10 +28,13 @@ pub struct BuildEnvironment<'a> {
   pub remotes: &'a HashMap<ShortName, RemoteHost>,
   /// What files you should ignore when running Pipelines remotely.
   pub ignore: &'a HashSet<PathBuf>,
-  /// New build flag. Pipeline execution will run all Actions.
+  /// New run flag. Pipeline execution will run all Actions.
   pub new_build: bool,
-  /// Silent build flag. Deployer will not print anything on the screen.
+  /// Silent run flag. Deployer will not print anything on the screen.
   pub silent_build: bool,
   /// No I/O redirection flag. Deployer will not collect any command's output.
   pub no_pipe: bool,
+  /// Is environment containered?
+  #[cfg(feature = "containered")]
+  pub containered: bool,
 }

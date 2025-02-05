@@ -33,6 +33,7 @@ pub enum DeployerExecType {
   Ls(ListType),
   /// Create new inner Deployer's object
   #[command(subcommand)]
+  #[clap(visible_alias("add"))]
   New(NewType),
   /// Print info about inner Deployer's object
   #[command(subcommand)]
@@ -48,8 +49,9 @@ pub enum DeployerExecType {
   Init(InitArgs),
   /// Add Deployer's Pipeline to the project
   With(WithPipelineArgs),
-  /// Build the project
-  Build(BuildArgs),
+  /// Run Pipelines
+  #[clap(visible_alias("r"))]
+  Run(RunArgs),
   /// Clean the project's builds
   Clean(CleanArgs),
 
@@ -184,19 +186,19 @@ pub struct CleanArgs {
 }
 
 #[derive(Args)]
-pub struct BuildArgs {
+pub struct RunArgs {
   /// {short-name} or {short-name1},{short-name2},..
   #[arg(required = false, value_delimiter(','))]
   pub pipeline_tags: Vec<String>,
 
-  /// Build in current folder
+  /// Run in current folder
   #[arg(short('j'), long)]
   pub current: bool,
-  /// Build in specified folder
+  /// Run in specified folder
   #[arg(short('o'), long)]
-  pub build_at: Option<PathBuf>,
+  pub run_at: Option<PathBuf>,
 
-  /// Fresh build
+  /// Fresh run
   #[arg(short('f'), long)]
   pub fresh: bool,
   /// With symlinking cache
@@ -206,13 +208,18 @@ pub struct BuildArgs {
   #[arg(short('C'), long)]
   pub copy_cache: bool,
 
-  /// Build as remote host (as worker)
+  /// Run as remote host (as worker node)
   #[arg(short('r'), long)]
-  pub remote_build_folder: Option<PathBuf>,
+  pub remote_folder: Option<PathBuf>,
 
-  /// Build remotely on specified hosts (as boss-node)
+  /// Run remotely on specified hosts (as controller node)
   #[arg(short('R'), long, value_delimiter(','))]
   pub remote_host_short_names: Vec<String>,
+
+  /// Run in container environment
+  #[cfg(feature = "containered")]
+  #[arg(long)]
+  pub containered: bool,
 
   /// Force disable output from Actions
   #[arg(short('s'), long)]

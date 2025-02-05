@@ -12,11 +12,16 @@ use crate::entities::info::ShortName;
 use crate::i18n;
 use crate::rw::copy_all;
 
+pub const CUSTOM_STORAGE_PATH: &str = "DEPLOYER_STORAGE_PATH";
+
 /// Lists all available content in Deployer's storage.
 #[cfg(feature = "tui")]
 pub fn list_content(storage_dir: &Path) -> anyhow::Result<()> {
-  let mut content_path = PathBuf::from(storage_dir);
-  content_path.push(STORAGE_DIR);
+  let content_path = if let Ok(custom_storage_dir) = std::env::var(CUSTOM_STORAGE_PATH) {
+    PathBuf::from(custom_storage_dir)
+  } else {
+    PathBuf::from(storage_dir).join(STORAGE_DIR)
+  };
 
   println!("{}", i18n::CONTENT_AVAILABLE);
 
@@ -79,7 +84,7 @@ pub fn new_content(storage_dir: &Path) -> anyhow::Result<()> {
   if new_path.exists() {
     std::fs::remove_dir_all(&new_path)?;
   }
-  copy_all(path, &new_path, &[""])?;
+  copy_all(&path, &path, &new_path, &[""])?;
 
   println!(
     "{}",
@@ -108,7 +113,7 @@ pub fn use_from_storage(storage_dir: &Path, build_dir: &Path, content_info: &Con
         i18n::CONTENT_CONSIDER_ADD
       )
     }
-    copy_all(&content_path, build_dir, &[""])?;
+    copy_all(&content_path, &content_path, build_dir, &[""])?;
   } else {
     let mut versions = vec![];
     for entry in std::fs::read_dir(&content_path)? {
@@ -136,7 +141,7 @@ pub fn use_from_storage(storage_dir: &Path, build_dir: &Path, content_info: &Con
         i18n::CONTENT_CONSIDER_ADD
       )
     }
-    copy_all(&content_path, build_dir, &[""])?;
+    copy_all(&content_path, &content_path, build_dir, &[""])?;
   }
 
   Ok(())
@@ -153,7 +158,7 @@ pub fn add_to_storage(storage_dir: &Path, artifacts_dir: &Path, content_info: &C
   if content_path.exists() {
     return Ok(());
   }
-  copy_all(artifacts_dir, &content_path, &[""])?;
+  copy_all(artifacts_dir, artifacts_dir, &content_path, &[""])?;
 
   Ok(())
 }

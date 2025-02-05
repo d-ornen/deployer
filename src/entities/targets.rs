@@ -23,9 +23,9 @@ pub struct TargetDescription {
   /// Usually it means some specific edition or distributive
   /// (you may leave it empty or just write `any`, if there is no).
   /// For example: `Ubuntu` (Linux distribution), `AOSP`/`MIUI` (Android distributions).
-  pub derivative: String,
+  pub os_derivative: String,
   /// OS version specification.
-  pub version: OsVersionSpecification,
+  pub os_version: OsVersionSpecification,
 }
 
 /// OS variant.
@@ -35,12 +35,13 @@ pub struct TargetDescription {
 ///
 /// Unix-like is related to `BSD` and other POSIX-compatible systems.
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[serde(rename_all = "snake_case", untagged)]
 pub enum OsVariant {
   Android,
   #[allow(non_camel_case_types)]
   iOS,
   Linux,
-  UnixLike(String),
+  UnixLike,
   Windows,
   #[allow(non_camel_case_types)]
   macOS,
@@ -54,11 +55,16 @@ pub enum OsVariant {
 ///
 /// Strong specification, on the contrary, locks on chosen OS version.
 #[derive(Deserialize, Serialize, Clone, PartialEq, Default, Debug)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum OsVersionSpecification {
   #[default]
   No,
-  Weak(String),
-  Strong(String),
+  Weak {
+    version: String,
+  },
+  Strong {
+    version: String,
+  },
 }
 
 impl std::fmt::Display for TargetDescription {
@@ -67,18 +73,18 @@ impl std::fmt::Display for TargetDescription {
       OsVariant::Android => "android",
       OsVariant::iOS => "ios",
       OsVariant::Linux => "linux",
-      OsVariant::UnixLike(nix) => &format!("unix-{}", nix),
+      OsVariant::UnixLike => "unix",
       OsVariant::Windows => "windows",
       OsVariant::macOS => "macos",
       OsVariant::Other(other) => other,
     };
 
-    let os_ver = match &self.version {
+    let os_ver = match &self.os_version {
       OsVersionSpecification::No => "any",
-      OsVersionSpecification::Weak(ver) => &format!("^{}", ver),
-      OsVersionSpecification::Strong(ver) => ver,
+      OsVersionSpecification::Weak { version } => &format!("^{}", version),
+      OsVersionSpecification::Strong { version } => version,
     };
 
-    f.write_str(&format!("{}/{}@{}@{}", self.arch, os, self.derivative, os_ver))
+    f.write_str(&format!("{}/{}@{}@{}", self.arch, os, self.os_derivative, os_ver))
   }
 }

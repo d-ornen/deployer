@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::actions::check::CheckAction;
-use crate::entities::environment::BuildEnvironment;
+use crate::actions::test::TestAction;
+use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::traits::Execute;
 use crate::i18n;
@@ -15,15 +15,16 @@ use crate::i18n;
 /// Deployer tries to satisfy Pipeline's Actions requirements before every Pipeline execution.
 /// If a single requirement fails to satisfy, Deployer exits.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum Requirement {
   /// Requirement of path existence.
-  Exists(PathBuf),
+  Exists { path: PathBuf },
   /// Requirement of at least single path of a given list existence.
-  ExistsAny(Vec<PathBuf>),
+  ExistsAny { paths: Vec<PathBuf> },
   /// Requirement that executes some Check Action to be satisfied.
-  CheckSuccess(CheckAction),
+  CheckSuccess { action: TestAction },
   /// Requirement that checks the given remote host. See `RemoteHost::check`.
-  RemoteAccessibleAndReady(ShortName),
+  RemoteAccessibleAndReady { remote_host_name: ShortName },
 }
 
 trait ResolveExists {
@@ -52,36 +53,36 @@ pub enum SatisfyErr<'a> {
 }
 
 pub trait Satisfy<'a> {
-  fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>>;
+  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>>;
 }
 
 impl<'a> Satisfy<'a> for Requirement {
   /// Tries to satisfy the given requirement.
-  fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>> {
+  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>> {
     match self {
-      Self::Exists(path) => {
+      Self::Exists { path } => {
         if path.resolve_exists() {
           Ok(())
         } else {
           Err(SatisfyErr::Exists(path))
         }
       }
-      Self::ExistsAny(paths) => {
+      Self::ExistsAny { paths } => {
         if paths.iter().any(|p| p.resolve_exists()) {
           Ok(())
         } else {
           Err(SatisfyErr::ExistsAny(paths))
         }
       }
-      Self::CheckSuccess(check_action) => {
-        let (status, out) = check_action
+      Self::CheckSuccess { action } => {
+        let (status, out) = action
           .execute(env)
           .map_err(|e| SatisfyErr::Check(vec![e.to_string()]))?;
         if status { Ok(()) } else { Err(SatisfyErr::Check(out)) }
       }
-      Self::RemoteAccessibleAndReady(remote) => {
+      Self::RemoteAccessibleAndReady { remote_host_name } => {
         let globals = crate::rw::read::<crate::configs::DeployerGlobalConfig>(&env.config_dir, crate::GLOBAL_CONF);
-        if let Some(remote) = globals.remote_hosts.get(remote) {
+        if let Some(remote) = globals.remote_hosts.get(remote_host_name) {
           remote.check().map_err(|e| SatisfyErr::Remote(e.to_string()))
         } else {
           Err(SatisfyErr::Remote(i18n::NO_SUCH_REMOTE.to_string()))
@@ -93,7 +94,7 @@ impl<'a> Satisfy<'a> for Requirement {
 
 impl<'a> Satisfy<'a> for HashSet<Requirement> {
   /// Tries to satisfy all unique requirements (because of `HashSet`).
-  fn satisfy(&'a self, env: BuildEnvironment) -> Result<(), SatisfyErr<'a>> {
+  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>> {
     for req in self.iter() {
       req.satisfy(env)?;
     }
@@ -104,16 +105,16 @@ impl<'a> Satisfy<'a> for HashSet<Requirement> {
 impl std::fmt::Display for Requirement {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Exists(path) => write!(f, "{:?}", path),
-      Self::ExistsAny(paths) => {
+      Self::Exists { path } => write!(f, "{:?}", path),
+      Self::ExistsAny { paths } => {
         if !paths.is_empty() {
           write!(f, "{:?}", paths)
         } else {
           write!(f, "[]")
         }
       }
-      Self::CheckSuccess(check_action) => write!(f, "`{}`", check_action.command.bash_c),
-      Self::RemoteAccessibleAndReady(host_info) => write!(f, "`{}`", host_info.as_str()),
+      Self::CheckSuccess { action } => write!(f, "`{}`", action.command.bash_c),
+      Self::RemoteAccessibleAndReady { remote_host_name } => write!(f, "`{}`", remote_host_name.as_str()),
     }
   }
 }

@@ -9,21 +9,21 @@ use serde::{Deserialize, Serialize};
 use std::process::exit;
 
 pub mod buildlike;
-pub mod check;
 pub mod deploylike;
 pub mod observe;
 pub mod packlike;
 pub mod patch;
 pub mod storage_add;
+pub mod test;
 
 use crate::actions::{
-  buildlike::{BuildAction, PostBuildAction, PreBuildAction, TestAction},
-  check::CheckAction,
+  buildlike::{BuildAction, PostBuildAction, PreBuildAction},
   deploylike::{ConfigureDeployAction, DeployAction, PostDeployAction},
   observe::ObserveAction,
   packlike::{DeliveryAction, InstallAction, PackAction},
   patch::PatchAction,
   storage_add::AddToStorageAction,
+  test::TestAction,
 };
 #[cfg(feature = "tui")]
 use crate::cmd::{CatActionArgs, NewActionArgs};
@@ -40,6 +40,7 @@ use crate::entities::{
 use crate::hmap;
 #[cfg(feature = "tui")]
 use crate::i18n;
+use crate::pipelines::DescribedPipeline;
 #[cfg(feature = "tui")]
 use crate::rw::read_checked;
 
@@ -78,19 +79,18 @@ pub struct DescribedAction {
 ///
 /// See [DOCS.en.md](/DOCS.en.md) and [DOCS.ru.md](/DOCS.ru.md).
 #[derive(Deserialize, Serialize, PartialEq, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum Action {
   /// Used when the user needs to perform actions independently.
   Interrupt,
 
   /// Action to synchronize build folder with remote host.
-  SyncToRemote(ShortName),
+  SyncToRemote { remote_host_name: ShortName },
   /// Action to synchronize build folder from remote host.
-  SyncFromRemote(ShortName),
+  SyncFromRemote { remote_host_name: ShortName },
 
   /// Custom Pipeline commands.
   Custom(CustomCommand),
-  /// Used to check output of custom command.
-  Check(CheckAction),
 
   /// Action to prepare project files to build.
   PreBuild(PreBuildAction),
@@ -121,14 +121,19 @@ pub enum Action {
   Observe(ObserveAction),
 
   /// Action to copy content with given info from Deployer's storage.
-  #[serde(serialize_with = "info2str", deserialize_with = "str2info_wl")]
-  UseFromStorage(ContentInfo),
+  UseFromStorage {
+    #[serde(serialize_with = "info2str", deserialize_with = "str2info_wl")]
+    content_info: ContentInfo,
+  },
   /// Action to add all available artifacts to Deployer's storage.
   AddToStorage(AddToStorageAction),
 
   /// Action to apply `smart-patcher` patches
   /// (see [`smart-patcher` repository](https://github.com/impulse-sw/smart-patcher)).
   Patch(PatchAction),
+
+  /// Action to execute another pipeline.
+  SubPipeline(Box<DescribedPipeline>),
 }
 
 /// Prints all available Actions on the screen.

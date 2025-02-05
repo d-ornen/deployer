@@ -4,30 +4,29 @@
 //!
 //! ```json
 //! {
-//!   "PostBuild": {
-//!     "supported_langs": [
-//!       "Rust",
-//!       "Go",
-//!       "C",
-//!       "Cpp",
-//!       "Python",
-//!       {
-//!         "Other": "any"
-//!       }
-//!     ],
-//!     "commands": [
-//!       {
-//!         "bash_c": "upx <artifact>",
-//!         "placeholders": [
-//!           "<artifact>"
-//!         ],
-//!         "ignore_fails": false,
-//!         "show_success_output": false,
-//!         "show_bash_c": false,
-//!         "only_when_fresh": false
-//!       }
-//!     ]
-//!   }
+//!   "type": "post_build",
+//!   "supported_langs": [
+//!     "Rust",
+//!     "Go",
+//!     "C",
+//!     "Cpp",
+//!     "Python",
+//!     {
+//!       "Other": "any"
+//!     }
+//!   ],
+//!   "commands": [
+//!     {
+//!       "bash_c": "upx <artifact>",
+//!       "placeholders": [
+//!         "<artifact>"
+//!       ],
+//!       "ignore_fails": false,
+//!       "show_success_output": false,
+//!       "show_bash_c": false,
+//!       "only_when_fresh": false
+//!     }
+//!   ]
 //! }
 //! ```
 //!
@@ -39,7 +38,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
-  custom_command::CustomCommand, environment::BuildEnvironment, programming_languages::ProgrammingLanguage,
+  custom_command::CustomCommand, environment::RunEnvironment, programming_languages::ProgrammingLanguage,
   traits::Execute,
 };
 
@@ -56,11 +55,10 @@ pub struct BuildAction {
 
 pub type PreBuildAction = BuildAction;
 pub type PostBuildAction = BuildAction;
-pub type TestAction = BuildAction;
 
 impl Execute for BuildAction {
-  /// Executes commands with given build environment.
-  fn execute(&self, env: BuildEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  /// Executes commands with given run environment.
+  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

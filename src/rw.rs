@@ -1,12 +1,13 @@
 //! R/W utils module.
 
+use anyhow::bail;
 use serde::{Serialize, de::DeserializeOwned};
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::entities::traits::ConfigAutoMigrate;
+use crate::entities::traits::{ConfigAutoMigrate, Merge};
 use crate::{CACHE_DIR, LOGS_DIR};
 
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
@@ -35,7 +36,7 @@ pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
 
   read_checked(&path).unwrap_or_else(|_| {
     T::migrate(&path).unwrap_or_else(|e| {
-      log(format!("Error on file read: {:?}", e));
+      log(format!("Error on file read & migration: {:?}", e));
       Default::default()
     })
   })
@@ -43,9 +44,18 @@ pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
 
 /// Reads the contents of a file as type `T`.
 pub fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
-  let file = File::open(filepath.as_ref())?;
-  let reader = BufReader::new(file);
-  serde_json::from_reader(reader).map_err(|e| anyhow::anyhow!("{}", e))
+  let content = std::fs::read_to_string(filepath.as_ref())?;
+  match filepath
+    .as_ref()
+    .extension()
+    .map(|v| v.to_string_lossy().to_string())
+    .as_deref()
+  {
+    Some("json") => serde_json::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => bail!("No supported format!"),
+  }
 }
 
 /// Writes `T` to a file, ignoring write and serialization errors.
@@ -55,24 +65,65 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
   let mut path = PathBuf::new();
   path.push(folder);
   path.push(file.as_ref());
-  let f = match File::create(path) {
-    Ok(file) => file,
+
+  let content = match path.extension().map(|v| v.to_string_lossy().to_string()).as_deref() {
+    Some("json") => serde_json::to_string_pretty(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::to_string(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::to_string_pretty(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => {
+      log("No supported format!");
+      return;
+    }
+  };
+  let content = match content {
+    Ok(s) => s,
     Err(_) => {
       log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
       return;
     }
   };
 
-  let writer = BufWriter::new(f);
+  match std::fs::write(path, content) {
+    Ok(()) => {}
+    Err(_) => log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str())),
+  }
+}
 
-  match serde_json::to_writer_pretty(writer, config) {
-    Ok(_) => (),
-    Err(_) => {
-      log(format!(
-        "Can't save `{:?}` config file due to serialization error!",
-        file.as_ref().as_os_str()
-      ));
+/// Writes `T` to a file, ignoring write and serialization errors, but with merging.
+///
+/// All errors are written only to the log, which can be seen with the `-V` flag.
+pub fn write_merge<T: Serialize + Merge + Default + DeserializeOwned + Clone>(
+  folder: impl AsRef<Path>,
+  file: impl AsRef<Path>,
+  config: &T,
+) {
+  let mut path = PathBuf::new();
+  path.push(folder);
+  path.push(file.as_ref());
+
+  let other = read_checked(&path).unwrap_or_default();
+  let merged: T = config.merge(other).unwrap_or((*config).clone());
+
+  let content = match path.extension().map(|v| v.to_string_lossy().to_string()).as_deref() {
+    Some("json") => serde_json::to_string_pretty(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::to_string(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::to_string_pretty(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => {
+      log("No supported format!");
+      return;
     }
+  };
+  let content = match content {
+    Ok(s) => s,
+    Err(_) => {
+      log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
+      return;
+    }
+  };
+
+  match std::fs::write(path, content) {
+    Ok(()) => {}
+    Err(_) => log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str())),
   }
 }
 
@@ -85,34 +136,42 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
 /// If `src` is a file, then all subfolders up to `dst` are created, and then the file is copied and overwritten.
 ///
 /// Previously existing folders and files, unless overwritten, are not changed and are stored in their places.
-pub fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &[impl AsRef<Path>]) -> anyhow::Result<()> {
+pub fn copy_all(
+  root: impl AsRef<Path>,
+  src: impl AsRef<Path>,
+  dst: impl AsRef<Path>,
+  ignore: &[impl AsRef<Path>],
+) -> anyhow::Result<()> {
   if src.as_ref().is_file() {
     if let Some(parent) = dst.as_ref().parent() {
       std::fs::create_dir_all(parent)?;
     }
-    std::fs::copy(src.as_ref(), dst.as_ref())?;
+    if let Err(e) = std::fs::copy(src.as_ref(), dst.as_ref()) {
+      log(format!("-> {:?} :: {}", src.as_ref(), e));
+    }
     return Ok(());
   }
   std::fs::create_dir_all(&dst)?;
 
-  for entry in std::fs::read_dir(src)? {
+  for entry in std::fs::read_dir(src.as_ref())? {
     let entry = entry?;
-    let name = entry.file_name();
+    let entry_path = entry.path();
+    let relative_entry = entry_path.strip_prefix(root.as_ref())?;
 
-    if ignore.iter().any(|v| v.as_ref().as_os_str().eq(name.as_os_str())) {
+    if ignore.iter().any(|v| v.as_ref().eq(relative_entry)) {
       continue;
     }
 
-    log(format!("-> {:?}", name));
+    log(format!("-> {:?}", relative_entry));
 
     let ty = entry.file_type()?;
     let d = dst.as_ref().join(entry.file_name());
     if ty.is_dir() {
-      copy_all(entry.path(), d, ignore)?;
+      copy_all(root.as_ref(), entry.path(), d, ignore)?;
     } else if ty.is_file() {
       copy_if_different(entry.path(), d)?;
     } else if ty.is_symlink() {
-      symlink(std::fs::canonicalize(name)?, d);
+      symlink(std::fs::canonicalize(entry.path())?, d);
     }
   }
 
