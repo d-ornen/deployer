@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::actions::Action;
 use crate::cmd::{CleanArgs, RunArgs};
-use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
+use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 #[cfg(feature = "containered")]
 use crate::containered::execute_pipeline_containered;
 use crate::entities::environment::RunEnvironment;
@@ -116,7 +116,7 @@ pub fn place_artifacts(
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
   ignore.extend(config.cache_files.iter().cloned());
 
-  for (from, to) in &config.place_artifacts_into_project_root {
+  for Placement { from, to } in &config.place_artifacts_into_project_root {
     let artifact_path = env.run_dir.join(from);
     if !std::fs::exists(artifact_path.clone())? {
       if panic_when_not_found {
@@ -633,8 +633,8 @@ pub fn execute_pipeline(
         }
       }
       Action::Custom(cmd) => cmd.execute(env)?,
-      Action::Check(check) => check.execute(env)?,
-      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => a.execute(env)?,
+      Action::Test(test) => test.execute(env)?,
+      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => a.execute(env)?,
       Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
       Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
       Action::Observe(o_action) => o_action.execute_observer(env)?,

@@ -4,6 +4,7 @@
 //!
 //! ```json
 //! {
+//!   "type": "patch",
 //!   "patch": "path/to/patch/file.json"
 //! }
 //! ```

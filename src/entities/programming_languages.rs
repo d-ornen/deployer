@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Canonically represents most well-known by `deployer` author languages,
 /// but you always specify yours.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case", untagged)]
 pub enum ProgrammingLanguage {
   Rust,
   Go,

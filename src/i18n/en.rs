@@ -137,7 +137,6 @@ tr!(
 // Targets
 tr!(TARGET_ARCH, "Enter the target's architecture:");
 tr!(TARGET_OS_SELECT, "Select OS:");
-tr!(TARGET_OS_UNIX_LIKE, "Enter Unix-like OS name:");
 tr!(TARGET_OS_OTHER, "Enter OS name:");
 tr!(TARGET_OS_DER, "Enter OS derivative:");
 tr!(TARGET_OS_VER_S, "Select version specification type:");

@@ -2,6 +2,7 @@
 //!
 //! JSON example:
 //! {
+//!   "type": "observe",
 //!   "command": {
 //!     "bash_c": "btop",
 //!     "ignore_fails": true,

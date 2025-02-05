@@ -2,10 +2,16 @@
 
 ## From `<=1.3.5` to `1.4.0`
 
-Migrations will be applied automatically on configuration save. Deployer will be able to work with old configuration formats (`"version": 2`).
+Migrations will be almost fully applied automatically on configuration save. Deployer will be able to work with old configuration formats (`"version": 2`).
 
 1. All Actions will be typed internally with `type` field and `snake_case` (example: `{ "type": "build", ... }`).
 2. `deploy-config.json` and `deploy-global.json` will be upgraded to `"version": 3`.
+3. Variables, requirements, placements and other structs are changed, see the documentation.
+4. Check Action will become Test, original Test will be migrated into PostBuild.
+
+### Need manual changes:
+
+1. Cannot automatically migrate targets and programming languages; fill them by yourself.
 
 ## From `<=1.3.4` to `1.3.5`
 

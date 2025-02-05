@@ -9,21 +9,21 @@ use serde::{Deserialize, Serialize};
 use std::process::exit;
 
 pub mod buildlike;
-pub mod check;
 pub mod deploylike;
 pub mod observe;
 pub mod packlike;
 pub mod patch;
 pub mod storage_add;
+pub mod test;
 
 use crate::actions::{
-  buildlike::{BuildAction, PostBuildAction, PreBuildAction, TestAction},
-  check::CheckAction,
+  buildlike::{BuildAction, PostBuildAction, PreBuildAction},
   deploylike::{ConfigureDeployAction, DeployAction, PostDeployAction},
   observe::ObserveAction,
   packlike::{DeliveryAction, InstallAction, PackAction},
   patch::PatchAction,
   storage_add::AddToStorageAction,
+  test::TestAction,
 };
 #[cfg(feature = "tui")]
 use crate::cmd::{CatActionArgs, NewActionArgs};
@@ -91,8 +91,6 @@ pub enum Action {
 
   /// Custom Pipeline commands.
   Custom(CustomCommand),
-  /// Used to check output of custom command.
-  Check(CheckAction),
 
   /// Action to prepare project files to build.
   PreBuild(PreBuildAction),

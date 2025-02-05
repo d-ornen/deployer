@@ -152,7 +152,6 @@ tr!(PL_COLLECT, "Введите названия языков программи
 // Targets
 tr!(TARGET_ARCH, "Введите целевую архитектуру:");
 tr!(TARGET_OS_SELECT, "Укажите ОС:");
-tr!(TARGET_OS_UNIX_LIKE, "Введите название Unix-подобной ОС:");
 tr!(TARGET_OS_OTHER, "Введите название ОС:");
 tr!(TARGET_OS_DER, "Укажите дистрибутив ОС:");
 tr!(TARGET_OS_VER_S, "Укажите спецификацию версии ОС:");

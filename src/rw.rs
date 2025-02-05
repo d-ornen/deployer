@@ -1,8 +1,9 @@
 //! R/W utils module.
 
+use anyhow::bail;
 use serde::{Serialize, de::DeserializeOwned};
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -43,9 +44,18 @@ pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
 
 /// Reads the contents of a file as type `T`.
 pub fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
-  let file = File::open(filepath.as_ref())?;
-  let reader = BufReader::new(file);
-  serde_json::from_reader(reader).map_err(|e| anyhow::anyhow!("{}", e))
+  let content = std::fs::read_to_string(filepath.as_ref())?;
+  match filepath
+    .as_ref()
+    .extension()
+    .map(|v| v.to_string_lossy().to_string())
+    .as_deref()
+  {
+    Some("json") => serde_json::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::from_str(&content).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => bail!("No supported format!"),
+  }
 }
 
 /// Writes `T` to a file, ignoring write and serialization errors.
@@ -55,24 +65,27 @@ pub fn write<T: Serialize>(folder: impl AsRef<Path>, file: impl AsRef<Path>, con
   let mut path = PathBuf::new();
   path.push(folder);
   path.push(file.as_ref());
-  let f = match File::create(path) {
-    Ok(file) => file,
+
+  let content = match path.extension().map(|v| v.to_string_lossy().to_string()).as_deref() {
+    Some("json") => serde_json::to_string_pretty(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::to_string(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::to_string_pretty(config).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => {
+      log("No supported format!");
+      return;
+    }
+  };
+  let content = match content {
+    Ok(s) => s,
     Err(_) => {
       log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
       return;
     }
   };
 
-  let writer = BufWriter::new(f);
-
-  match serde_json::to_writer_pretty(writer, config) {
-    Ok(_) => (),
-    Err(_) => {
-      log(format!(
-        "Can't save `{:?}` config file due to serialization error!",
-        file.as_ref().as_os_str()
-      ));
-    }
+  match std::fs::write(path, content) {
+    Ok(()) => {}
+    Err(_) => log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str())),
   }
 }
 
@@ -91,24 +104,26 @@ pub fn write_merge<T: Serialize + Merge + Default + DeserializeOwned + Clone>(
   let other = read_checked(&path).unwrap_or_default();
   let merged: T = config.merge(other).unwrap_or((*config).clone());
 
-  let f = match File::create(path) {
-    Ok(file) => file,
+  let content = match path.extension().map(|v| v.to_string_lossy().to_string()).as_deref() {
+    Some("json") => serde_json::to_string_pretty(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("yaml") | Some("yml") => serde_yaml::to_string(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    Some("toml") => toml::to_string_pretty(&merged).map_err(|e| anyhow::anyhow!("{}", e)),
+    _ => {
+      log("No supported format!");
+      return;
+    }
+  };
+  let content = match content {
+    Ok(s) => s,
     Err(_) => {
       log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str()));
       return;
     }
   };
 
-  let writer = BufWriter::new(f);
-
-  match serde_json::to_writer_pretty(writer, &merged) {
-    Ok(_) => (),
-    Err(_) => {
-      log(format!(
-        "Can't save `{:?}` config file due to serialization error!",
-        file.as_ref().as_os_str()
-      ));
-    }
+  match std::fs::write(path, content) {
+    Ok(()) => {}
+    Err(_) => log(format!("Can't save `{:?}` config file!", file.as_ref().as_os_str())),
   }
 }
 

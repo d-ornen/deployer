@@ -1,5 +1,7 @@
 # Deployer: documentation for version `1.4.X`
 
+The actual documentation is available with `deployer docs`.
+
 ## Description of working principles
 
 Deployer is, at its core, a local CI/CD. In other words, a `bash` command manager.
@@ -25,14 +27,7 @@ As part of Pipelines or in the Deployer's Action Registry, an Action looks like 
   "action": {
     "type": "post_build",
     "supported_langs": [
-      "Rust",
-      "Go",
-      "C",
-      "Cpp",
-      "Python",
-      {
-        "Other": "any"
-      }
+      "any"
     ],
     "commands": [
       {
@@ -49,7 +44,8 @@ As part of Pipelines or in the Deployer's Action Registry, an Action looks like 
   },
   "requirements": [
     {
-      "ExistsAny": [
+      "type": "exists_any",
+      "paths": [
         "/usr/bin/upx",
         "~/.local/bin/upx"
       ]
@@ -66,33 +62,34 @@ For each Action within a Pipeline, a list of `requirements` can be assigned. The
 [
   {
     // if one of these paths will be found, the requirement will be considered satisfied
-    "ExistsAny": [
-      "path-1",
-      "path-2"
+    "type": "exists_any",
+    "paths": [
+      "/usr/bin/upx",
+      "~/.local/bin/upx"
     ]
   },
   {
     // if this path exists, the requirement is considered satisfied
-    "Exists": "path"
+    "type": "exists",
+    "path": "/usr/bin/mold"
   },
   {
     // if this check is passed, the requirement will be considered satisfied (for details, see below - Action `Check`)
-    "CheckSuccess": {
-      "command": {
-        "bash_c": "/usr/bin/python -V",
-        "ignore_fails": true,
-        "show_success_output": false,
-        "show_bash_c": false,
-        "only_when_fresh": false
-      },
-      "success_when_found": "Python 3.",
-      "success_when_not_found": null
-    }
+    "type": "check_success",
+    "command": {
+      "bash_c": "/usr/bin/python -V",
+      "ignore_fails": true,
+      "show_success_output": false,
+      "show_bash_c": false,
+      "only_when_fresh": false
+    },
+    "success_when_found": "Python 3."
   },
   {
     // if a given remote host exists in the Registry, is accessible, and its Deployer version is identical to the version of the running Deployer,
     // the requirement will be considered satisfied
-    "RemoteAccessibleAndReady": "short-name"
+    "type": "remote_accessible_and_ready",
+    "remote_host_name": "short-name"
   }
 ]
 ```
@@ -147,18 +144,21 @@ When a command is specialized for a particular project, it gains an additional p
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -176,30 +176,36 @@ When a command is specialized for a particular project, it gains an additional p
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ],
-    [
-      [
-        "<artifact>",
+    },
+    {
+      "group": [
         {
-          "title": "target/release/another",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/another"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/another",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/another"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -219,18 +225,17 @@ Accordingly, if you just want to execute commands that cannot be assigned to one
   "info": "ls@0.1.0",
   "tags": [],
   "action": {
-    "Custom": {
-      "bash_c": "ls",
-      "ignore_fails": false,
-      "show_success_output": true,
-      "show_bash_c": true,
-      "only_when_fresh": false
-    }
+    "type": "custom",
+    "bash_c": "ls",
+    "ignore_fails": false,
+    "show_success_output": true,
+    "show_bash_c": true,
+    "only_when_fresh": false
   }
 }
 ```
 
-#### 1.2. Build Actions - `pre_build`, `build`, `post_build` and `test`
+#### 1.2. Build Actions - `pre_build`, `build` and `post_build`
 
 For Build Actions, specialization in programming languages is specific: depending on whether the set of languages used in the project matches the set specified in the Build Action, Deployer will warn you about using Actions that are incompatible with the project.
 
@@ -243,14 +248,7 @@ In the below example, we see an action that should be executed after the build:
 {
   "type": "post_build",
   "supported_langs": [
-    "Rust",
-    "Go",
-    "C",
-    "Cpp",
-    "Python",
-    {
-      "Other": "any"
-    }
+    "any"
   ],
   "commands": [
     {
@@ -286,8 +284,10 @@ We are happy to note that UPX refers to the Packaging Action rather than the Pos
     "target": {
       "arch": "x86_64",
       "os": "Linux",
-      "derivative": "any",
-      "version": "No"
+      "os_derivative": "any",
+      "os_version": {
+        "type": "no"
+      }
     },
     "commands": [
       {
@@ -307,12 +307,12 @@ We are happy to note that UPX refers to the Packaging Action rather than the Pos
 
 - `arch` is a string designation for the target hardware architecture
 - `os` is one of the variants (`android|ios|linux|unix-{unix-name}|windows|macos`) or any other string designation of the operating system.
-- `derivative` is an additional description of the operating system or software platform
-- `version` is the version of the operating system or software platform.
+- `os_derivative` is an additional description of the operating system or software platform
+- `os_version` is the version of the operating system or software platform.
 
-If `derivative` is missing, it is recommended to write `any`.
+If `os_derivative` is missing, it is recommended to write `any`.
 
-#### 1.4. `Deployment` Actions - `configure_deploy`, `deploy`, `post_deploy`
+#### 1.4. Deployment Actions - `configure_deploy`, `deploy` and `post_deploy`
 
 For this group of Actions, the key specialization factor is the deployment tulkit - Docker, Docker Compose, Podman, k8s or other containerization or virtualization toolkit. If the wrong tulkit is specified in the project, Deployer will issue a warning.
 
@@ -330,10 +330,6 @@ Here is an example with Docker Compose:
   "action": {
     "type": "configure_deploy",
     "deploy_toolkit": "docker-compose",
-    "tags": [
-      "docker",
-      "compose"
-    ],
     "commands": [
       {
         "bash_c": "docker compose build",
@@ -462,7 +458,7 @@ Sometimes you need to synchronize build files between remote hosts and the curre
 }
 ```
 
-#### 1.7. Other actions - `interrupt`, `observe` and `check`
+#### 1.7. Other actions - `interrupt`, `observe` and `test`
 
 > NOTE: Don't have the configuration example you need? Create the action yourself using the `deployer new action` command and display it using the `deployer cat action my-action@x.y.z`.
 
@@ -470,11 +466,11 @@ Sometimes you need to synchronize build files between remote hosts and the curre
 
 `observe` is an action that is almost identical to `custom`. It is used, for example, to start Prometheus, Jaeger or anything else. The distinctive feature is that it runs without I/O redirection, i.e. you can interact with programs in it.
 
-And `check` is a special action that allows you to check what the command outputs to `stdout/stderr`:
+And `test` is a special action that allows you to check what the command outputs to `stdout/stderr`:
 
 ```json
 {
-  "type": "check",
+  "type": "test",
   "command": {
     "bash_c": "<af>",
     "placeholders": [
@@ -485,8 +481,7 @@ And `check` is a special action that allows you to check what the command output
     "show_bash_c": false,
     "only_when_fresh": false
   },
-  "success_when_found": "some rust regex",
-  "success_when_not_found": null
+  "success_when_found": "some rust regex"
 }
 ```
 
@@ -524,15 +519,14 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
       "action": {
         "type": "pre_build",
         "supported_langs": [
-          "Rust"
+          "rust"
         ],
         "commands": [
           {
             "bash_c": "cargo clippy",
             "ignore_fails": false,
             "show_success_output": true,
-            "show_bash_c": true,
-            "only_when_fresh": null
+            "show_bash_c": true
           }
         ]
       }
@@ -548,15 +542,14 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
       "action": {
         "type": "build",
         "supported_langs": [
-          "Rust"
+          "rust"
         ],
         "commands": [
           {
             "bash_c": "cargo build --release",
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": true,
-            "only_when_fresh": null
+            "show_bash_c": true
           }
         ]
       }
@@ -571,14 +564,7 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
       "action": {
         "type": "post_build",
         "supported_langs": [
-          "Rust",
-          "Go",
-          "C",
-          "Cpp",
-          "Python",
-          {
-            "Other": "any"
-          }
+          "any"
         ],
         "commands": [
           {
@@ -587,23 +573,25 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
               "<artifact>"
             ],
             "replacements": [
-              [
-                [
-                  "<artifact>",
+              {
+                "group": [
                   {
-                    "title": "target/release/deployer",
-                    "is_secret": false,
-                    "value": {
-                      "Plain": "target/release/deployer"
+                    "from": "<artifact>",
+                    "to": {
+                      "title": "target/release/deployer",
+                      "is_secret": false,
+                      "value": {
+                        "type": "plain",
+                        "value": "target/release/deployer"
+                      }
                     }
                   }
                 ]
-              ]
+              }
             ],
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": false,
-            "only_when_fresh": null
+            "show_bash_c": false
           }
         ]
       }
@@ -620,8 +608,10 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
         "target": {
           "arch": "x86_64",
           "os": "Linux",
-          "derivative": "any",
-          "version": "No"
+          "os_derivative": "any",
+          "os_version": {
+            "type": "no"
+          }
         },
         "commands": [
           {
@@ -630,23 +620,25 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
               "<artifact>"
             ],
             "replacements": [
-              [
-                [
-                  "<artifact>",
+              {
+                "group": [
                   {
-                    "title": "target/release/deployer",
-                    "is_secret": false,
-                    "value": {
-                      "Plain": "target/release/deployer"
+                    "from": "<artifact>",
+                    "to": {
+                      "title": "target/release/deployer",
+                      "is_secret": false,
+                      "value": {
+                        "type": "plain",
+                        "value": "target/release/deployer"
+                      }
                     }
                   }
                 ]
-              ]
+              }
             ],
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": false,
-            "only_when_fresh": null
+            "show_bash_c": false
           }
         ]
       }
@@ -669,7 +661,8 @@ One of the most important entities are variables. They are both the keepers of y
   "title": "deployer artifact location",
   "is_secret": false,
   "value": {
-    "Plain": "target/release/deployer"
+    "type": "plain",
+    "value": "target/release/deployer"
   }
 }
 ```
@@ -680,10 +673,10 @@ One of the most important entities are variables. They are both the keepers of y
 
 There are three types of variables supported now:
 
-1. `Plain` - the content of the string is the variable
-2. `FromEnvVar` - the variable will be taken from Deployer's shell environment
-3. `FromEnvFile` - the variable will be taken from the specified `env-file` with the specified key.
-4. `FromHCVaultKv2` - the variable will be taken from the HashiCorp Vault KV2 repository with the specified `mount_path` and `secret_path`
+1. `plain` - the content of the string is the variable
+2. `from_env_var` - the variable will be taken from Deployer's shell environment
+3. `from_env_file` - the variable will be taken from the specified `env-file` with the specified key.
+4. `from_hc_vault_kv2` - the variable will be taken from the HashiCorp Vault KV2 repository with the specified `mount_path` and `secret_path`
 
 Examples:
 
@@ -692,10 +685,9 @@ Examples:
   "title": "Grafana token",
   "is_secret": true,
   "value": {
-    "FromEnvFile": {
-      "env_file_path": ".env",
-      "key": "GRAFANA_TOKEN"
-    }
+    "type": "from_env_file",
+    "env_file_path": ".env",
+    "key": "GRAFANA_TOKEN"
   }
 }
 ```
@@ -705,7 +697,8 @@ Examples:
   "title": "Simple env var",
   "is_secret": false,
   "value": {
-    "FromEnvVar": "variable-key"
+    "type": "from_env_var",
+    "var_name": "variable-key"
   }
 }
 ```
@@ -715,15 +708,14 @@ Examples:
   "title": "Secret!",
   "is_secret": true,
   "value": {
-    "FromHCVaultKv2": {
-      "mount_path": "The mount path where your KV2 secrets engine is mounted",
-      "secret_path": "Path to your secret"
-    }
+    "type": "from_hc_vault_kv2",
+    "mount_path": "The mount path where your KV2 secrets engine is mounted",
+    "secret_path": "Path to your secret"
   }
 }
 ```
 
-Note that you must specify two environment variables before using `FromHCVaultKv2` variables: the `DEPLOYER_VAULT_ADDR` (Vault URL) and `DEPLOYER_VAULT_TOKEN` (Vault token).
+Note that you must specify two environment variables before using `from_hc_vault_kv2` variables: the `DEPLOYER_VAULT_ADDR` (Vault URL) and `DEPLOYER_VAULT_TOKEN` (Vault token).
 
 Another important entity is the remote host. The deployer stores all hosts in the Registry (global configuration file - list `remote_hosts`). The host structure looks like this:
 

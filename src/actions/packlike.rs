@@ -4,6 +4,7 @@
 //!
 //! ```json
 //! {
+//!   "type": "pack",
 //!   "target": {
 //!     "arch": "x86_64",
 //!     "os": "Linux",

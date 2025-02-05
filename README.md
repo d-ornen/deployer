@@ -63,33 +63,33 @@ The full JSON is:
     "upx"
   ],
   "action": {
-    "PostBuild": {
-      "supported_langs": [
-        "Rust",
-        "Go",
-        "C",
-        "Cpp",
-        "Python",
-        {
-          "Other": "any"
-        }
-      ],
-      "commands": [
-        {
-          "bash_c": "upx <artifact>",
-          "placeholders": [
-            "<artifact>"
-          ],
-          "ignore_fails": false,
-          "show_success_output": false,
-          "show_bash_c": false
-        }
-      ]
-    }
+    "type": "post_build",
+    "supported_langs": [
+      "Rust",
+      "Go",
+      "C",
+      "Cpp",
+      "Python",
+      {
+        "Other": "any"
+      }
+    ],
+    "commands": [
+      {
+        "bash_c": "upx <artifact>",
+        "placeholders": [
+          "<artifact>"
+        ],
+        "ignore_fails": false,
+        "show_success_output": false,
+        "show_bash_c": false
+      }
+    ]
   },
   "requirements": [
     {
-      "ExistsAny": [
+      "type": "exists_any",
+      "paths": [
         "/usr/bin/upx",
         "~/.local/bin/upx"
       ]
@@ -113,10 +113,38 @@ The full JSON is:
   "title": "Rust Enhanced Pipeline",
   "desc": "Build the Rust project with Cargo.",
   "info": "rust-default@0.1.0",
-  "tags": [],
+  "tags": [
+    "cargo",
+    "clippy",
+    "build",
+    "upx"
+  ],
   "actions": [
     {
-      "title": "Build the project.",
+      "title": "Lint",
+      "desc": "Got from `Cargo Clippy`.",
+      "info": "cargo-clippy@0.1.0",
+      "tags": [
+        "cargo",
+        "clippy"
+      ],
+      "action": {
+        "type": "pre_build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo clippy",
+            "ignore_fails": false,
+            "show_success_output": true,
+            "show_bash_c": true
+          }
+        ]
+      }
+    },
+    {
+      "title": "Build",
       "desc": "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode",
       "info": "cargo-rel@0.1",
       "tags": [
@@ -124,60 +152,64 @@ The full JSON is:
         "cargo"
       ],
       "action": {
-        "Build": {
-          "supported_langs": [
-            "Rust"
-          ],
-          "commands": [
-            {
-              "bash_c": "cargo build --release",
-              "ignore_fails": false,
-              "af_placeholder": null,
-              "replace_af_with": []
-            }
-          ]
-        }
+        "type": "build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo build --release",
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": true
+          }
+        ]
       }
     },
     {
-      "title": "Compress the resulting binary.",
-      "desc": "Got from `UPX Compress`. Compress the binary file with UPX.",
-      "info": "upx-compress@0.1.0",
-      "tags": [],
+      "title": "Compress",
+      "desc": "Got from `UPX Compress`.",
+      "info": "upx@0.1.0",
+      "tags": [
+        "upx"
+      ],
       "action": {
-        "PostBuild": {
-          "supported_langs": [
-            "Rust",
-            "Go",
-            "C",
-            "Cpp",
-            {
-              "Other": "any"
-            }
-          ],
-          "commands": [
-            {
-              "bash_c": "upx <artifact>",
-              "placeholders": [
-                "<artifact>"
-              ],
-              "ignore_fails": false,
-              "show_success_output": false,
-              "show_bash_c": false
-            }
-          ]
-        }
-      },
-      "requirements": [
-        {
-          "ExistsAny": [
-            "/usr/bin/upx",
-            "~/.local/bin/upx"
-          ]
-        }
-      ]
+        "type": "post_build",
+        "supported_langs": [
+          "any"
+        ],
+        "commands": [
+          {
+            "bash_c": "upx <artifact>",
+            "placeholders": [
+              "<artifact>"
+            ],
+            "replacements": [
+              {
+                "group": [
+                  {
+                    "from": "<artifact>",
+                    "to": {
+                      "title": "target/release/deployer",
+                      "is_secret": false,
+                      "value": {
+                        "type": "plain",
+                        "value": "target/release/deployer"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": false
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "default": true
 }
 ```
 
@@ -213,17 +245,18 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
 {
   "project_name": "my-rust-project",
   "langs": [
-    "Rust"
+    "rust"
   ],
   "targets": [
     {
       "arch": "x86_64",
       "os": "Linux",
-      "derivative": "any",
-      "version": "No"
+      "os_derivative": "any",
+      "os_version": {
+        "type": "no"
+      }
     }
   ],
-  "deploy_toolkit": null,
   "cache_files": [
     "Cargo.lock",
     "target"
@@ -244,19 +277,18 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
             "cargo"
           ],
           "action": {
-            "Build": {
-              "supported_langs": [
-                "Rust"
-              ],
-              "commands": [
-                {
-                  "bash_c": "cargo build --quiet --release",
-                  "ignore_fails": false,
-                  "af_placeholder": null,
-                  "replace_af_with": []
-                }
-              ]
-            }
+            "type": "build",
+            "supported_langs": [
+              "Rust"
+            ],
+            "commands": [
+              {
+                "bash_c": "cargo build --quiet --release",
+                "ignore_fails": false,
+                "show_success_output": false,
+                "show_bash_c": false
+              }
+            ]
           }
         },
         {
@@ -265,46 +297,43 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
           "info": "upx-compress@0.1.0",
           "tags": [],
           "action": {
-            "PostBuild": {
-              "supported_langs": [
-                "Rust",
-                "Go",
-                "C",
-                "Cpp",
-                {
-                  "Other": "any"
-                }
-              ],
-              "commands": [
-                {
-                  "bash_c": "upx <artifact>",
-                  "placeholders": [
-                    "<artifact>"
-                  ],
-                  "replacements": [
-                    [
-                      [
-                        "<artifact>",
-                        {
+            "type": "post_build",
+            "supported_langs": [
+              "any"
+            ],
+            "commands": [
+              {
+                "bash_c": "upx <artifact>",
+                "placeholders": [
+                  "<artifact>"
+                ],
+                "replacements": [
+                  {
+                    "group": [
+                      {
+                        "from": "<artifact>",
+                        "to": {
                           "title": "target/release/my-rust-project",
                           "is_secret": false,
                           "value": {
-                            "Plain": "target/release/my-rust-project"
+                            "type": "plain",
+                            "value": "target/release/my-rust-project"
                           }
                         }
-                      ]
+                      }
                     ]
-                  ],
-                  "ignore_fails": false,
-                  "show_success_output": false,
-                  "show_bash_c": false
-                }
-              ]
-            }
+                  }
+                ],
+                "ignore_fails": false,
+                "show_success_output": false,
+                "show_bash_c": false
+              }
+            ]
           },
           "requirements": [
             {
-              "ExistsAny": [
+              "type": "exists_any",
+              "paths": [
                 "/usr/bin/upx",
                 "~/.local/bin/upx"
               ]
@@ -317,12 +346,14 @@ Deployer will consider you to specify some things (e.g., targets - for this proj
   "artifacts": [
     "target/release/my-rust-project"
   ],
-  "inplace_artifacts_into_project_root": [
-    [
-      "target/release/my-rust-project",
-      "result"
-    ]
-  ]
+  "variables": [],
+  "place_artifacts_into_project_root": [
+    {
+      "from": "target/release/deployer",
+      "to": "deployer"
+    }
+  ],
+  "version": 4
 }
 ```
 

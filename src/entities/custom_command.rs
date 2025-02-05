@@ -17,8 +17,9 @@ use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 use crate::entities::traits::Execute;
-use crate::entities::variables::Variable;
 use crate::i18n;
+
+use super::variables::Variable;
 
 /// Custom command.
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
@@ -31,20 +32,19 @@ pub struct CustomCommand {
   pub placeholders: Option<Vec<String>>,
   /// Variables list to replace placeholders.
   ///
-  /// If you have many variables to perform one command with (e.g., have to execute
-  /// `cargo build --bin project1` and `--bin project2`), you can make two `Vec` inside
-  /// single:
+  /// To specify several runs (e.g., have to execute `cargo build --bin project1` and
+  /// `--bin project2`), you can make this:
   ///
   /// ```rust,ignore
   /// replacements: Some(vec![
   ///   // this is for the first execution
-  ///   vec![("<pr>", Variable::new_plain("pr1", "project1"))],
+  ///   ReplacementGroup { replacements: vec![Replacement { from: "<pr>", to: "project1" }] },
   ///   // this is for the second execution
-  ///   vec![("<pr>", Variable::new_plain("pr2", "project2"))],
+  ///   ReplacementGroup { replacements: vec![Replacement { from: "<pr>", to: "project2" }] },
   /// ])
   /// ```
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub replacements: Option<Vec<Vec<(String, Variable)>>>,
+  pub replacements: Option<Vec<ReplacementGroup>>,
 
   /// Flag to ignore command fails.
   ///
@@ -78,6 +78,33 @@ pub struct CustomCommand {
   pub remote_exec: Option<Vec<ShortName>>,
 }
 
+/// Replacement group.
+///
+/// Specifies replacements for single command run.
+///
+/// To specify several runs (e.g., have to execute `cargo build --bin project1` and
+/// `--bin project2`), you can make this:
+///
+/// ```rust,ignore
+/// replacements: Some(vec![
+///   // this is for the first execution
+///   ReplacementGroup { replacements: vec![Replacement { from: "<pr>", to: "project1" }] },
+///   // this is for the second execution
+///   ReplacementGroup { replacements: vec![Replacement { from: "<pr>", to: "project2" }] },
+/// ])
+/// ```
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
+pub struct ReplacementGroup {
+  pub group: Vec<Replacement>,
+}
+
+/// Replacement to custom command.
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash, Clone)]
+pub struct Replacement {
+  pub from: String,
+  pub to: Variable,
+}
+
 impl Execute for CustomCommand {
   /// Runs given command one time or more, replacing the placeholders with given values.
   fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
@@ -106,7 +133,7 @@ impl Execute for CustomCommand {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
 
-        for (from, to) in every_start {
+        for Replacement { from, to } in every_start.group.iter() {
           bash_c = bash_c.replace(from, to.get_value()?.as_str());
         }
         cmds.push(bash_c);
@@ -190,7 +217,7 @@ impl Execute for CustomCommand {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
 
-        for (from, to) in every_start {
+        for Replacement { from, to } in every_start.group.iter() {
           bash_c = bash_c.replace(from, to.get_value()?.as_str());
         }
         cmds.push(bash_c);
@@ -269,7 +296,7 @@ impl CustomCommand {
       for every_start in replacements {
         let mut bash_c = self.bash_c.to_owned();
 
-        for (from, to) in every_start {
+        for Replacement { from, to } in every_start.group.iter() {
           bash_c = bash_c.replace(from, to.get_value()?.as_str());
         }
         cmds.push(bash_c);

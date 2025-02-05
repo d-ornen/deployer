@@ -7,6 +7,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0-beta-1] - 2025-02-05
+
+### Added
+
+- Test containered run support - with build/cache strategies. No documentation for now, but you can test it with `deployer run containered` *inside Deployer's project* (or manually view `containered` Pipeline).
+- Content examples.
+- Custom storage path support (via `DEPLOYER_STORAGE_PATH` environment variable).
+- Relative cache ignore pattern support (`public/tailwind.css` or `any/other/relative/path.json`).
+- Sub-Pipeline support inside Actions (no documentation for now).
+- R/W support for `toml` and `yaml` (no usage for now).
+
+### Changed
+
+- Configuration format (bumped to v4, see the `MIGRATIONS.md`).
+- Removed old `Test` Action, moved `Check` to `Old`.
+
+### Fixed
+
+- Copy error handling (for example, crash on `text file busy os error`).
+
+### Removed
+
+- Python scripts support by `Patch` Actions (because of dynamic linkage and Deployer breaks after Python upgrades).
+
 ## [1.3.5] - 2025-01-28
 
 ### Changed
@@ -364,6 +388,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build support.
 - TUI.
 
+[1.4.0-beta-1]:   https://github.com/impulse-sw/deployer/compare/1.3.5...1.4.0-beta-1
 [1.3.5]:          https://github.com/impulse-sw/deployer/compare/1.3.4...1.3.5
 [1.3.4]:          https://github.com/impulse-sw/deployer/compare/1.3.3...1.3.4
 [1.3.3]:          https://github.com/impulse-sw/deployer/compare/1.3.2...1.3.3

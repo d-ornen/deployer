@@ -4,30 +4,29 @@
 //!
 //! ```json
 //! {
-//!   "PostBuild": {
-//!     "supported_langs": [
-//!       "Rust",
-//!       "Go",
-//!       "C",
-//!       "Cpp",
-//!       "Python",
-//!       {
-//!         "Other": "any"
-//!       }
-//!     ],
-//!     "commands": [
-//!       {
-//!         "bash_c": "upx <artifact>",
-//!         "placeholders": [
-//!           "<artifact>"
-//!         ],
-//!         "ignore_fails": false,
-//!         "show_success_output": false,
-//!         "show_bash_c": false,
-//!         "only_when_fresh": false
-//!       }
-//!     ]
-//!   }
+//!   "type": "post_build",
+//!   "supported_langs": [
+//!     "Rust",
+//!     "Go",
+//!     "C",
+//!     "Cpp",
+//!     "Python",
+//!     {
+//!       "Other": "any"
+//!     }
+//!   ],
+//!   "commands": [
+//!     {
+//!       "bash_c": "upx <artifact>",
+//!       "placeholders": [
+//!         "<artifact>"
+//!       ],
+//!       "ignore_fails": false,
+//!       "show_success_output": false,
+//!       "show_bash_c": false,
+//!       "only_when_fresh": false
+//!     }
+//!   ]
 //! }
 //! ```
 //!
@@ -56,7 +55,6 @@ pub struct BuildAction {
 
 pub type PreBuildAction = BuildAction;
 pub type PostBuildAction = BuildAction;
-pub type TestAction = BuildAction;
 
 impl Execute for BuildAction {
   /// Executes commands with given run environment.

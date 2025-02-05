@@ -1,5 +1,7 @@
 # Деплойер: документация по версии `1.4.X`
 
+Актуальная документация доступна через `deployer docs`.
+
 ## Описание принципов работы
 
 Деплойер, по своей сути, - локальный CI/CD. Иными словами, менеджер `bash`-команд.
@@ -49,7 +51,8 @@
   },
   "requirements": [
     {
-      "ExistsAny": [
+      "type": "exists_any",
+      "paths": [
         "/usr/bin/upx",
         "~/.local/bin/upx"
       ]
@@ -66,33 +69,34 @@
 [
   {
     // если один из этих путей будет найден, требование будет считаться удовлетворённым
-    "ExistsAny": [
-      "path-1",
-      "path-2"
+    "type": "exists_any",
+    "paths": [
+      "/usr/bin/upx",
+      "~/.local/bin/upx"
     ]
   },
   {
     // если данный путь существует, требование считается удовлетворённым
-    "Exists": "path"
+    "type": "exists",
+    "path": "/usr/bin/mold"
   },
   {
     // если данная проверка будет пройдена, требование будет считаться удовлетворённым (подробности см. ниже - Действие `Check`)
-    "CheckSuccess": {
-      "command": {
-        "bash_c": "/usr/bin/python -V",
-        "ignore_fails": true,
-        "show_success_output": false,
-        "show_bash_c": false,
-        "only_when_fresh": false
-      },
-      "success_when_found": "Python 3.",
-      "success_when_not_found": null
-    }
+    "type": "check_success",
+    "command": {
+      "bash_c": "/usr/bin/python -V",
+      "ignore_fails": true,
+      "show_success_output": false,
+      "show_bash_c": false,
+      "only_when_fresh": false
+    },
+    "success_when_found": "Python 3."
   },
   {
     // если данный удалённый хост существует в Реестре, доступен, и его версия Деплойера идентична версии запущенного Деплойера,
     // требование будет считаться удовлетворённым
-    "RemoteAccessibleAndReady": "short-name"
+    "type": "remote_accessible_and_ready",
+    "remote_host_name": "short-name"
   }
 ]
 ```
@@ -147,18 +151,21 @@
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -176,30 +183,36 @@
     "<artifact>"
   ],
   "replacements": [
-    [
-      [
-        "<artifact>",
+    {
+      "group": [
         {
-          "title": "target/release/deployer",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/deployer"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/deployer",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/deployer"
+            }
           }
         }
       ]
-    ],
-    [
-      [
-        "<artifact>",
+    },
+    {
+      "group": [
         {
-          "title": "target/release/another",
-          "is_secret": false,
-          "value": {
-            "Plain": "target/release/another"
+          "from": "<artifact>",
+          "to": {
+            "title": "target/release/another",
+            "is_secret": false,
+            "value": {
+              "type": "plain",
+              "value": "target/release/another"
+            }
           }
         }
       ]
-    ]
+    }
   ],
   "ignore_fails": false,
   "show_success_output": false,
@@ -229,7 +242,7 @@
 }
 ```
 
-#### 1.2. Действия сборки - `pre_build`, `build`, `post_build` и `test`
+#### 1.2. Действия сборки - `pre_build`, `build` и `post_build`
 
 Для Действий сборки является специфичной специализация на языках программирования: в зависимости от того, соответствует ли набор языков, используемых в проекте, тому набору, который указан в действиях по сборке, Деплойер будет предупреждать вас об использовании несовместимых с проектом Действий.
 
@@ -242,14 +255,7 @@
 {
   "type": "post_build",
   "supported_langs": [
-    "Rust",
-    "Go",
-    "C",
-    "Cpp",
-    "Python",
-    {
-      "Other": "any"
-    }
+    "any"
   ],
   "commands": [
     {
@@ -285,8 +291,10 @@
     "target": {
       "arch": "x86_64",
       "os": "Linux",
-      "derivative": "any",
-      "version": "No"
+      "os_derivative": "any",
+      "os_version": {
+        "type": "no"
+      }
     },
     "commands": [
       {
@@ -306,10 +314,10 @@
 
 - `arch` - это строковое обозначение архитектуры аппаратного обеспечения таргета
 - `os` - это один из вариантов (`android`|`ios`|`linux`|`unix-{unix-name}`|`windows`|`macos`) или любое другое строковое обозначение операционнной системы
-- `derivative` - это дополнительное описание операционной системы или программной платформы
-- `version` - это версия операционной системы или программной платформы
+- `os_derivative` - это дополнительное описание операционной системы или программной платформы
+- `os_version` - это версия операционной системы или программной платформы
 
-Если `derivative` отсутствует, рекомендуется писать `any`.
+Если `os_derivative` отсутствует, рекомендуется писать `any`.
 
 #### 1.4. Действия развёртывания - `configure_deploy`, `deploy`, `post_deploy`
 
@@ -461,7 +469,7 @@ deployer new content
 }
 ```
 
-#### 1.7. Другие действия - `Interrupt`, `Observe` и `Check`
+#### 1.7. Другие действия - `Interrupt`, `Observe` и `Test`
 
 > NOTE: Нет нужного примера конфигурации? Создайте действие самостоятельно при помощи команды `deployer new action` и выведите его на экран при помощи `deployer cat action my-action@x.y.z`.
 
@@ -469,11 +477,11 @@ deployer new content
 
 `observe` - Действие, которое практически идентично `custom`. Оно используется, например, чтобы запустить Prometheus, Jaeger или что угодно ещё. Отличительной особенностью является то, что оно запускается без перенаправления ввода-вывода, т.е. в нём можно взаимодействовать с программами.
 
-А вот `check` - особенное действие, позволяющее проверять, что вывела команда в `stdout`/`stderr`:
+А вот `test` - особенное действие, позволяющее проверять, что вывела команда в `stdout`/`stderr`:
 
 ```json
 {
-  "type": "check",
+  "type": "test",
   "command": {
     "bash_c": "<af>",
     "placeholders": [
@@ -523,15 +531,14 @@ deployer new content
       "action": {
         "type": "pre_build",
         "supported_langs": [
-          "Rust"
+          "rust"
         ],
         "commands": [
           {
             "bash_c": "cargo clippy",
             "ignore_fails": false,
             "show_success_output": true,
-            "show_bash_c": true,
-            "only_when_fresh": null
+            "show_bash_c": true
           }
         ]
       }
@@ -547,15 +554,14 @@ deployer new content
       "action": {
         "type": "build",
         "supported_langs": [
-          "Rust"
+          "rust"
         ],
         "commands": [
           {
             "bash_c": "cargo build --release",
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": true,
-            "only_when_fresh": null
+            "show_bash_c": true
           }
         ]
       }
@@ -570,14 +576,7 @@ deployer new content
       "action": {
         "type": "post_build",
         "supported_langs": [
-          "Rust",
-          "Go",
-          "C",
-          "Cpp",
-          "Python",
-          {
-            "Other": "any"
-          }
+          "any"
         ],
         "commands": [
           {
@@ -586,23 +585,25 @@ deployer new content
               "<artifact>"
             ],
             "replacements": [
-              [
-                [
-                  "<artifact>",
+              {
+                "group": [
                   {
-                    "title": "target/release/deployer",
-                    "is_secret": false,
-                    "value": {
-                      "Plain": "target/release/deployer"
+                    "from": "<artifact>",
+                    "to": {
+                      "title": "target/release/deployer",
+                      "is_secret": false,
+                      "value": {
+                        "type": "plain",
+                        "value": "target/release/deployer"
+                      }
                     }
                   }
                 ]
-              ]
+              }
             ],
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": false,
-            "only_when_fresh": null
+            "show_bash_c": false
           }
         ]
       }
@@ -619,8 +620,10 @@ deployer new content
         "target": {
           "arch": "x86_64",
           "os": "Linux",
-          "derivative": "any",
-          "version": "No"
+          "os_derivative": "any",
+          "os_version": {
+            "type": "no"
+          }
         },
         "commands": [
           {
@@ -629,23 +632,25 @@ deployer new content
               "<artifact>"
             ],
             "replacements": [
-              [
-                [
-                  "<artifact>",
+              {
+                "group": [
                   {
-                    "title": "target/release/deployer",
-                    "is_secret": false,
-                    "value": {
-                      "Plain": "target/release/deployer"
+                    "from": "<artifact>",
+                    "to": {
+                      "title": "target/release/deployer",
+                      "is_secret": false,
+                      "value": {
+                        "type": "plain",
+                        "value": "target/release/deployer"
+                      }
                     }
                   }
                 ]
-              ]
+              }
             ],
             "ignore_fails": false,
             "show_success_output": false,
-            "show_bash_c": false,
-            "only_when_fresh": null
+            "show_bash_c": false
           }
         ]
       }
@@ -668,7 +673,8 @@ deployer new content
   "title": "deployer artifact location",
   "is_secret": false,
   "value": {
-    "Plain": "target/release/deployer"
+    "type": "plain",
+    "value": "target/release/deployer"
   }
 }
 ```
@@ -691,10 +697,9 @@ deployer new content
   "title": "Grafana token",
   "is_secret": true,
   "value": {
-    "FromEnvFile": {
-      "env_file_path": ".env",
-      "key": "GRAFANA_TOKEN"
-    }
+    "type": "from_env_file",
+    "env_file_path": ".env",
+    "key": "GRAFANA_TOKEN"
   }
 }
 ```
@@ -704,7 +709,8 @@ deployer new content
   "title": "Simple env var",
   "is_secret": false,
   "value": {
-    "FromEnvVar": "variable-key"
+    "type": "from_env_var",
+    "var_name": "variable-key"
   }
 }
 ```
@@ -714,10 +720,9 @@ deployer new content
   "title": "Secret!",
   "is_secret": true,
   "value": {
-    "FromHCVaultKv2": {
-      "mount_path": "The mount path where your KV2 secrets engine is mounted",
-      "secret_path": "Path to your secret"
-    }
+    "type": "from_hc_vault_kv2",
+    "mount_path": "The mount path where your KV2 secrets engine is mounted",
+    "secret_path": "Path to your secret"
   }
 }
 ```

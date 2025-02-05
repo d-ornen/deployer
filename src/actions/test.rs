@@ -1,4 +1,4 @@
-//! Check Action.
+//! Test Action.
 //!
 //! JSON example:
 //! ```json
@@ -32,22 +32,30 @@ use crate::entities::{custom_command::CustomCommand, environment::RunEnvironment
 use crate::i18n;
 use crate::utils::{regexopt2str, str2regexopt};
 
-/// Check Action.
+/// Test Action.
 ///
 /// Checks your command output by given regular expressions.
 #[derive(Deserialize, Serialize, Clone)]
-pub struct CheckAction {
+pub struct TestAction {
   /// Command to execute.
   pub command: CustomCommand,
   /// Regular expression that means successful check if it matches the command's output.
-  #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
+  #[serde(
+    skip_serializing_if = "Option::is_none",
+    serialize_with = "regexopt2str",
+    deserialize_with = "str2regexopt"
+  )]
   pub success_when_found: Option<Regex>,
   /// Regular expression that means successful check if it doesn't match the command's output.
-  #[serde(serialize_with = "regexopt2str", deserialize_with = "str2regexopt")]
+  #[serde(
+    skip_serializing_if = "Option::is_none",
+    serialize_with = "regexopt2str",
+    deserialize_with = "str2regexopt"
+  )]
   pub success_when_not_found: Option<Regex>,
 }
 
-impl Execute for CheckAction {
+impl Execute for TestAction {
   /// Executes commands with given run environment and checks its output.
   fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut output = vec![];
@@ -91,9 +99,9 @@ impl Execute for CheckAction {
   }
 }
 
-impl Eq for CheckAction {}
+impl Eq for TestAction {}
 
-impl std::hash::Hash for CheckAction {
+impl std::hash::Hash for TestAction {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     self.command.hash(state);
     if let Some(succ_found) = &self.success_when_found {
@@ -105,7 +113,7 @@ impl std::hash::Hash for CheckAction {
   }
 }
 
-impl PartialEq for CheckAction {
+impl PartialEq for TestAction {
   fn eq(&self, other: &Self) -> bool {
     self.command.eq(&other.command)
       && ((self.success_when_found.is_none() && other.success_when_found.is_none())

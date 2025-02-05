@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 use crate::actions::{Action, DescribedAction};
 use crate::actions::{
-  buildlike::BuildAction, check::CheckAction, deploylike::DeployAction, observe::ObserveAction, packlike::PackAction,
+  buildlike::BuildAction, deploylike::DeployAction, observe::ObserveAction, packlike::PackAction, test::TestAction,
 };
 use crate::configs::DeployerProjectOptions;
-use crate::entities::custom_command::CustomCommand;
+use crate::entities::custom_command::{CustomCommand, Replacement, ReplacementGroup};
 use crate::entities::info::ActionInfo;
 use crate::entities::programming_languages::ProgrammingLanguage;
 use crate::entities::targets::TargetDescription;
@@ -26,6 +26,9 @@ impl DescribedAction {
     let mut action = action.clone();
     if !langs.is_empty()
       && !langs.iter().any(|l| action.supported_langs.contains(l))
+      && !action
+        .supported_langs
+        .contains(&ProgrammingLanguage::Other("any".to_string()))
       && !inquire::Confirm::new(
         &i18n::ACTION_COMPAT_PLS
           .replace("{1}", &self.info.to_str())
@@ -132,7 +135,7 @@ impl DescribedAction {
   ) -> anyhow::Result<Self> {
     let action = match &self.action {
       Action::Custom(cmd) => Action::Custom(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
-      Action::Check(cmd) => Action::Check(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
+      Action::Test(cmd) => Action::Test(cmd.prompt_setup_for_project(&self.info, variables, artifacts)?),
       Action::PreBuild(pb_action) => {
         Action::PreBuild(self.setup_buildlike_action(pb_action, langs, variables, artifacts)?)
       }
@@ -140,7 +143,6 @@ impl DescribedAction {
       Action::PostBuild(pb_action) => {
         Action::PostBuild(self.setup_buildlike_action(pb_action, langs, variables, artifacts)?)
       }
-      Action::Test(t_action) => Action::Test(self.setup_buildlike_action(t_action, langs, variables, artifacts)?),
       Action::Pack(p_action) => Action::Pack(self.setup_packlike_action(p_action, targets, variables, artifacts)?),
       Action::Deliver(p_action) => {
         Action::Deliver(self.setup_packlike_action(p_action, targets, variables, artifacts)?)
@@ -180,7 +182,7 @@ impl DescribedAction {
   }
 }
 
-impl CheckAction {
+impl TestAction {
   pub fn prompt_setup_for_project(
     &self,
     info: &ActionInfo,
@@ -221,7 +223,7 @@ impl CustomCommand {
     let mut replacements = vec![];
     let mut explicitly_show_bash_c = None;
     loop {
-      let mut replacement = vec![];
+      let mut rgroup = ReplacementGroup { group: vec![] };
       for placeholder in self.placeholders.as_ref().unwrap() {
         let mut selected = Select::new(
           &i18n::CMD_SELECT_TO_REPLACE
@@ -245,15 +247,15 @@ impl CustomCommand {
           .prompt()?;
         }
 
-        replacement.push((
-          placeholder.to_owned(),
-          variables
+        rgroup.group.push(Replacement {
+          from: placeholder.to_owned(),
+          to: variables
             .find(&selected)
             .unwrap_or_else(|| Variable::new_plain(&selected, &selected)),
-        ));
+        });
       }
 
-      replacements.push(replacement);
+      replacements.push(rgroup);
       if !Confirm::new(i18n::CMD_ONE_MORE_TIME).with_default(false).prompt()? {
         break;
       }

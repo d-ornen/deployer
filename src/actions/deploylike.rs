@@ -4,31 +4,21 @@
 //!
 //! ```json
 //! {
-//!   "title": "Build Docker Compose Image",
-//!   "desc": "Build Docker image with Docker Compose",
-//!   "info": "docker-compose-build@0.1.0",
+//!   "type": "configure_deploy",
+//!   "deploy_toolkit": "docker-compose",
 //!   "tags": [
 //!     "docker",
 //!     "compose"
 //!   ],
-//!   "action": {
-//!     "ConfigureDeploy": {
-//!       "deploy_toolkit": "docker-compose",
-//!       "tags": [
-//!         "docker",
-//!         "compose"
-//!       ],
-//!       "commands": [
-//!         {
-//!           "bash_c": "docker compose build",
-//!           "ignore_fails": false,
-//!           "show_success_output": false,
-//!           "show_bash_c": true,
-//!           "only_when_fresh": false
-//!         }
-//!       ]
+//!   "commands": [
+//!     {
+//!       "bash_c": "docker compose build",
+//!       "ignore_fails": false,
+//!       "show_success_output": false,
+//!       "show_bash_c": true,
+//!       "only_when_fresh": false
 //!     }
-//!   }
+//!   ]
 //! }
 //! ```
 //!

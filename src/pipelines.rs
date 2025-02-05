@@ -76,8 +76,8 @@ impl DescribedPipeline {
         Action::SyncToRemote { .. } => cmds.push("<sync-to-remote>".to_string()),
         Action::SyncFromRemote { .. } => cmds.push("<sync-from-remote>".to_string()),
         Action::Custom(cmd) => cmds.push(cmd.bash_c.to_owned()),
-        Action::Check(check) => cmds.push(format!("<check> {}", check.command.bash_c)),
-        Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) | Action::Test(a) => cmds.extend_from_slice(
+        Action::Test(check) => cmds.push(format!("<test> {}", check.command.bash_c)),
+        Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => cmds.extend_from_slice(
           a.commands
             .iter()
             .map(|c| c.bash_c.to_owned())
