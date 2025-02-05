@@ -1,6 +1,10 @@
 # Migrations guide
 
-## From `<=1.3.5` to `1.4.0`
+## From `1.4.0-beta-1` to `1.4.0-beta-2`
+
+1. Rename `run_strategies` inside your `containered_opts` to `cache_strategies` (project configurations).
+
+## From `<=1.3.5` to `1.4.0-beta-1`
 
 Migrations will be almost fully applied automatically on configuration save. Deployer will be able to work with old configuration formats (`"version": 2`).
 

@@ -441,6 +441,9 @@ The patch *should be located in the build folder* when you run Pipeline. A very 
 
 When a patch is applied, Deployer displays the number of times it has been applied in the project. If the patch has not been applied once during the Pipeline process, *Deployer will generate an error*.
 
+> [!NOTE]
+> Deployer don't support patch scripts written in Python by default. If you need this, build Deployer with `deployer run en-full` command.
+
 #### 1.6. Actions of synchronization build folders - from current to remote host `sync_to_remote` and vice versa `sync_from_remote`
 
 Sometimes you need to synchronize build files between remote hosts and the current host. For example, when some actions must be performed on one host, and some on another. To do this, you can use the built-in Actions `sync_to_remote` and `sync_from_remote`:
@@ -489,6 +492,40 @@ And `test` is a special action that allows you to check what the command outputs
 - `success_when_not_found` tells Deployer that if it does not find the specified regular expression, the command execution will be considered successful.
 
 Moreover, if both fields are specified, the execution will be considered successful if both options were successful (the first regular expression must find, the second must not find).
+
+#### 1.8. Sub-pipelines
+
+Sub-pipelines allow you to group Actions by description and purpose and use them together inside project Pipelines. An example:
+
+```json
+{
+  "type": "sub_pipeline",
+  "title": "Sub-pipeline running Action",
+  "desc": "This is actual Pipeline inside your described Action.",
+  "info": "test-subpipeline@0.2.0",
+  "tags": [],
+  "actions": [
+    {
+      "title": "List files",
+      "desc": "Got from `List files and folders`.",
+      "info": "ls@0.1.0",
+      "tags": [],
+      "action": {
+        "type": "custom",
+        "bash_c": "ls",
+        "ignore_fails": false,
+        "show_success_output": true,
+        "show_bash_c": true,
+        "only_when_fresh": false
+      },
+      "exec_in_project_dir": false
+    }
+  ]
+}
+```
+
+> [!NOTE]
+> Regardless of the presence of an exluisive tag, the Sub-pipeline will be made in the same folder as the parental Pipeline.
 
 This concludes the description of Actions, and we move on to Pipelines.
 
@@ -651,6 +688,152 @@ A Pipeline is an ordered set of Actions that is necessary to achieve a certain g
 In general, a Pipeline contains a list of Actions in the `actions` field.
 
 In addition, if your Pipelines need to manage conflicting cache versions (for example, when building a project for different target architectures), you can specify an exclusive build tag in the `exclusive_exec_tag` field. For example, specify `x86_64` when adding a Pipeline build for one architecture and `aarch64` for another. Then Pipelines will be built in different folders and cache information will be saved in both cases.
+
+#### 2.1. Containerized assembly and execution, as well as strategies
+
+The deployment supports the build and execution of projects in containerized environments with the ability to extract artifacts to the project folder. This can be useful in cases where you need to build a project for other platforms and/or environments.
+
+In addition, the Deployer allows you to specify basic images, a list of commands for installing dependencies and configuring the image, as well as strategies for saving caches. Collectively, this allows you to generate information for `Dockerfile` images automatically.
+
+> [!NOTE]
+> Deployer versions 1.4.0-beta-1/1.4.0-beta-2 only support Pipeline launch in Docker containerized environments.
+
+Let's look at an example of a containerized Pipeline:
+
+```json
+{
+  "title": "containered",
+  "desc": "Got from `Deployer Pipeline`.",
+  "info": "deployer-default@0.1.2",
+  "tags": [
+    "cargo",
+    "clippy",
+    "build"
+  ],
+  "actions": [
+    {
+      "title": "Lint",
+      "desc": "Got from `Cargo Clippy`.",
+      "info": "cargo-clippy@0.1.0",
+      "tags": [
+        "cargo",
+        "clippy"
+      ],
+      "action": {
+        "type": "pre_build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo clippy --no-default-features --features=lua,rhai,tui,containered",
+            "ignore_fails": false,
+            "show_success_output": true,
+            "show_bash_c": true
+          }
+        ]
+      },
+      "requirements": [
+        {
+          "type": "exists_any",
+          "paths": [
+            "/bin/cargo",
+            "~/.cargo/bin/cargo"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Build",
+      "desc": "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode",
+      "info": "cargo-rel@0.1",
+      "tags": [
+        "rust",
+        "cargo"
+      ],
+      "action": {
+        "type": "build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered",
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": true
+          }
+        ]
+      },
+      "requirements": [
+        {
+          "type": "exists_any",
+          "paths": [
+            "/bin/cargo",
+            "~/.cargo/bin/cargo"
+          ]
+        }
+      ]
+    }
+  ],
+  "default": false,
+  "containered_opts": {
+    "preflight_cmds": [
+      "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
+      "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+      "ENV PATH=\"/root/.cargo/bin:${PATH}\"",
+      "RUN rustup component add clippy"
+    ],
+    "cache_strategies": [
+      {
+        "fake_content": "docker-fake-files@0.1.0",
+        "copy_cmds": [
+          "COPY rust-toolchain.toml .",
+          "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
+          "COPY .docker-fake-files/rust/main.rs src/main.rs",
+          "COPY Cargo.toml .",
+          "COPY deploy-config.json ."
+        ],
+        "pre_cache_cmds": [
+          "RUN /app/deployer run containered --current --containered --no-pipe"
+        ]
+      },
+      {
+        "copy_cmds": [
+          "COPY src/ src/"
+        ],
+        "pre_cache_cmds": [
+          "COPY DOCS.en.md .",
+          "COPY DOCS.ru.md .",
+          "RUN touch src/main.rs",
+          "RUN touch src/lib.rs",
+          "RUN /app/deployer run containered --current --containered --no-pipe"
+        ]
+      }
+    ]
+  },
+  "exclusive_exec_tag": "containered"
+}
+```
+
+The only difference is the addition of the `containered_opts` field, which automatically forces the Deployer to execute this Pipeline in a containerized environment.
+
+- `base_image` - you can specify the base image for building the project (default is `ubuntu:latest`)
+- `preflight_cmds` - a list of commands for installing the environment correctly
+- `build_deployer_base_image`, `preflight_deployer_build_deps` and `deployer_build_cmds` - base image, configuration commands and commands for building the Deployer itself
+- `cache_strategies` - caching strategies during build stage
+
+Since the Deployer is needed in a containerized environment, check the compatibility of the Deployer and the environment by launching the Pipeline. If the Deployer is built with Python support, it is best to use identical base images.
+
+To keep the build cache, rather than constantly rebuilding the Pipeline from scratch, it is recommended to specify caching strategies. They are executed when building a containerized environment. Available fields:
+
+- `fake_content` - a field for syncing content to replace existing files (works the same way as `use_from_storage`, but does not support `latest` tags)
+- `copy_cmds` - commands for copying source code to an image
+- `pre_cache_cmds` - commands for pre-caching
+
+Caching strategies are suitable for implementing multi-stage builds. In the above example, there is a two-stage build for a Rust project, which first requires copying the real `Cargo.toml` and fake `lib.rs `and `main.rs `to compile all the dependencies of the project first, and then copies the real source code `src/` and updates the timestamps `RUN touch src/main.rs & touch src/lib.rs` to then build the project without having to rebuild dependencies. In this case, the dependency cache will be used until `Cargo.toml` is edited.
+
+To rebuild containered environment from scratch, run Deployer with flag `-f`/`--fresh`.
 
 ### <a id="other-entities">3. Other entities</a>
 
