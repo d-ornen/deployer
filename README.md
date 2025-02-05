@@ -3,7 +3,7 @@
 Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allows you to:
 
 - have your own actions and pipelines repositories (`Actions Registry` and `Pipelines Registry`) in a single JSON file
-- create actions and pipelines from TUI or JSON configuration files
+- create actions and pipelines from TUI or using JSON/YAML/TOML configuration files
 - configure actions for specific project
 - satisfy requirements for your system to run pipelines
 - check compatibility over actions and projects

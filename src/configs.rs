@@ -121,6 +121,10 @@ pub struct DeployerGlobalConfig {
   #[serde(serialize_with = "ordered_map")]
   pub remote_hosts: HashMap<ShortName, RemoteHost>,
 
+  /// Preferred configuration format.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub preferred_conf_format: Option<String>,
+
   /// Global configuration version
   #[serde(default = "get_default_global_conf_version")]
   pub version: u8,
@@ -184,6 +188,7 @@ impl Default for DeployerGlobalConfig {
       actions_registry,
       pipelines_registry,
       remote_hosts: hmap!(),
+      preferred_conf_format: None,
       version: CURRENT_GLOBAL_CONF_VERSION,
     }
   }

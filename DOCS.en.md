@@ -2,6 +2,8 @@
 
 The actual documentation is available with `deployer docs`.
 
+The main Deployer configuration format is JSON, but it also supports YAML and TOML. You can initialize the project with the `-F` flag and specify the preferred format, or edit the global configuration (which will remain as JSON for now) by specifying the `preferred_conf_format` (`yaml`/`toml`/`json`) field, or ask the Deployer to save the configuration in a different format via the command `deployer edit project`. All the examples in the documentation below are written in JSON.
+
 ## Description of working principles
 
 Deployer is, at its core, a local CI/CD. In other words, a `bash` command manager.

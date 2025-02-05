@@ -167,7 +167,11 @@ pub struct NewRemoteArgs {
 }
 
 #[derive(Args)]
-pub struct InitArgs {}
+pub struct InitArgs {
+  /// Preferred configuration file format
+  #[arg(short('F'), long)]
+  pub file_format: Option<String>,
+}
 
 #[derive(Args)]
 pub struct WithPipelineArgs {

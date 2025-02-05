@@ -28,8 +28,8 @@ use crate::tui::add::{
 use crate::utils::tags_custom_type;
 use crate::{hmap, hset};
 
-impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
-  fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig) -> anyhow::Result<()> {
+impl DeployerProjectOptions {
+  pub fn edit_from_prompt(&mut self, opts: &mut DeployerGlobalConfig, conf_file: &mut String) -> anyhow::Result<()> {
     let actions = vec![
       i18n::EDIT_PROJECT_PIPELINES,
       i18n::EDIT_DEFAULT,
@@ -42,6 +42,7 @@ impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
       i18n::EDIT_PROJECT_VARS,
       i18n::EDIT_ARTIFACTS,
       i18n::EDIT_AF_INPLACE,
+      i18n::EDIT_CONF_FORMAT,
     ];
 
     while let Some(action) = inquire::Select::new(
@@ -82,15 +83,34 @@ impl EditExtended<DeployerGlobalConfig> for DeployerProjectOptions {
             }
           }
         }
+        i18n::EDIT_CONF_FORMAT => {
+          let proposal = inquire::Select::new(
+            i18n::ENTER_CONF_FORMAT,
+            vec![
+              "json".to_string(),
+              "yaml".to_string(),
+              "toml".to_string(),
+              format!("{} json", i18n::HIDDEN),
+              format!("{} yaml", i18n::HIDDEN),
+              format!("{} toml", i18n::HIDDEN),
+            ],
+          )
+          .prompt()?;
+          match proposal.as_str() {
+            "json" | "yaml" | "toml" => *conf_file = format!("deploy-config.{}", proposal),
+            p if p.ends_with("json") => *conf_file = ".deploy-config.json".to_string(),
+            p if p.ends_with("yaml") => *conf_file = ".deploy-config.yaml".to_string(),
+            p if p.ends_with("toml") => *conf_file = ".deploy-config.toml".to_string(),
+            _ => {}
+          }
+        }
         _ => {}
       }
     }
 
     Ok(())
   }
-}
 
-impl DeployerProjectOptions {
   pub fn select_default_pipeline(&mut self) -> anyhow::Result<()> {
     match self.pipelines.len() {
       0 => {

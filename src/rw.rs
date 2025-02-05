@@ -42,6 +42,30 @@ pub fn read_or_migrate<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
   })
 }
 
+pub fn read_or_migrate_mul<T: DeserializeOwned + Default + ConfigAutoMigrate<T>>(
+  folder: impl AsRef<Path>,
+  files: &[&str],
+) -> (T, String) {
+  for file in files.iter().cloned() {
+    let mut path = PathBuf::new();
+    path.push(folder.as_ref());
+    path.push(file);
+
+    if !path.exists() {
+      continue;
+    }
+
+    let res = read_checked(&path).unwrap_or_else(|_| {
+      T::migrate(&path).unwrap_or_else(|e| {
+        log(format!("Error on file read & migration: {:?}", e));
+        T::default()
+      })
+    });
+    return (res, file.to_string());
+  }
+  (Default::default(), files[0].to_string())
+}
+
 /// Reads the contents of a file as type `T`.
 pub fn read_checked<T: DeserializeOwned>(filepath: impl AsRef<Path>) -> anyhow::Result<T> {
   let content = std::fs::read_to_string(filepath.as_ref())?;
