@@ -2,6 +2,8 @@
 
 Актуальная документация доступна через `deployer docs`.
 
+Основной формат конфигурации Деплойера - JSON, но он также поддерживает YAML и TOML. Вы можете инициализировать проект с флагом `-F` и указать предпочтительный формат, либо же отредактировать глобальную конфигурацию (которая пока что останется в виде JSON), указав поле `preferred_conf_format` (`yaml`/`toml`/`json`), либо же попросить Деплойера сохранить конфигурацию в другом формате через команду `deployer edit project`. Все примеры в документации ниже написаны на JSON.
+
 ## Описание принципов работы
 
 Деплойер, по своей сути, - локальный CI/CD. Иными словами, менеджер `bash`-команд.
@@ -27,14 +29,7 @@
   "action": {
     "type": "post_build",
     "supported_langs": [
-      "Rust",
-      "Go",
-      "C",
-      "Cpp",
-      "Python",
-      {
-        "Other": "any"
-      }
+      "any"
     ],
     "commands": [
       {
@@ -337,10 +332,6 @@
   "action": {
     "type": "configure_deploy",
     "deploy_toolkit": "docker-compose",
-    "tags": [
-      "docker",
-      "compose"
-    ],
     "commands": [
       {
         "bash_c": "docker compose build",
@@ -452,6 +443,9 @@ deployer new content
 
 При применении патча Деплойер выводит количество его применений в проекте. Если патч не был применён ни разу в процессе выполнения Пайплайна, *Деплойер выдаст ошибку*.
 
+> [!NOTE]
+> По умолчанию Деплойер не поддерживает скрипты патчей, написанные на Python. Если такая поддержка необходима, соберите Деплойер командой `deployer run ru-full`.
+
 #### 1.6. Действия синхронизации папок сборки - с текущего хоста на удалённый `sync_to_remote` и наоборот `sync_from_remote`
 
 Иногда нужно синхронизировать файлы сборки между удалёнными хостами и текущим хостом. Например, когда часть действий нужно обязательно выполнить на одном хосте, а часть - на другом. Для этого можно использовать встроенные Действия `sync_to_remote` и `sync_from_remote`:
@@ -501,6 +495,40 @@ deployer new content
 - `success_when_not_found` сообщает Деплойеру, что если он не найдёт указанное регулярное выражение, то выполнение команды будет считаться успешным
 
 Причём, если оба поля указаны, то успешным запуск будет считаться в случае, если оба варианта были успешны (первое регулярное выражение должен найти, второе - должен не найти).
+
+#### 1.8. Субпайплайны
+
+Субпайплайны позволяют группировать Действия по описанию и назначению, чтобы затем использовать их совместно в Пайплайнах проектов. Пример:
+
+```json
+{
+  "type": "sub_pipeline",
+  "title": "Sub-pipeline running Action",
+  "desc": "This is actual Pipeline inside your described Action.",
+  "info": "test-subpipeline@0.2.0",
+  "tags": [],
+  "actions": [
+    {
+      "title": "List files",
+      "desc": "Got from `List files and folders`.",
+      "info": "ls@0.1.0",
+      "tags": [],
+      "action": {
+        "type": "custom",
+        "bash_c": "ls",
+        "ignore_fails": false,
+        "show_success_output": true,
+        "show_bash_c": true,
+        "only_when_fresh": false
+      },
+      "exec_in_project_dir": false
+    }
+  ]
+}
+```
+
+> [!NOTE]
+> Вне зависимости от наличия экслюзивной метки сборки, Субпайплайн будет выполнен в той же папке, что и родительский Пайплайн.
 
 На этом описание Действий заканчивается, и мы переходим к Пайплайнам.
 
@@ -664,6 +692,152 @@ deployer new content
 
 Помимо этого, если ваши Пайплайны должны управлять конфликтующими версиями кэша (например, при сборке проекта под разные целевые архитектуры), то вы можете указать эксклюзивную метку сборки в поле `exclusive_exec_tag`. Например, укажите `x86_64` при добавлении Пайплайна сборки для одной архитектуры, а `aarch64` - для другой. Тогда Пайплайны будут собираться в разных папках, и информация о кэше будет сохранена в обоих случаях.
 
+#### 2.1. Контейнеризированная сборка и выполнение, а также стратегии
+
+Деплойер поддерживает сборку и выполнение проектов в контейнеризированных окружениях с возможностью извлечения артефактов в папку проекта. Это может быть удобным в тех случаях, когда требуется сборка проекта под другие платформы и/или окружения.
+
+Помимо этого, Деплойер позволяет указывать базовые образы, список команд для установки зависимостей и настройки образа, а также стратегии для сохранения кэшей. Совокупно это позволяет генерировать информацию для образов `Dockerfile` автоматически.
+
+> [!NOTE]
+> В версиях Деплойера 1.4.0-beta-1/1.4.0-beta-2 есть поддержка только запуск Пайплайнов в контейнеризированных окружениях Docker.
+
+Посмотрим на пример контейнеризированного Пайплайна:
+
+```json
+{
+  "title": "containered",
+  "desc": "Got from `Deployer Pipeline`.",
+  "info": "deployer-default@0.1.2",
+  "tags": [
+    "cargo",
+    "clippy",
+    "build"
+  ],
+  "actions": [
+    {
+      "title": "Lint",
+      "desc": "Got from `Cargo Clippy`.",
+      "info": "cargo-clippy@0.1.0",
+      "tags": [
+        "cargo",
+        "clippy"
+      ],
+      "action": {
+        "type": "pre_build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "cargo clippy --no-default-features --features=lua,rhai,tui,containered",
+            "ignore_fails": false,
+            "show_success_output": true,
+            "show_bash_c": true
+          }
+        ]
+      },
+      "requirements": [
+        {
+          "type": "exists_any",
+          "paths": [
+            "/bin/cargo",
+            "~/.cargo/bin/cargo"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Build",
+      "desc": "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode",
+      "info": "cargo-rel@0.1",
+      "tags": [
+        "rust",
+        "cargo"
+      ],
+      "action": {
+        "type": "build",
+        "supported_langs": [
+          "rust"
+        ],
+        "commands": [
+          {
+            "bash_c": "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered",
+            "ignore_fails": false,
+            "show_success_output": false,
+            "show_bash_c": true
+          }
+        ]
+      },
+      "requirements": [
+        {
+          "type": "exists_any",
+          "paths": [
+            "/bin/cargo",
+            "~/.cargo/bin/cargo"
+          ]
+        }
+      ]
+    }
+  ],
+  "default": false,
+  "containered_opts": {
+    "preflight_cmds": [
+      "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
+      "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+      "ENV PATH=\"/root/.cargo/bin:${PATH}\"",
+      "RUN rustup component add clippy"
+    ],
+    "cache_strategies": [
+      {
+        "fake_content": "docker-fake-files@0.1.0",
+        "copy_cmds": [
+          "COPY rust-toolchain.toml .",
+          "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
+          "COPY .docker-fake-files/rust/main.rs src/main.rs",
+          "COPY Cargo.toml .",
+          "COPY deploy-config.json ."
+        ],
+        "pre_cache_cmds": [
+          "RUN /app/deployer run containered --current --containered --no-pipe"
+        ]
+      },
+      {
+        "copy_cmds": [
+          "COPY src/ src/"
+        ],
+        "pre_cache_cmds": [
+          "COPY DOCS.en.md .",
+          "COPY DOCS.ru.md .",
+          "RUN touch src/main.rs",
+          "RUN touch src/lib.rs",
+          "RUN /app/deployer run containered --current --containered --no-pipe"
+        ]
+      }
+    ]
+  },
+  "exclusive_exec_tag": "containered"
+}
+```
+
+Всё отличие заключается в добавлении поля `containered_opts`, которое автоматически заставляет Деплойер выполнять этот Пайплайн в контейнеризированном окружении.
+
+- `base_image` - вы можете указать базовый образ для сборки проекта (по умолчанию - `ubuntu:latest`)
+- `preflight_cmds` - список команд для правильной установки окружения
+- `build_deployer_base_image`, `preflight_deployer_build_deps` и `deployer_build_cmds` - базовый образ, команды для настройки и команды для сборки самого Деплойера
+- `cache_strategies` - стратегии кэширования при сборке
+
+Поскольку Деплойер нужен в контейнеризированном окружении, проверяйте совместимость Деплойера и окружения путём запуска Пайплайна. Если Деплойер собран с поддержкой Python, лучше всего использовать идентичные базовые образы.
+
+Чтобы сохранять кэш сборок, а не пересобирать Пайплайн постоянно с нуля, рекомендуется указать стратегии кэширования. Они выполняются при сборке контейнеризированного окружения. Доступные поля:
+
+- `fake_content` - поле для синхронизации контента для подмены существующих файлов (работает также, как и `use_from_storage`, но не поддерживает `latest`-теги)
+- `copy_cmds` - команды для копирования исходного кода в образ
+- `pre_cache_cmds` - команды для предварительного кэширования
+
+Стратегии кэширования подходят для реализации многостадийных сборок. В указанном выше примере происходит двухстадийная сборка для Rust-проекта, которая сначала требует копирования реального `Cargo.toml` и фейковых `lib.rs` и `main.rs`, чтобы сначала скомпилировать все зависимости проекта, а потом уже копирует реальный исходный код `src/` и обновляет штампы времени `RUN touch src/main.rs & touch src/lib.rs`, чтобы затем собрать проект без необходимости пересборки зависимостей. В этом случае будет использоваться кэш зависимостей до тех пор, пока `Cargo.toml` не будет отредактирован.
+
+Для пересборки окружения с нуля запустите Деплойер с флагом `-f`/`--fresh`.
+
 ### <a id="other-entities">3. Другие сущности</a>
 
 Одной из самых важных сущностей являются переменные. Они одновременно являются и хранителями ваших секретов, и теми самыми динамическими сущностями, которые могут поменять исход выполнения Пайплайна. Пример простой переменной:
@@ -685,10 +859,10 @@ deployer new content
 
 Есть три поддерживаемых сейчас типа переменных:
 
-1. `Plain` - содержимое строки и есть переменная
-2. `FromEnvVar` - переменная будет взята из окружения оболочки Деплойера
-3. `FromEnvFile` - переменная будет взята из указанного `env`-файла с указанным ключом
-4. `FromHCVaultKv2` - переменная будет взята из HashiCorp Vault KV2-хранилища с указанными `mount_path` и `secret_path`
+1. `plain` - содержимое строки и есть переменная
+2. `from_env_var` - переменная будет взята из окружения оболочки Деплойера
+3. `from_env_file` - переменная будет взята из указанного `env`-файла с указанным ключом
+4. `from_hc_vault_kv2` - переменная будет взята из HashiCorp Vault KV2-хранилища с указанными `mount_path` и `secret_path`
 
 Примеры:
 
@@ -727,7 +901,7 @@ deployer new content
 }
 ```
 
-Заметьте, что вы должны перед использованием `FromHCVaultKv2`-переменных указать две переменные окружения: `DEPLOYER_VAULT_ADDR` (URL-адрес Vault) и `DEPLOYER_VAULT_TOKEN` (токен Vault).
+Заметьте, что вы должны перед использованием `from_hc_vault_kv2`-переменных указать две переменные окружения: `DEPLOYER_VAULT_ADDR` (URL-адрес Vault) и `DEPLOYER_VAULT_TOKEN` (токен Vault).
 
 Ещё одной важной сущностью является удалённый хост. Деплойер хранит все хосты в Реестре (глобальный файл конфигурации - список `remote_hosts`). Структура хоста выглядит так:
 

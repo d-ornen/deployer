@@ -1,0 +1,1167 @@
+project_name = "deployer"
+langs = ["rust"]
+cache_files = [
+    ".git",
+    "Cargo.lock",
+    "target",
+]
+artifacts = ["target/release/deployer"]
+variables = []
+version = 4
+
+[[targets]]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[targets.os_version]
+type = "no"
+
+[[pipelines]]
+title = "en"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+    "upx",
+]
+default = true
+
+[[pipelines.actions]]
+title = "Lint"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Format"
+desc = "Format `.rs` files"
+info = "cargo-fmt@0.1.0"
+tags = [
+    "rust",
+    "cargo",
+    "fmt",
+]
+exec_in_project_dir = true
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines.actions]]
+title = "Build"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Compress"
+desc = "Got from `UPX Compress`."
+info = "upx@0.1.0"
+tags = ["upx"]
+
+[pipelines.actions.action]
+type = "post_build"
+supported_langs = ["any"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "upx <artifact>"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/usr/bin/upx",
+    "~/.local/bin/upx",
+]
+
+[[pipelines.actions]]
+title = "Install to ~/.cargo/bin"
+desc = ""
+info = "install-to-cargo-bin@0.1.1"
+tags = ["cargo"]
+
+[pipelines.actions.action]
+type = "install"
+
+[pipelines.actions.action.target]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[pipelines.actions.action.target.os_version]
+type = "no"
+
+[[pipelines.actions.action.commands]]
+bash_c = "cp -f <artifact> ~/.cargo/bin"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines]]
+title = "ru"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+    "upx",
+]
+default = false
+exclusive_exec_tag = "ru"
+
+[[pipelines.actions]]
+title = "Проверка качества кода"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Форматирование кода"
+desc = "Format `.rs` files"
+info = "cargo-fmt@0.1.0"
+tags = [
+    "rust",
+    "cargo",
+    "fmt",
+]
+exec_in_project_dir = true
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines.actions]]
+title = "Сборка"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Сжатие"
+desc = "Got from `UPX Compress`."
+info = "upx@0.1.0"
+tags = ["upx"]
+
+[pipelines.actions.action]
+type = "post_build"
+supported_langs = ["any"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "upx <artifact>"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/usr/bin/upx",
+    "~/.local/bin/upx",
+]
+
+[[pipelines.actions]]
+title = "Установка в ~/.cargo/bin"
+desc = ""
+info = "install-to-cargo-bin@0.1.1"
+tags = ["cargo"]
+
+[pipelines.actions.action]
+type = "install"
+
+[pipelines.actions.action.target]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[pipelines.actions.action.target.os_version]
+type = "no"
+
+[[pipelines.actions.action.commands]]
+bash_c = "cp -f <artifact> ~/.cargo/bin"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines]]
+title = "en-full"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+    "upx",
+]
+default = false
+exclusive_exec_tag = "en-full"
+
+[[pipelines.actions]]
+title = "Lint"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=python,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Format"
+desc = "Format `.rs` files"
+info = "cargo-fmt@0.1.0"
+tags = [
+    "rust",
+    "cargo",
+    "fmt",
+]
+exec_in_project_dir = true
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines.actions]]
+title = "Build"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Compress"
+desc = "Got from `UPX Compress`."
+info = "upx@0.1.0"
+tags = ["upx"]
+
+[pipelines.actions.action]
+type = "post_build"
+supported_langs = ["any"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "upx <artifact>"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/usr/bin/upx",
+    "~/.local/bin/upx",
+]
+
+[[pipelines.actions]]
+title = "Install to ~/.cargo/bin"
+desc = ""
+info = "install-to-cargo-bin@0.1.1"
+tags = ["cargo"]
+
+[pipelines.actions.action]
+type = "install"
+
+[pipelines.actions.action.target]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[pipelines.actions.action.target.os_version]
+type = "no"
+
+[[pipelines.actions.action.commands]]
+bash_c = "cp -f <artifact> ~/.cargo/bin"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines]]
+title = "ru-full"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+    "upx",
+]
+default = false
+exclusive_exec_tag = "ru-full"
+
+[[pipelines.actions]]
+title = "Проверка качества кода"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=python,i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Форматирование кода"
+desc = "Format `.rs` files"
+info = "cargo-fmt@0.1.0"
+tags = [
+    "rust",
+    "cargo",
+    "fmt",
+]
+exec_in_project_dir = true
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines.actions]]
+title = "Сборка"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=python,i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Сжатие"
+desc = "Got from `UPX Compress`."
+info = "upx@0.1.0"
+tags = ["upx"]
+
+[pipelines.actions.action]
+type = "post_build"
+supported_langs = ["any"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "upx <artifact>"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/usr/bin/upx",
+    "~/.local/bin/upx",
+]
+
+[[pipelines.actions]]
+title = "Установка в ~/.cargo/bin"
+desc = ""
+info = "install-to-cargo-bin@0.1.1"
+tags = ["cargo"]
+
+[pipelines.actions.action]
+type = "install"
+
+[pipelines.actions.action.target]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[pipelines.actions.action.target.os_version]
+type = "no"
+
+[[pipelines.actions.action.commands]]
+bash_c = "cp -f <artifact> ~/.cargo/bin"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines]]
+title = "ru-mold"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+    "upx",
+]
+default = false
+exclusive_exec_tag = "ru-mold"
+
+[[pipelines.actions]]
+title = "Добавить линковщик `mold`"
+desc = ""
+info = "use-mold@0.1.0"
+tags = []
+exec_in_project_dir = false
+
+[pipelines.actions.action]
+type = "use_from_storage"
+content_info = "cargo-mold-linker@latest"
+
+[[pipelines.actions]]
+title = "Проверка качества кода"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Форматирование кода"
+desc = "Format `.rs` files"
+info = "cargo-fmt@0.1.0"
+tags = [
+    "rust",
+    "cargo",
+    "fmt",
+]
+exec_in_project_dir = true
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo fmt -- --config tab_spaces=2,max_width=120 */**/*.rs"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines.actions]]
+title = "Сборка"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Сжатие"
+desc = "Got from `UPX Compress`."
+info = "upx@0.1.0"
+tags = ["upx"]
+
+[pipelines.actions.action]
+type = "post_build"
+supported_langs = ["any"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "upx <artifact>"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/usr/bin/upx",
+    "~/.local/bin/upx",
+]
+
+[[pipelines.actions]]
+title = "Установка в ~/.cargo/bin"
+desc = ""
+info = "install-to-cargo-bin@0.1.1"
+tags = ["cargo"]
+
+[pipelines.actions.action]
+type = "install"
+
+[pipelines.actions.action.target]
+arch = "x86_64"
+os = "Linux"
+os_derivative = "any"
+
+[pipelines.actions.action.target.os_version]
+type = "no"
+
+[[pipelines.actions.action.commands]]
+bash_c = "cp -f <artifact> ~/.cargo/bin"
+placeholders = ["<artifact>"]
+ignore_fails = false
+show_success_output = false
+show_bash_c = false
+
+[[pipelines.actions.action.commands.replacements]]
+
+[[pipelines.actions.action.commands.replacements.group]]
+from = "<artifact>"
+
+[pipelines.actions.action.commands.replacements.group.to]
+title = "target/release/deployer"
+is_secret = false
+
+[pipelines.actions.action.commands.replacements.group.to.value]
+type = "plain"
+value = "target/release/deployer"
+
+[[pipelines]]
+title = "check-lib"
+desc = ""
+info = "deployer-check-lib@0.1.0"
+tags = []
+default = false
+exclusive_exec_tag = "ru"
+
+[[pipelines.actions]]
+title = "Lint"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --lib --features=lua,rhai"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Lint with `containered` feature"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --lib --features=lua,rhai,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines]]
+title = "test"
+desc = ""
+info = "deployer-test@0.1.0"
+tags = []
+default = false
+
+[[pipelines.actions]]
+title = "Test remote checkup and execution"
+desc = "Got from `Simple action with remote requirement`. Make sure that you've added any remote host to Deployer's Registry as `remote-pc`."
+info = "simple-action-with-remote-requirement@0.1.0"
+tags = []
+
+[pipelines.actions.action]
+type = "custom"
+bash_c = "ls"
+ignore_fails = true
+show_success_output = true
+show_bash_c = true
+only_when_fresh = false
+remote_exec = ["remote-pc"]
+
+[[pipelines.actions.requirements]]
+type = "remote_accessible_and_ready"
+remote_host_name = "remote-pc"
+
+[[pipelines]]
+title = "test-observe"
+desc = ""
+info = "test-observe@0.1"
+tags = []
+default = false
+
+[[pipelines.actions]]
+title = "Test Observe"
+desc = "Got from `Test Observe`."
+info = "test-observe@0.1.0"
+tags = []
+
+[pipelines.actions.action]
+type = "observe"
+
+[pipelines.actions.action.command]
+bash_c = "btop"
+ignore_fails = true
+show_success_output = true
+show_bash_c = false
+only_when_fresh = false
+
+[[pipelines]]
+title = "test-sub-pipeline"
+desc = ""
+info = "test-subpipeline@0.1.0"
+tags = []
+
+[[pipelines.actions]]
+title = "Sub-pipeline running Action"
+desc = "Получено из `Sub Pipe Test Action`."
+info = "sub-pipe-test@0.1.0"
+tags = []
+exec_in_project_dir = false
+
+[pipelines.actions.action]
+type = "sub_pipeline"
+title = "Sub-pipeline running Action"
+desc = "Получено из `Test Sub-Pipeline 2.0 (Inner)`."
+info = "test-subpipeline@0.2.0"
+tags = []
+
+[[pipelines.actions.action.actions]]
+title = "List files"
+desc = "Получено из `List files and folders`."
+info = "ls@0.1.0"
+tags = []
+exec_in_project_dir = false
+
+[pipelines.actions.action.actions.action]
+type = "custom"
+bash_c = "ls"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+only_when_fresh = false
+
+[[pipelines]]
+title = "containered"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.2"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+]
+default = false
+exclusive_exec_tag = "containered"
+
+[[pipelines.actions]]
+title = "Lint"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Build"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[pipelines.containered_opts]
+preflight_cmds = [
+    "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
+    "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+    'ENV PATH="/root/.cargo/bin:${PATH}"',
+    "RUN rustup component add clippy",
+]
+
+[[pipelines.containered_opts.cache_strategies]]
+fake_content = "docker-fake-files@0.1.0"
+copy_cmds = [
+    "COPY rust-toolchain.toml .",
+    "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
+    "COPY .docker-fake-files/rust/main.rs src/main.rs",
+    "COPY Cargo.toml .",
+    "COPY deploy-config.json .",
+]
+pre_cache_cmds = ["RUN /app/deployer run containered --current --containered --no-pipe"]
+
+[[pipelines.containered_opts.cache_strategies]]
+copy_cmds = ["COPY src/ src/"]
+pre_cache_cmds = [
+    "COPY DOCS.en.md .",
+    "COPY DOCS.ru.md .",
+    "RUN touch src/main.rs",
+    "RUN touch src/lib.rs",
+    "RUN /app/deployer run containered --current --containered --no-pipe",
+]
+
+[[pipelines]]
+title = "ru-containered"
+desc = "Got from `Deployer Pipeline`."
+info = "deployer-default@0.1.2"
+tags = [
+    "cargo",
+    "clippy",
+    "build",
+]
+default = false
+exclusive_exec_tag = "containered"
+
+[[pipelines.actions]]
+title = "Проверка качества кода"
+desc = "Got from `Cargo Clippy`."
+info = "cargo-clippy@0.1.0"
+tags = [
+    "cargo",
+    "clippy",
+]
+
+[pipelines.actions.action]
+type = "pre_build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "cargo clippy --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = true
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[[pipelines.actions]]
+title = "Сборка"
+desc = "Got from `Cargo Build (Release)`. Build the Rust project with Cargo default settings in release mode"
+info = "cargo-rel@0.1"
+tags = [
+    "rust",
+    "cargo",
+]
+
+[pipelines.actions.action]
+type = "build"
+supported_langs = ["rust"]
+
+[[pipelines.actions.action.commands]]
+bash_c = "RUSTFLAGS='-Zthreads=16' cargo build --release --no-default-features --features=i18n-ru,lua,rhai,tui,containered"
+ignore_fails = false
+show_success_output = false
+show_bash_c = true
+
+[[pipelines.actions.requirements]]
+type = "exists_any"
+paths = [
+    "/bin/cargo",
+    "~/.cargo/bin/cargo",
+]
+
+[pipelines.containered_opts]
+preflight_cmds = [
+    "RUN apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*",
+    "RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --profile minimal --default-toolchain nightly",
+    'ENV PATH="/root/.cargo/bin:${PATH}"',
+    "RUN rustup component add clippy",
+]
+
+[[pipelines.containered_opts.cache_strategies]]
+fake_content = "docker-fake-files@0.1.0"
+copy_cmds = [
+    "COPY rust-toolchain.toml .",
+    "COPY .docker-fake-files/rust/lib.rs src/lib.rs",
+    "COPY .docker-fake-files/rust/main.rs src/main.rs",
+    "COPY Cargo.toml .",
+    "COPY deploy-config.json .",
+]
+pre_cache_cmds = ["RUN /app/deployer run ru-containered --current --containered --no-pipe"]
+
+[[pipelines.containered_opts.cache_strategies]]
+copy_cmds = ["COPY src/ src/"]
+pre_cache_cmds = [
+    "COPY DOCS.en.md .",
+    "COPY DOCS.ru.md .",
+    "RUN touch src/main.rs",
+    "RUN touch src/lib.rs",
+    "RUN /app/deployer run ru-containered --current --containered --no-pipe",
+]
+
+[[place_artifacts_into_project_root]]
+from = "target/release/deployer"
+to = "deployer"

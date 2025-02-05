@@ -55,7 +55,7 @@ use crate::pipelines::{
 use crate::project::{edit_project, init_project};
 use crate::remote::{cat_remote, edit_remote, list_remote, new_remote, remove_remote};
 use crate::run::Runs;
-use crate::rw::{VERBOSE, read, read_or_migrate, write, write_merge};
+use crate::rw::{VERBOSE, read, read_or_migrate, read_or_migrate_mul, write, write_merge};
 use crate::storage::{list_content, new_content, remove_content};
 use crate::tui::docs;
 use crate::utils::get_current_working_dir;
@@ -72,8 +72,14 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-static PROJECT_CONF: &str = "deploy-config.json";
-static HIDDEN_PROJECT_CONF: &str = ".deploy-config.json";
+static PROJECT_CONFS: [&str; 6] = [
+  "deploy-config.json",
+  "deploy-config.yaml",
+  "deploy-config.toml",
+  ".deploy-config.json",
+  ".deploy-config.yaml",
+  ".deploy-config.toml",
+];
 static GLOBAL_CONF: &str = "deploy-global.json";
 static BUILD_CACHE_LIST: &str = "deploy-builds.json";
 
@@ -170,10 +176,8 @@ fn main() {
 
   let mut globals = read_or_migrate::<DeployerGlobalConfig>(&config_folder, GLOBAL_CONF);
   DeployerGlobalConfig::make_sure_contain_defaults(&mut globals.actions_registry);
-  let mut config = read_or_migrate::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), PROJECT_CONF);
-  if config == Default::default() {
-    config = read_or_migrate::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), HIDDEN_PROJECT_CONF);
-  }
+  let (mut config, mut conf_file) =
+    read_or_migrate_mul::<DeployerProjectOptions>(&get_current_working_dir().unwrap(), &PROJECT_CONFS);
   let mut runs = read::<Runs>(&cache_folder, BUILD_CACHE_LIST);
 
   match args.r#type {
@@ -227,19 +231,19 @@ fn main() {
     }
 
     DeployerExecType::Init(args) => {
-      init_project(&mut globals, &mut config, &args).unwrap();
-      write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
+      init_project(&mut globals, &mut config, &args, &mut conf_file).unwrap();
+      write(get_current_working_dir().unwrap(), conf_file, &config);
     }
     DeployerExecType::With(args) => {
       assign_pipeline_to_project(&mut globals, &mut config, &args).unwrap();
       write(&config_folder, GLOBAL_CONF, &globals);
-      write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
+      write(get_current_working_dir().unwrap(), conf_file, &config);
     }
     DeployerExecType::Cat(CatType::Project(args)) => cat_project_pipelines(&config, args).unwrap(),
     DeployerExecType::Edit(EditType::Project) => {
-      edit_project(&mut globals, &mut config).unwrap();
+      edit_project(&mut globals, &mut config, &mut conf_file).unwrap();
       write(&config_folder, GLOBAL_CONF, &globals);
-      write(get_current_working_dir().unwrap(), PROJECT_CONF, &config);
+      write(get_current_working_dir().unwrap(), conf_file, &config);
     }
     DeployerExecType::Run(args) => {
       run(

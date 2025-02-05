@@ -1,3 +1,7 @@
+//! Containered module.
+//!
+//! Contains code for generating `Dockerfile`s and perform build and run your projects.
+
 use std::fs;
 use std::io::Write;
 
@@ -75,6 +79,9 @@ fn generate_dockerfile(
         .as_deref()
         .unwrap_or(DEPLOYER_DEFAULT_PREFLIGHT),
     )
+    // Deployer needs `nightly` toolchain by default, so we install it on default image - `ubuntu:latest`.
+    // Consider to install this toolchain by yourself by specifying `deployer_build_cmds` parameter,
+    // if you want to change Deployer's build base image.
     .replace(
       "{deployer-build-cmds}",
       &opts

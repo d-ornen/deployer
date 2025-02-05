@@ -7,6 +7,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0-beta-2] - 2025-02-05
+
+### Added
+
+- YAML and TOML project configuration support (see documentation, top paragraph).
+- Containered runs and Sub-pipeline documentation.
+
+### Changed
+
+- `run_strategies` to `cache_strategies` (project configuration).
+
+### Fixed
+
+- A lot of documentation.
+
 ## [1.4.0-beta-1] - 2025-02-05
 
 ### Added
@@ -15,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content examples.
 - Custom storage path support (via `DEPLOYER_STORAGE_PATH` environment variable).
 - Relative cache ignore pattern support (`public/tailwind.css` or `any/other/relative/path.json`).
-- Sub-Pipeline support inside Actions (no documentation for now).
+- Sub-pipeline support inside Actions (no documentation for now).
 - R/W support for `toml` and `yaml` (no usage for now).
 
 ### Changed
@@ -388,6 +403,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build support.
 - TUI.
 
+[1.4.0-beta-2]:   https://github.com/impulse-sw/deployer/compare/1.4.0-beta-1...1.4.0-beta-2
 [1.4.0-beta-1]:   https://github.com/impulse-sw/deployer/compare/1.3.5...1.4.0-beta-1
 [1.3.5]:          https://github.com/impulse-sw/deployer/compare/1.3.4...1.3.5
 [1.3.4]:          https://github.com/impulse-sw/deployer/compare/1.3.3...1.3.4

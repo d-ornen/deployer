@@ -1,3 +1,5 @@
+//! Module for perform migrations from old-versioned configs to new ones.
+
 use std::path::Path;
 
 use crate::actions::buildlike::{BuildAction, PostBuildAction, PreBuildAction};

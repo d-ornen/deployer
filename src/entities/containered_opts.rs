@@ -1,3 +1,5 @@
+//! Containered options module.
+
 use serde::{Deserialize, Serialize};
 
 use crate::entities::environment::RunEnvironment;
@@ -33,12 +35,12 @@ pub struct ContaineredOpts {
   pub deployer_build_cmds: Option<Vec<String>>,
 
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub run_strategies: Option<Vec<ContainerizedRunStrategy>>,
+  pub cache_strategies: Option<Vec<ContainerizedRunStrategy>>,
 }
 
 impl ContaineredOpts {
   pub fn sync_fake_content(&self, env: RunEnvironment) -> anyhow::Result<()> {
-    if let Some(strategies) = &self.run_strategies {
+    if let Some(strategies) = &self.cache_strategies {
       for strategy in strategies {
         strategy.sync_fake_content(env)?;
       }
@@ -49,7 +51,7 @@ impl ContaineredOpts {
   }
 
   pub fn concat_strategies(&self) -> Option<String> {
-    if let Some(strategies) = &self.run_strategies {
+    if let Some(strategies) = &self.cache_strategies {
       let mut strs = vec![];
       for strategy in strategies {
         strs.push(strategy.concat());

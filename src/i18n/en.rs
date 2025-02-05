@@ -243,6 +243,8 @@ tr!(EDIT_CACHE, "Edit cache files");
 tr!(EDIT_PROJECT_VARS, "Edit project variables");
 tr!(EDIT_ARTIFACTS, "Edit artifacts");
 tr!(EDIT_AF_INPLACE, "Edit artifact inplacements");
+tr!(EDIT_CONF_FORMAT, "Change configuration file format");
+// tr!(EDIT_PREFERRED_CONF_FORMAT, "Change default configuration file format");
 tr!(EDIT_DEFAULT, "Select default Pipeline");
 tr!(EDIT_PATCH, "Edit patch");
 tr!(EDIT_ATS, "Edit automatical artifact-to-storage push rules");
@@ -387,6 +389,8 @@ tr!(
   "Current project have no specified Pipelines to select the default one."
 );
 tr!(EDIT_DEFAULT_PROMPT, "Select the default project's Pipeline");
+tr!(ENTER_CONF_FORMAT, "Enter the new config format (`yaml`/`json`/`toml`):");
+tr!(HIDDEN, "hidden");
 
 // Patch
 tr!(PATCH_ERROR, "Patch application failed");

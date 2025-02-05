@@ -268,7 +268,15 @@ pub fn run(
   if let Some(run_dir) = &args.remote_folder
     && !args.pipeline_tags.is_empty()
   {
-    return run_as_worker(run_dir, cache_dir, config_dir, storage_dir, &globals.remote_hosts, args);
+    return run_as_worker(
+      config,
+      run_dir,
+      cache_dir,
+      config_dir,
+      storage_dir,
+      &globals.remote_hosts,
+      args,
+    );
   }
 
   let curr_dir = std::env::current_dir().expect("Can't get current dir!");
@@ -365,6 +373,7 @@ pub fn run(
 /// Runs project as worker node (e.g., without project directory itself
 /// and with given run folder path from controller's node).
 pub fn run_as_worker(
+  config: &mut DeployerProjectOptions,
   run_dir: &Path,
   cache_dir: &Path,
   config_dir: &Path,
@@ -372,7 +381,6 @@ pub fn run_as_worker(
   remotes: &HashMap<ShortName, RemoteHost>,
   args: &RunArgs,
 ) -> anyhow::Result<()> {
-  let config = crate::rw::read::<DeployerProjectOptions>(run_dir, crate::PROJECT_CONF);
   let artifacts_dir = prepare_artifacts_folder(run_dir)?;
 
   for pipeline_tag in &args.pipeline_tags {
@@ -393,8 +401,8 @@ pub fn run_as_worker(
         containered: args.containered,
       };
 
-      execute_pipeline(&config, env, pipeline)?;
-      place_artifacts(&config, env, false)?;
+      execute_pipeline(config, env, pipeline)?;
+      place_artifacts(config, env, false)?;
     } else {
       panic!(
         "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",
