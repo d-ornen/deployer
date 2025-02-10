@@ -50,6 +50,7 @@ tr!(
 );
 tr!(CMD_ONLY_WHEN_FRESH, "Start a command only in fresh runs?");
 tr!(CMD_DAEMON, "Run as a daemon until the Pipeline is complete?");
+tr!(CMD_CHANGE_DAEMON, "Change daemon behavior");
 
 tr!(CUSTOM_CMD_GUIDE_TITLE, "Shell Commands for Deployer");
 tr!(

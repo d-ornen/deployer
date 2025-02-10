@@ -359,7 +359,7 @@ impl CustomCommand {
   }
 
   pub fn start_daemon(&self, env: &RunEnvironment, child: std::process::Child) -> anyhow::Result<()> {
-    env.daemons.borrow_mut().push(child);
+    env.daemons.add_daemon(child);
     Ok(())
   }
 }

@@ -17,7 +17,7 @@ use crate::cmd::{CleanArgs, RunArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 #[cfg(feature = "containered")]
 use crate::containered::execute_pipeline_containered;
-use crate::entities::daemons::{new_daemons_container, shutdown_daemons};
+use crate::entities::daemons::Daemons;
 use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
@@ -312,7 +312,6 @@ pub fn run(
         prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
       };
 
-      let daemons = new_daemons_container();
       let env = RunEnvironment {
         run_dir: &run_path,
         cache_dir,
@@ -327,11 +326,10 @@ pub fn run(
         remotes: &globals.remote_hosts,
         #[cfg(feature = "containered")]
         containered: args.containered,
-        daemons,
+        daemons: Daemons::new(),
       };
 
       execute_pipeline(config, &env, pipeline)?;
-      shutdown_daemons(&env.daemons)?;
       place_artifacts(config, &env, false)?;
     }
   } else {
@@ -343,7 +341,6 @@ pub fn run(
           prepare_run_folder(config, runs, &pipeline.exclusive_exec_tag, &curr_dir, cache_dir, args)?
         };
 
-        let daemons = new_daemons_container();
         let env = RunEnvironment {
           run_dir: &run_path,
           cache_dir,
@@ -358,11 +355,10 @@ pub fn run(
           remotes: &globals.remote_hosts,
           #[cfg(feature = "containered")]
           containered: args.containered,
-          daemons,
+          daemons: Daemons::new(),
         };
 
         execute_pipeline(config, &env, pipeline)?;
-        shutdown_daemons(&env.daemons)?;
         place_artifacts(config, &env, false)?;
       } else {
         panic!(
@@ -392,7 +388,6 @@ pub fn run_as_worker(
 
   for pipeline_tag in &args.pipeline_tags {
     if let Some(pipeline) = &config.pipelines.iter().find(|p| p.title.as_str().eq(pipeline_tag)) {
-      let daemons = new_daemons_container();
       let env = RunEnvironment {
         run_dir,
         cache_dir,
@@ -407,11 +402,10 @@ pub fn run_as_worker(
         remotes,
         #[cfg(feature = "containered")]
         containered: args.containered,
-        daemons,
+        daemons: Daemons::new(),
       };
 
       execute_pipeline(config, &env, pipeline)?;
-      shutdown_daemons(&env.daemons)?;
       place_artifacts(config, &env, false)?;
     } else {
       panic!(

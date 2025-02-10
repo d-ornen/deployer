@@ -16,6 +16,7 @@ fs_extra = "1.2"
 indicatif = "0.17"
 inquire = { optional = true, git = "https://github.com/markcda/inquire.git", branch = "feat/reorder-values", features = ["reorder"] }
 mimalloc = "0.1.43"
+nix = { version = "0.29", features = ["signal"] }
 regex = "1.11"
 russh = "0.49"
 safe-path = "0.1"
