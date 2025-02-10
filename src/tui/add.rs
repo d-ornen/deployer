@@ -366,7 +366,10 @@ impl TestAction {
 impl PatchAction {
   pub fn new_from_prompt() -> anyhow::Result<Self> {
     let patch = PathBuf::from(inquire::Text::new(i18n::PATCH_SPECIFY_PATH).prompt()?);
-    Ok(Self { patch })
+    Ok(Self {
+      patch,
+      ignore_fails: None,
+    })
   }
 }
 
