@@ -49,6 +49,7 @@ tr!(
   "Show an output of command if it executed successfully?"
 );
 tr!(CMD_ONLY_WHEN_FRESH, "Start a command only in fresh runs?");
+tr!(CMD_DAEMON, "Run as a daemon until the Pipeline is complete?");
 
 tr!(CUSTOM_CMD_GUIDE_TITLE, "Shell Commands for Deployer");
 tr!(

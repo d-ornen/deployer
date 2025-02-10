@@ -5,6 +5,7 @@ pub mod traits;
 pub mod auto_version;
 pub mod containered_opts;
 pub mod custom_command;
+pub mod daemons;
 pub mod environment;
 pub mod info;
 #[cfg(feature = "tui")]

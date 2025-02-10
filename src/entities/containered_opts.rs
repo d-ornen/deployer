@@ -39,7 +39,7 @@ pub struct ContaineredOpts {
 }
 
 impl ContaineredOpts {
-  pub fn sync_fake_content(&self, env: RunEnvironment) -> anyhow::Result<()> {
+  pub fn sync_fake_content(&self, env: &RunEnvironment) -> anyhow::Result<()> {
     if let Some(strategies) = &self.cache_strategies {
       for strategy in strategies {
         strategy.sync_fake_content(env)?;
@@ -78,7 +78,7 @@ pub struct ContainerizedRunStrategy {
 }
 
 impl ContainerizedRunStrategy {
-  fn sync_fake_content(&self, env: RunEnvironment) -> anyhow::Result<()> {
+  fn sync_fake_content(&self, env: &RunEnvironment) -> anyhow::Result<()> {
     if let Some(content_info) = &self.fake_content {
       use_from_storage(env.storage_dir, env.run_dir, content_info)?;
     }

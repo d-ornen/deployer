@@ -57,7 +57,7 @@ pub struct TestAction {
 
 impl Execute for TestAction {
   /// Executes commands with given run environment and checks its output.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut output = vec![];
 
     let (status, command_out) = self.command.execute(env)?;

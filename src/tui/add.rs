@@ -309,6 +309,7 @@ impl TestAction {
         show_bash_c: false,
         only_when_fresh: None,
         remote_exec: None,
+        daemon: None,
       },
     })
   }
@@ -356,6 +357,7 @@ impl TestAction {
         show_bash_c: false,
         only_when_fresh: None,
         remote_exec: None,
+        daemon: None,
       },
     })
   }
@@ -897,6 +899,7 @@ impl CustomCommand {
         .with_default(false)
         .prompt()?,
     );
+    let daemon = Some(inquire::Confirm::new(i18n::CMD_DAEMON).with_default(false).prompt()?);
 
     let remote_exec = collect_remote()?;
 
@@ -909,6 +912,7 @@ impl CustomCommand {
       only_when_fresh,
       replacements: None,
       remote_exec,
+      daemon,
     })
   }
 
@@ -931,6 +935,7 @@ impl CustomCommand {
       only_when_fresh: Some(false),
       replacements: None,
       remote_exec: None,
+      daemon: None,
     })
   }
 }

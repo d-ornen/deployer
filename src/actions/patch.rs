@@ -30,7 +30,7 @@ pub struct PatchAction {
 
 impl Execute for PatchAction {
   /// Performs the patch in the run folder.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let patch_file = scoped_join(env.run_dir, &self.patch)?;
 
     let file = std::fs::File::open(patch_file)?;

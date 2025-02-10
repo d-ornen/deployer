@@ -43,7 +43,7 @@ CMD ["/app/deployer", "run", "{pipeline-name}", "--current", "--containered"{no-
 
 "#;
 
-fn generate_dockerignore(env: RunEnvironment, config: &DeployerProjectOptions) -> anyhow::Result<()> {
+fn generate_dockerignore(env: &RunEnvironment, config: &DeployerProjectOptions) -> anyhow::Result<()> {
   let mut cache_files = config
     .cache_files
     .iter()
@@ -62,7 +62,7 @@ fn generate_dockerignore(env: RunEnvironment, config: &DeployerProjectOptions) -
 }
 
 fn generate_dockerfile(
-  env: RunEnvironment,
+  env: &RunEnvironment,
   pipeline: &DescribedPipeline,
   opts: &ContaineredOpts,
   exclusive_exec_tag: &str,
@@ -127,7 +127,7 @@ fn generate_dockerfile(
 
 pub fn execute_pipeline_containered(
   config: &DeployerProjectOptions,
-  env: RunEnvironment,
+  env: &RunEnvironment,
   pipeline: &DescribedPipeline,
 ) -> anyhow::Result<()> {
   let canonicalized = env.run_dir.canonicalize()?;
@@ -158,8 +158,13 @@ pub fn execute_pipeline_containered(
     replacements: None,
     show_bash_c: true,
     show_success_output: true,
+    daemon: None,
   })
-  .execute(RunEnvironment { no_pipe: true, ..env })?
+  .execute(&RunEnvironment {
+    no_pipe: true,
+    daemons: env.daemons.clone(),
+    ..(*env)
+  })?
   .0
   {
     panic!("Image wasn't build!")
@@ -180,8 +185,13 @@ pub fn execute_pipeline_containered(
     replacements: None,
     show_bash_c: true,
     show_success_output: true,
+    daemon: None,
   })
-  .execute(RunEnvironment { no_pipe: true, ..env })?
+  .execute(&RunEnvironment {
+    no_pipe: true,
+    daemons: env.daemons.clone(),
+    ..(*env)
+  })?
   .0
   {
     panic!("Deployer didn't run!")

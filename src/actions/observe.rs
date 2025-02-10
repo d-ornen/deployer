@@ -31,15 +31,21 @@ pub struct ObserveAction {
 
 impl Execute for ObserveAction {
   /// Executes commands with given run environment without I/O redirection.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
-    let mut observe_env = env;
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    let mut observe_env = RunEnvironment {
+      daemons: env.daemons.clone(),
+      ..(*env)
+    };
     observe_env.no_pipe = true;
-    self.command.execute(observe_env)
+    self.command.execute(&observe_env)
   }
 
-  fn execute_observer(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
-    let mut observe_env = env;
+  fn execute_observer(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+    let mut observe_env = RunEnvironment {
+      daemons: env.daemons.clone(),
+      ..(*env)
+    };
     observe_env.no_pipe = true;
-    self.command.execute_observer(observe_env)
+    self.command.execute_observer(&observe_env)
   }
 }

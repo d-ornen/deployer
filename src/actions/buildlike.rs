@@ -58,7 +58,7 @@ pub type PostBuildAction = BuildAction;
 
 impl Execute for BuildAction {
   /// Executes commands with given run environment.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

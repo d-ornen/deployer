@@ -43,8 +43,8 @@ pub trait EditExtended<T> {
 
 /// Executes given entity with build environment.
 pub trait Execute {
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)>;
-  fn execute_observer(&self, #[allow(unused_variables)] env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)>;
+  fn execute_observer(&self, #[allow(unused_variables)] env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     Ok((true, vec![]))
   }
 }

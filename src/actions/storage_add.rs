@@ -23,7 +23,7 @@ pub struct AddToStorageAction {
 
 impl Execute for AddToStorageAction {
   /// Adds content to storage from given run environment.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     Ok(match &self.auto_version_rule {
       AutoVersionExtractFromRule::CmdStdout(cmd) => {
         let (succ, out) = cmd.execute(env)?;
