@@ -1,8 +1,11 @@
 //! Project module.
 
-use crate::cmd::InitArgs;
+use std::path::{Path, PathBuf};
+
+use crate::cmd::{CleanArgs, InitArgs};
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions};
-use crate::i18n;
+use crate::run::Runs;
+use crate::{ARTIFACTS_DIR, CACHE_DIR, hmap, i18n};
 
 /// Inits the project.
 pub fn init_project(
@@ -57,4 +60,86 @@ pub fn edit_project(
 
   config.edit_from_prompt(globals, conf_file)?;
   Ok(())
+}
+
+/// Cleans all project runs.
+///
+/// You can also specify `include_artifacts` option (`deployer clean -i`)
+/// to cleanup `artifacts` folder.
+pub fn clean_runs(
+  config: &DeployerProjectOptions,
+  runs: &mut Runs,
+  cache_dir: &Path,
+  args: &CleanArgs,
+) -> anyhow::Result<()> {
+  use fs_extra::dir::get_size;
+
+  let mut path = PathBuf::new();
+  path.push(cache_dir);
+  path.push(CACHE_DIR);
+
+  let mut total: u64 = 0;
+
+  if let Some(project_builds) = runs
+    .projects
+    .iter_mut()
+    .find(|p| p.name.as_str().eq(config.project_name.as_str()))
+  {
+    if !args.preserve_least {
+      for folder in project_builds.runs.iter().map(|b| b.folder.clone()) {
+        total += get_size(&folder)?;
+        let _ = std::fs::remove_dir_all(folder);
+      }
+      project_builds.runs.clear();
+    } else {
+      let mut hm = hmap!();
+      for folder in project_builds.runs.iter().cloned() {
+        hm.insert(folder.exclusive_tag.clone().unwrap_or(String::new()), folder);
+      }
+      for folder in project_builds
+        .runs
+        .iter()
+        .filter(|b| !hm.contains_key(&b.exclusive_tag.clone().unwrap_or_default()))
+        .map(|b| b.folder.clone())
+      {
+        total += get_size(&folder)?;
+        let _ = std::fs::remove_dir_all(folder);
+      }
+      project_builds.runs.clear();
+      for folder in hm.values() {
+        project_builds.runs.push(folder.clone());
+      }
+    }
+  }
+
+  if args.include_artifacts {
+    let curr_dir = std::env::current_dir()?;
+    let artifacts_dir = curr_dir.join(ARTIFACTS_DIR);
+    if artifacts_dir.as_path().exists() {
+      total += get_size(&artifacts_dir)?;
+      let _ = std::fs::remove_dir_all(artifacts_dir);
+    }
+  }
+
+  println!("{}: {}", i18n::CLEANED, format_size(total));
+
+  Ok(())
+}
+
+/// Formats `u64` as file size (bytes).
+fn format_size(size: u64) -> String {
+  const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let mut size = size as f64;
+  let mut unit_index = 0;
+
+  while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+    size /= 1024.0;
+    unit_index += 1;
+  }
+
+  if unit_index == 0 {
+    format!("{} {}", size as u64, UNITS[unit_index])
+  } else {
+    format!("{:.1} {}", size, UNITS[unit_index])
+  }
 }

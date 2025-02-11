@@ -5,7 +5,6 @@
 
 use anyhow::bail;
 use colored::Colorize;
-use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,7 +12,7 @@ use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
-use crate::cmd::{CleanArgs, RunArgs};
+use crate::cmd::RunArgs;
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 #[cfg(feature = "containered")]
 use crate::containered::execute_pipeline_containered;
@@ -732,48 +731,6 @@ pub fn execute_pipeline(
   Ok(())
 }
 
-/// Cleans all project runs.
-///
-/// You can also specify `include_artifacts` option (`deployer clean -i`)
-/// to cleanup `artifacts` folder.
-pub fn clean_runs(
-  config: &DeployerProjectOptions,
-  runs: &mut Runs,
-  cache_dir: &Path,
-  args: &CleanArgs,
-) -> anyhow::Result<()> {
-  let mut path = PathBuf::new();
-  path.push(cache_dir);
-  path.push(CACHE_DIR);
-
-  let mut total: u64 = 0;
-
-  if let Some(project_builds) = runs
-    .projects
-    .iter_mut()
-    .find(|p| p.name.as_str().eq(config.project_name.as_str()))
-  {
-    for folder in project_builds.runs.iter().map(|b| b.folder.clone()) {
-      total += get_size(&folder)?;
-      let _ = std::fs::remove_dir_all(folder);
-    }
-    project_builds.runs.clear();
-  }
-
-  if args.include_artifacts {
-    let curr_dir = std::env::current_dir()?;
-    let artifacts_dir = curr_dir.join(ARTIFACTS_DIR);
-    if artifacts_dir.as_path().exists() {
-      total += get_size(&artifacts_dir)?;
-      let _ = std::fs::remove_dir_all(artifacts_dir);
-    }
-  }
-
-  println!("{}: {}", i18n::CLEANED, format_size(total));
-
-  Ok(())
-}
-
 fn check_args_on_conflicts(args: &RunArgs) -> anyhow::Result<()> {
   if args.link_cache && args.copy_cache {
     panic!(
@@ -822,22 +779,4 @@ fn check_args_on_conflicts(args: &RunArgs) -> anyhow::Result<()> {
   }
 
   Ok(())
-}
-
-/// Formats `u64` as file size (bytes).
-fn format_size(size: u64) -> String {
-  const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
-  let mut size = size as f64;
-  let mut unit_index = 0;
-
-  while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-    size /= 1024.0;
-    unit_index += 1;
-  }
-
-  if unit_index == 0 {
-    format!("{} {}", size as u64, UNITS[unit_index])
-  } else {
-    format!("{:.1} {}", size, UNITS[unit_index])
-  }
 }
