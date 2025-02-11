@@ -50,11 +50,11 @@ impl ContaineredOpts {
     }
   }
 
-  pub fn concat_strategies(&self) -> Option<String> {
+  pub fn concat_strategies(&self, env: &RunEnvironment) -> Option<String> {
     if let Some(strategies) = &self.cache_strategies {
       let mut strs = vec![];
       for strategy in strategies {
-        strs.push(strategy.concat());
+        strs.push(strategy.concat(env));
       }
       Some(strs.join("\n"))
     } else {
@@ -85,7 +85,24 @@ impl ContainerizedRunStrategy {
     Ok(())
   }
 
-  fn concat(&self) -> String {
-    self.copy_cmds.join("\n") + "\n" + self.pre_cache_cmds.join("\n").as_str()
+  fn concat(&self, env: &RunEnvironment) -> String {
+    self.copy_cmds.join("\n")
+      + "\n"
+      + self
+        .pre_cache_cmds
+        .iter()
+        .map(|c| {
+          if c.as_str().eq("DEPL") {
+            format!(
+              "RUN /app/deployer run {} --current --containered --no-pipe",
+              env.master_pipeline
+            )
+          } else {
+            c.to_owned()
+          }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .as_str()
   }
 }

@@ -839,15 +839,15 @@ pipelines:
       - COPY Cargo.toml .
       - COPY deploy-config.json .
       pre_cache_cmds:
-      - RUN /app/deployer run containered --current --containered --no-pipe
+      - DEPL
     - copy_cmds:
       - COPY src/ src/
-      pre_cache_cmds:
       - COPY DOCS.en.md .
       - COPY DOCS.ru.md .
+      pre_cache_cmds:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
-      - RUN /app/deployer run containered --current --containered --no-pipe
+      - DEPL
   exclusive_exec_tag: containered
 - title: ru-containered
   desc: Got from `Deployer Pipeline`.
@@ -913,15 +913,15 @@ pipelines:
       - COPY Cargo.toml .
       - COPY deploy-config.json .
       pre_cache_cmds:
-      - RUN /app/deployer run ru-containered --current --containered --no-pipe
+      - DEPL
     - copy_cmds:
       - COPY src/ src/
-      pre_cache_cmds:
       - COPY DOCS.en.md .
       - COPY DOCS.ru.md .
+      pre_cache_cmds:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
-      - RUN /app/deployer run ru-containered --current --containered --no-pipe
+      - DEPL
   exclusive_exec_tag: containered
 artifacts:
 - target/release/deployer

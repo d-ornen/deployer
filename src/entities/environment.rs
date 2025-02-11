@@ -37,6 +37,9 @@ pub struct RunEnvironment<'a> {
   /// Is environment containered?
   #[cfg(feature = "containered")]
   pub containered: bool,
+  /// Actual master Pipeline name.
+  #[cfg(feature = "containered")]
+  pub master_pipeline: &'a str,
   /// Current running daemons.
   pub daemons: Daemons,
 }

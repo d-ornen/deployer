@@ -38,7 +38,7 @@ FROM {base-image} AS deployer-executor
 WORKDIR /app
 {preflight-commands}
 COPY --from=deployer-builder /app/deployer/target/release/deployer .
-{run-strategy}
+{cache-strategy}
 CMD ["/app/deployer", "run", "{pipeline-name}", "--current", "--containered"{no-pipe}]
 
 "#;
@@ -104,8 +104,8 @@ fn generate_dockerfile(
         .unwrap_or(PREFLIGHT_DEFAULT.to_string()),
     )
     .replace(
-      "{run-strategy}",
-      &opts.concat_strategies().unwrap_or("COPY . .".to_string()),
+      "{cache-strategy}",
+      &opts.concat_strategies(env).unwrap_or("COPY . .".to_string()),
     )
     .replace("{pipeline-name}", &pipeline.title)
     .replace("{no-pipe}", if env.no_pipe { r#", "--no-pipe""# } else { "" });

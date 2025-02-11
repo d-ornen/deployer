@@ -325,6 +325,8 @@ pub fn run(
         remotes: &globals.remote_hosts,
         #[cfg(feature = "containered")]
         containered: args.containered,
+        #[cfg(feature = "containered")]
+        master_pipeline: &pipeline.title,
         daemons: Daemons::new(),
       };
 
@@ -354,6 +356,8 @@ pub fn run(
           remotes: &globals.remote_hosts,
           #[cfg(feature = "containered")]
           containered: args.containered,
+          #[cfg(feature = "containered")]
+          master_pipeline: &pipeline.title,
           daemons: Daemons::new(),
         };
 
@@ -401,6 +405,8 @@ pub fn run_as_worker(
         remotes,
         #[cfg(feature = "containered")]
         containered: args.containered,
+        #[cfg(feature = "containered")]
+        master_pipeline: &pipeline.title,
         daemons: Daemons::new(),
       };
 
