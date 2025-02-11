@@ -837,7 +837,7 @@ pipelines:
       - COPY .docker-fake-files/rust/lib.rs src/lib.rs
       - COPY .docker-fake-files/rust/main.rs src/main.rs
       - COPY Cargo.toml .
-      - COPY deploy-config.json .
+      - COPY deploy-config.yaml .
       pre_cache_cmds:
       - DEPL
     - copy_cmds:
@@ -913,7 +913,7 @@ pipelines:
       - COPY .docker-fake-files/rust/lib.rs src/lib.rs
       - COPY .docker-fake-files/rust/main.rs src/main.rs
       - COPY Cargo.toml .
-      - COPY deploy-config.json .
+      - COPY deploy-config.yaml .
       pre_cache_cmds:
       - DEPL
     - copy_cmds:
@@ -926,7 +926,7 @@ pipelines:
       - DEPL
     use_containerd_local_storage_cache: true
     prevent_metadata_loading: true
-  exclusive_exec_tag: containered
+  exclusive_exec_tag: ru-containered
 artifacts:
 - target/release/deployer
 variables: []
