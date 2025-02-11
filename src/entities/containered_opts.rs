@@ -34,8 +34,28 @@ pub struct ContaineredOpts {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub deployer_build_cmds: Option<Vec<String>>,
 
+  /// Cache strategies to build & save stage cache.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub cache_strategies: Option<Vec<ContainerizedRunStrategy>>,
+
+  /// Use `containerd` image store for local cache.
+  ///
+  /// This allows you to cleanup build cache via `deployer clean`.
+  /// Make sure that `docker` containerd image store is enabled (`/etc/docker/daemon.json`):
+  ///
+  /// ```json
+  /// {
+  ///   "features": {
+  ///     "containerd-snapshotter": true
+  ///   }
+  /// }
+  /// ```
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub use_containerd_local_storage_cache: Option<bool>,
+
+  /// Prevent metadata loading on every startup.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub prevent_metadata_loading: Option<bool>,
 }
 
 impl ContaineredOpts {
