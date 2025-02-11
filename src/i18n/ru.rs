@@ -566,3 +566,13 @@ tr!(
   REMOTE_CONSIDER_UPGRADE,
   "Версии Деплойера не совпадают. Позаботьтесь об обновлении Деплойера на ваших хостах."
 );
+
+// Containered runs
+tr!(CTRD_CANT_REMOVE_OLD_IMG, "Не удалось удалить старый образ!");
+tr!(CTRD_CANT_PULL_IMG, "Не удалось получить образ!");
+tr!(CTRD_CANT_TAG_IMG, "Не удалось назначить образу тег!");
+tr!(CTRD_START_BUILD, "Начата сборка образа `{}`...");
+tr!(CTRD_IMG_WASNT_BUILT, "Образ не был собран!");
+tr!(CTRD_IMG_WAS_BUILT, "Образ был собран успешно.");
+tr!(CTRD_DEPL_WASNT_RAN, "Деплойер не выполнил Пайплайн!");
+tr!(CTRD_DEPL_WAS_RAN, "Контейнеризированная сборка завершена.");

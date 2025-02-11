@@ -170,7 +170,7 @@ pub fn check_and_pull_once(
   let mut repls = crate::rw::read::<ImagesReplacement>(env.run_dir, PREVENT_METADATA_LOCK);
   if repls.base_from.ne(opts.base_image.as_deref().unwrap_or(BASE_IMAGE)) {
     if !repls.base_to.is_empty() && run_simple(env, format!("sudo docker rmi {}", repls.base_to)).is_err() {
-      println!("{}", "Can't remove the old image!".red());
+      println!("{}", i18n::CTRD_CANT_REMOVE_OLD_IMG.red());
       exit(1);
     }
     if run_simple(
@@ -179,7 +179,7 @@ pub fn check_and_pull_once(
     )
     .is_err()
     {
-      println!("{}", "Can't pull the image!".red());
+      println!("{}", i18n::CTRD_CANT_PULL_IMG.red());
       exit(1);
     }
     if run_simple(
@@ -192,7 +192,7 @@ pub fn check_and_pull_once(
     )
     .is_err()
     {
-      println!("{}", "Can't tag the image!".red());
+      println!("{}", i18n::CTRD_CANT_TAG_IMG.red());
       exit(1);
     }
     repls.base_from = opts.base_image.as_deref().unwrap_or(BASE_IMAGE).to_owned();
@@ -203,7 +203,7 @@ pub fn check_and_pull_once(
     .ne(opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE))
   {
     if !repls.depl_to.is_empty() && run_simple(env, format!("sudo docker rmi {}", repls.depl_to)).is_err() {
-      println!("{}", "Can't remove the old image!".red());
+      println!("{}", i18n::CTRD_CANT_REMOVE_OLD_IMG.red());
       exit(1);
     }
     if run_simple(
@@ -215,7 +215,7 @@ pub fn check_and_pull_once(
     )
     .is_err()
     {
-      println!("{}", "Can't pull the image!".red());
+      println!("{}", i18n::CTRD_CANT_PULL_IMG.red());
       exit(1);
     }
     if run_simple(
@@ -228,7 +228,7 @@ pub fn check_and_pull_once(
     )
     .is_err()
     {
-      println!("{}", "Can't tag the image!".red());
+      println!("{}", i18n::CTRD_CANT_TAG_IMG.red());
       exit(1);
     }
     repls.depl_from = opts
@@ -264,8 +264,11 @@ pub fn execute_pipeline_containered(
   generate_dockerfile(env, pipeline, &opts, &exclusive_exec_tag)?;
   generate_dockerignore(env, config)?;
   println!(
-    "Started `{}` image build...",
-    format!("{}/{}", config.project_name, pipeline.title).green()
+    "{}",
+    i18n::CTRD_START_BUILD.replace(
+      "{}",
+      &format!("{}", format!("{}/{}", config.project_name, pipeline.title).green())
+    )
   );
 
   if run_simple(
@@ -288,10 +291,10 @@ pub fn execute_pipeline_containered(
   )
   .is_err()
   {
-    println!("{}", "Image wasn't build!".red());
+    println!("{}", i18n::CTRD_IMG_WASNT_BUILT.red());
     exit(1);
   }
-  println!("Image was built successfully.");
+  println!("{}", i18n::CTRD_IMG_WAS_BUILT.green());
 
   let volume_path = env.artifacts_dir.join(&pipeline.title);
 
@@ -304,11 +307,11 @@ pub fn execute_pipeline_containered(
   )
   .is_err()
   {
-    println!("{}", "Deployer didn't run!".red());
+    println!("{}", i18n::CTRD_DEPL_WASNT_RAN.red());
     exit(1);
   }
 
-  println!("{}", "Containered build is done.".green());
+  println!("{}", i18n::CTRD_DEPL_WAS_RAN.green());
 
   Ok(())
 }
