@@ -145,7 +145,7 @@ pub fn execute_pipeline_containered(
 
   if !(CustomCommand {
     bash_c: format!(
-      "sudo docker build --pull=false {}-t {}/{} -f Dockerfile.{} .",
+      "sudo docker build {}-t {}/{} -f Dockerfile.{} .",
       if env.new_build { "--no-cache " } else { "" },
       config.project_name,
       pipeline.title,
