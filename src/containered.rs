@@ -271,26 +271,22 @@ pub fn execute_pipeline_containered(
     )
   );
 
-  if run_simple(
-    env,
-    format!(
-      "sudo docker build {}-t {}/{} -f Dockerfile.{}{} .",
-      if env.new_build { "--no-cache " } else { "" },
-      config.project_name,
-      pipeline.title,
-      exclusive_exec_tag,
-      if opts.use_containerd_local_storage_cache.is_some_and(|v| v) {
-        format!(
-          " --cache-to type=local,dest=.docker-cache/{},compression=zstd --cache-from type=local,src=.docker-cache/{}",
-          exclusive_exec_tag, exclusive_exec_tag
-        )
-      } else {
-        String::from("")
-      },
-    ),
-  )
-  .is_err()
-  {
+  let build_cmd = format!(
+    "sudo docker build {}-t {}/{} -f Dockerfile.{}{} .",
+    if env.new_build { "--no-cache " } else { "" },
+    config.project_name,
+    pipeline.title,
+    exclusive_exec_tag,
+    if opts.use_containerd_local_storage_cache.is_some_and(|v| v) {
+      format!(
+        " --cache-to type=local,dest=.docker-cache/{},compression=zstd --cache-from type=local,src=.docker-cache/{}",
+        exclusive_exec_tag, exclusive_exec_tag
+      )
+    } else {
+      String::from("")
+    },
+  );
+  if run_simple(env, build_cmd.to_owned()).is_err() && run_simple(env, build_cmd).is_err() {
     println!("{}", i18n::CTRD_IMG_WASNT_BUILT.red());
     exit(1);
   }
