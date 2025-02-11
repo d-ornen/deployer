@@ -848,6 +848,8 @@ pipelines:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
       - DEPL
+    use_containerd_local_storage_cache: true
+    prevent_metadata_loading: true
   exclusive_exec_tag: containered
 - title: ru-containered
   desc: Got from `Deployer Pipeline`.
@@ -922,6 +924,8 @@ pipelines:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
       - DEPL
+    use_containerd_local_storage_cache: true
+    prevent_metadata_loading: true
   exclusive_exec_tag: containered
 artifacts:
 - target/release/deployer
