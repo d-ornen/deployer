@@ -2,8 +2,11 @@
 //!
 //! Contains code for generating `Dockerfile`s and perform build and run your projects.
 
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
+use std::process::exit;
 
 use crate::configs::DeployerProjectOptions;
 use crate::entities::containered_opts::ContaineredOpts;
@@ -38,12 +41,51 @@ FROM {base-image} AS deployer-executor
 WORKDIR /app
 {preflight-commands}
 COPY --from=deployer-builder /app/deployer/target/release/deployer .
-{run-strategy}
+{cache-strategy}
 CMD ["/app/deployer", "run", "{pipeline-name}", "--current", "--containered"{no-pipe}]
 
 "#;
 
-fn generate_dockerignore(env: RunEnvironment, config: &DeployerProjectOptions) -> anyhow::Result<()> {
+fn run_simple(env: &RunEnvironment, bash_c: String) -> anyhow::Result<()> {
+  if !(CustomCommand {
+    bash_c,
+    ignore_fails: false,
+    only_when_fresh: None,
+    placeholders: None,
+    remote_exec: None,
+    replacements: None,
+    show_bash_c: true,
+    show_success_output: true,
+    daemon: None,
+  })
+  .execute(&RunEnvironment {
+    no_pipe: true,
+    daemons: env.daemons.clone(),
+    ..(*env)
+  })?
+  .0
+  {
+    anyhow::bail!("")
+  }
+  Ok(())
+}
+
+fn is_user_in_group(group_name: &str) -> anyhow::Result<bool> {
+  let groups = match nix::unistd::getgroups() {
+    Ok(groups) => groups,
+    Err(e) => anyhow::bail!("Failed to get user groups: {}", e),
+  };
+  for gid in groups {
+    if let Ok(Some(group)) = nix::unistd::Group::from_gid(gid)
+      && group.name.as_str().eq(group_name)
+    {
+      return Ok(true);
+    }
+  }
+  Ok(false)
+}
+
+fn generate_dockerignore(env: &RunEnvironment, config: &DeployerProjectOptions) -> anyhow::Result<()> {
   let mut cache_files = config
     .cache_files
     .iter()
@@ -62,7 +104,7 @@ fn generate_dockerignore(env: RunEnvironment, config: &DeployerProjectOptions) -
 }
 
 fn generate_dockerfile(
-  env: RunEnvironment,
+  env: &RunEnvironment,
   pipeline: &DescribedPipeline,
   opts: &ContaineredOpts,
   exclusive_exec_tag: &str,
@@ -104,8 +146,8 @@ fn generate_dockerfile(
         .unwrap_or(PREFLIGHT_DEFAULT.to_string()),
     )
     .replace(
-      "{run-strategy}",
-      &opts.concat_strategies().unwrap_or("COPY . .".to_string()),
+      "{cache-strategy}",
+      &opts.concat_strategies(env).unwrap_or("COPY . .".to_string()),
     )
     .replace("{pipeline-name}", &pipeline.title)
     .replace("{no-pipe}", if env.no_pipe { r#", "--no-pipe""# } else { "" });
@@ -125,9 +167,121 @@ fn generate_dockerfile(
   Ok(())
 }
 
+#[derive(Deserialize, Serialize, Default, PartialEq)]
+pub struct ImagesReplacement {
+  pub depl_from: String,
+  pub depl_to: String,
+  pub base_from: String,
+  pub base_to: String,
+}
+
+pub static PREVENT_METADATA_LOCK: &str = ".deployer-prevent-metadata.lock.json";
+
+pub fn check_and_pull_once(
+  env: &RunEnvironment,
+  opts: &mut ContaineredOpts,
+  exclusive_exec_tag: &str,
+  sudo: bool,
+) -> anyhow::Result<()> {
+  let mut repls = crate::rw::read::<ImagesReplacement>(env.run_dir, PREVENT_METADATA_LOCK);
+  if repls.base_from.ne(opts.base_image.as_deref().unwrap_or(BASE_IMAGE)) {
+    if !repls.base_to.is_empty()
+      && run_simple(
+        env,
+        format!("{}docker rmi {}", if sudo { "" } else { "sudo " }, repls.base_to),
+      )
+      .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_REMOVE_OLD_IMG.red());
+      exit(1);
+    }
+    if run_simple(
+      env,
+      format!(
+        "{}docker pull {}",
+        if sudo { "" } else { "sudo " },
+        opts.base_image.as_deref().unwrap_or(BASE_IMAGE)
+      ),
+    )
+    .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_PULL_IMG.red());
+      exit(1);
+    }
+    if run_simple(
+      env,
+      format!(
+        "{}docker tag {} {}_executor:latest",
+        if sudo { "" } else { "sudo " },
+        opts.base_image.as_deref().unwrap_or(BASE_IMAGE),
+        exclusive_exec_tag
+      ),
+    )
+    .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_TAG_IMG.red());
+      exit(1);
+    }
+    repls.base_from = opts.base_image.as_deref().unwrap_or(BASE_IMAGE).to_owned();
+    repls.base_to = format!("{}_executor:latest", exclusive_exec_tag);
+  }
+  if repls
+    .depl_from
+    .ne(opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE))
+  {
+    if !repls.depl_to.is_empty()
+      && run_simple(
+        env,
+        format!("{}docker rmi {}", if sudo { "" } else { "sudo " }, repls.depl_to),
+      )
+      .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_REMOVE_OLD_IMG.red());
+      exit(1);
+    }
+    if run_simple(
+      env,
+      format!(
+        "{}docker pull {}",
+        if sudo { "" } else { "sudo " },
+        opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE)
+      ),
+    )
+    .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_PULL_IMG.red());
+      exit(1);
+    }
+    if run_simple(
+      env,
+      format!(
+        "{}docker tag {} {}_builder:latest",
+        if sudo { "" } else { "sudo " },
+        opts.build_deployer_base_image.as_deref().unwrap_or(BASE_IMAGE),
+        exclusive_exec_tag
+      ),
+    )
+    .is_err()
+    {
+      println!("{}", i18n::CTRD_CANT_TAG_IMG.red());
+      exit(1);
+    }
+    repls.depl_from = opts
+      .build_deployer_base_image
+      .as_deref()
+      .unwrap_or(BASE_IMAGE)
+      .to_owned();
+    repls.depl_to = format!("{}_builder:latest", exclusive_exec_tag);
+  }
+  opts.base_image = Some(repls.base_to.to_owned());
+  opts.build_deployer_base_image = Some(repls.depl_to.to_owned());
+  crate::rw::write(env.run_dir, PREVENT_METADATA_LOCK, &repls);
+  Ok(())
+}
+
 pub fn execute_pipeline_containered(
   config: &DeployerProjectOptions,
-  env: RunEnvironment,
+  env: &RunEnvironment,
   pipeline: &DescribedPipeline,
 ) -> anyhow::Result<()> {
   let canonicalized = env.run_dir.canonicalize()?;
@@ -136,56 +290,65 @@ pub fn execute_pipeline_containered(
     println!("{}: {}", i18n::BUILD_PATH, canonicalized);
   }
 
-  let exclusive_exec_tag = pipeline.exclusive_exec_tag.clone().unwrap_or(String::from("default")) + "-containered";
-  let opts = pipeline.containered_opts.as_ref().unwrap();
-  opts.sync_fake_content(env)?;
-  generate_dockerfile(env, pipeline, opts, &exclusive_exec_tag)?;
-  generate_dockerignore(env, config)?;
-  println!("Started `{}/{}` image build...", config.project_name, pipeline.title);
+  let sudo = is_user_in_group("docker")?;
 
-  if !(CustomCommand {
-    bash_c: format!(
-      "sudo docker build {}-t {}/{} -f Dockerfile.{} .",
-      if env.new_build { "--no-cache " } else { "" },
-      config.project_name,
-      pipeline.title,
-      exclusive_exec_tag
-    ),
-    ignore_fails: false,
-    only_when_fresh: None,
-    placeholders: None,
-    remote_exec: None,
-    replacements: None,
-    show_bash_c: true,
-    show_success_output: true,
-  })
-  .execute(RunEnvironment { no_pipe: true, ..env })?
-  .0
-  {
-    panic!("Image wasn't build!")
+  let exclusive_exec_tag = pipeline.exclusive_exec_tag.clone().unwrap_or(String::from("default")) + "-containered";
+  let mut opts = pipeline.containered_opts.clone().unwrap();
+  opts.sync_fake_content(env)?;
+  if opts.prevent_metadata_loading.is_some_and(|v| v) {
+    check_and_pull_once(env, &mut opts, &exclusive_exec_tag, sudo)?;
   }
-  println!("Image was built successfully.");
+  generate_dockerfile(env, pipeline, &opts, &exclusive_exec_tag)?;
+  generate_dockerignore(env, config)?;
+  println!(
+    "{}",
+    i18n::CTRD_START_BUILD.replace(
+      "{}",
+      &format!("{}", format!("{}/{}", config.project_name, pipeline.title).green())
+    )
+  );
+
+  let build_cmd = format!(
+    "{}docker build {}-t {}/{} -f Dockerfile.{}{} .",
+    if sudo { "" } else { "sudo " },
+    if env.new_build { "--no-cache " } else { "" },
+    config.project_name,
+    pipeline.title,
+    exclusive_exec_tag,
+    if opts.use_containerd_local_storage_cache.is_some_and(|v| v) {
+      format!(
+        " --cache-to type=local,dest=.docker-cache/{},compression=zstd --cache-from type=local,src=.docker-cache/{}",
+        exclusive_exec_tag, exclusive_exec_tag
+      )
+    } else {
+      String::from("")
+    },
+  );
+  if run_simple(env, build_cmd.to_owned()).is_err() && run_simple(env, build_cmd).is_err() {
+    println!("{}", i18n::CTRD_IMG_WASNT_BUILT.red());
+    exit(1);
+  }
+  println!("{}", i18n::CTRD_IMG_WAS_BUILT.green());
 
   let volume_path = env.artifacts_dir.join(&pipeline.title);
 
-  if !(CustomCommand {
-    bash_c: format!(
-      "sudo docker run -v {:?}:/app/artifacts {}/{}",
-      volume_path, config.project_name, pipeline.title
+  if run_simple(
+    env,
+    format!(
+      "{}docker run -v {:?}:/app/artifacts {}/{}",
+      if sudo { "" } else { "sudo " },
+      volume_path,
+      config.project_name,
+      pipeline.title
     ),
-    ignore_fails: false,
-    only_when_fresh: None,
-    placeholders: None,
-    remote_exec: None,
-    replacements: None,
-    show_bash_c: true,
-    show_success_output: true,
-  })
-  .execute(RunEnvironment { no_pipe: true, ..env })?
-  .0
+  )
+  .is_err()
   {
-    panic!("Deployer didn't run!")
+    println!("{}", i18n::CTRD_DEPL_WASNT_RAN.red());
+    exit(1);
   }
+
+  println!("{}", i18n::CTRD_DEPL_WAS_RAN.green());
 
   Ok(())
 }

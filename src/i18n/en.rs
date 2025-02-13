@@ -49,6 +49,8 @@ tr!(
   "Show an output of command if it executed successfully?"
 );
 tr!(CMD_ONLY_WHEN_FRESH, "Start a command only in fresh runs?");
+tr!(CMD_DAEMON, "Run as a daemon until the Pipeline is complete?");
+tr!(CMD_CHANGE_DAEMON, "Change daemon behavior");
 
 tr!(CUSTOM_CMD_GUIDE_TITLE, "Shell Commands for Deployer");
 tr!(
@@ -534,3 +536,13 @@ tr!(
   REMOTE_CONSIDER_UPGRADE,
   "Deployer versions aren't the same. Consider to update Deployer on your hosts."
 );
+
+// Containered runs
+tr!(CTRD_CANT_REMOVE_OLD_IMG, "Can't remove the old image!");
+tr!(CTRD_CANT_PULL_IMG, "Can't pull the image!");
+tr!(CTRD_CANT_TAG_IMG, "Can't tag the image!");
+tr!(CTRD_START_BUILD, "Started `{}` image build...");
+tr!(CTRD_IMG_WASNT_BUILT, "Image wasn't build!");
+tr!(CTRD_IMG_WAS_BUILT, "Image was built successfully.");
+tr!(CTRD_DEPL_WASNT_RAN, "Deployer didn't executed the Pipeline!");
+tr!(CTRD_DEPL_WAS_RAN, "Containered build is done.");

@@ -52,7 +52,7 @@ use crate::pipelines::{
   assign_pipeline_to_project, cat_pipeline, cat_project_pipelines, edit_pipeline, list_pipelines, new_pipeline,
   remove_pipeline,
 };
-use crate::project::{edit_project, init_project};
+use crate::project::{clean_runs, edit_project, init_project};
 use crate::remote::{cat_remote, edit_remote, list_remote, new_remote, remove_remote};
 use crate::run::Runs;
 use crate::rw::{VERBOSE, read, read_or_migrate, read_or_migrate_mul, write, write_merge};
@@ -63,7 +63,7 @@ use crate::utils::get_current_working_dir;
 #[cfg(feature = "tests")]
 use crate::tests::tests;
 
-use crate::run::{clean_runs, run};
+use crate::run::run;
 
 use clap::Parser;
 use dirs::{cache_dir, config_dir, data_local_dir};

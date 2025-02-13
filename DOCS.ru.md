@@ -463,7 +463,7 @@ deployer new content
 }
 ```
 
-#### 1.7. Другие действия - `Interrupt`, `Observe` и `Test`
+#### 1.7. Другие действия - `interrupt`, `observe` и `test`
 
 > [!NOTE]
 > Нет нужного примера конфигурации? Создайте действие самостоятельно при помощи команды `deployer new action` и выведите его на экран при помощи `deployer cat action my-action@x.y.z`.

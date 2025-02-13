@@ -53,12 +53,12 @@ pub enum SatisfyErr<'a> {
 }
 
 pub trait Satisfy<'a> {
-  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>>;
+  fn satisfy(&'a self, env: &RunEnvironment) -> Result<(), SatisfyErr<'a>>;
 }
 
 impl<'a> Satisfy<'a> for Requirement {
   /// Tries to satisfy the given requirement.
-  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>> {
+  fn satisfy(&'a self, env: &RunEnvironment) -> Result<(), SatisfyErr<'a>> {
     match self {
       Self::Exists { path } => {
         if path.resolve_exists() {
@@ -94,7 +94,7 @@ impl<'a> Satisfy<'a> for Requirement {
 
 impl<'a> Satisfy<'a> for HashSet<Requirement> {
   /// Tries to satisfy all unique requirements (because of `HashSet`).
-  fn satisfy(&'a self, env: RunEnvironment) -> Result<(), SatisfyErr<'a>> {
+  fn satisfy(&'a self, env: &RunEnvironment) -> Result<(), SatisfyErr<'a>> {
     for req in self.iter() {
       req.satisfy(env)?;
     }

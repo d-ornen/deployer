@@ -53,7 +53,7 @@ pub type InstallAction = PackAction;
 
 impl Execute for PackAction {
   /// Executes commands with given run environment.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let mut total_output = vec![];
 
     for cmd in &self.commands {

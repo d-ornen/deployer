@@ -174,6 +174,7 @@ impl Default for DeployerGlobalConfig {
             show_bash_c: true,
             only_when_fresh: None,
             remote_exec: None,
+            daemon: None,
           }],
         }),
         requirements: Some(vec![Requirement::Exists {

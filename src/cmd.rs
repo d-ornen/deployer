@@ -187,6 +187,9 @@ pub struct CleanArgs {
   /// Clean current project artifacts
   #[arg(short, long)]
   pub include_artifacts: bool,
+  /// Preserve least run folders
+  #[arg(short, long)]
+  pub preserve_least: bool,
 }
 
 #[derive(Args)]

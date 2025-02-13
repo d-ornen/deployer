@@ -5,7 +5,6 @@
 
 use anyhow::bail;
 use colored::Colorize;
-use fs_extra::dir::get_size;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,10 +12,11 @@ use std::process::exit;
 use uuid::Uuid;
 
 use crate::actions::Action;
-use crate::cmd::{CleanArgs, RunArgs};
+use crate::cmd::RunArgs;
 use crate::configs::{DeployerGlobalConfig, DeployerProjectOptions, Placement};
 #[cfg(feature = "containered")]
 use crate::containered::execute_pipeline_containered;
+use crate::entities::daemons::Daemons;
 use crate::entities::environment::RunEnvironment;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
@@ -110,7 +110,7 @@ pub struct Run {
 /// `panic_when_not_found` is set to `false` on all function's usages now.
 pub fn place_artifacts(
   config: &DeployerProjectOptions,
-  env: RunEnvironment,
+  env: &RunEnvironment,
   panic_when_not_found: bool,
 ) -> anyhow::Result<()> {
   let mut ignore = vec![PathBuf::from(ARTIFACTS_DIR)];
@@ -325,10 +325,13 @@ pub fn run(
         remotes: &globals.remote_hosts,
         #[cfg(feature = "containered")]
         containered: args.containered,
+        #[cfg(feature = "containered")]
+        master_pipeline: &pipeline.title,
+        daemons: Daemons::new(),
       };
 
-      execute_pipeline(config, env, pipeline)?;
-      place_artifacts(config, env, false)?;
+      execute_pipeline(config, &env, pipeline)?;
+      place_artifacts(config, &env, false)?;
     }
   } else {
     for pipeline_tag in &args.pipeline_tags {
@@ -353,10 +356,13 @@ pub fn run(
           remotes: &globals.remote_hosts,
           #[cfg(feature = "containered")]
           containered: args.containered,
+          #[cfg(feature = "containered")]
+          master_pipeline: &pipeline.title,
+          daemons: Daemons::new(),
         };
 
-        execute_pipeline(config, env, pipeline)?;
-        place_artifacts(config, env, false)?;
+        execute_pipeline(config, &env, pipeline)?;
+        place_artifacts(config, &env, false)?;
       } else {
         panic!(
           "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",
@@ -399,10 +405,13 @@ pub fn run_as_worker(
         remotes,
         #[cfg(feature = "containered")]
         containered: args.containered,
+        #[cfg(feature = "containered")]
+        master_pipeline: &pipeline.title,
+        daemons: Daemons::new(),
       };
 
-      execute_pipeline(config, env, pipeline)?;
-      place_artifacts(config, env, false)?;
+      execute_pipeline(config, &env, pipeline)?;
+      place_artifacts(config, &env, false)?;
     } else {
       panic!(
         "There is no such Pipeline `{}` set up for this project. Maybe, you've forgotten set up this Pipeline for project via `{}`?",
@@ -498,7 +507,7 @@ pub fn run_as_controller(
 /// 3. Execute all Pipeline's Actions.
 pub fn execute_pipeline(
   config: &DeployerProjectOptions,
-  env: RunEnvironment,
+  env: &RunEnvironment,
   pipeline: &DescribedPipeline,
 ) -> anyhow::Result<()> {
   use std::io::{Write, stdout};
@@ -508,10 +517,10 @@ pub fn execute_pipeline(
   if pipeline.containered_opts.is_some() && !env.containered {
     let env = RunEnvironment {
       silent_build: false,
-      ..env
+      daemons: env.daemons.clone(),
+      ..(*env)
     };
-
-    return execute_pipeline_containered(config, env, pipeline);
+    return execute_pipeline_containered(config, &env, pipeline);
   }
 
   let mut total_time = Duration::from_secs(0);
@@ -576,10 +585,14 @@ pub fn execute_pipeline(
     {
       RunEnvironment {
         run_dir: project_dir,
-        ..env
+        daemons: env.daemons.clone(),
+        ..(*env)
       }
     } else {
-      env
+      RunEnvironment {
+        daemons: env.daemons.clone(),
+        ..(*env)
+      }
     };
     let observer = matches!(&action.action, Action::Observe(_));
     let sub_pipeline = matches!(&action.action, Action::SubPipeline(_));
@@ -640,21 +653,19 @@ pub fn execute_pipeline(
           (false, vec![i18n::NO_SUCH_REMOTE.to_string()])
         }
       }
-      Action::Custom(cmd) => cmd.execute(env)?,
-      Action::Test(test) => test.execute(env)?,
-      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => a.execute(env)?,
-      Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(env)?,
-      Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(env)?,
-      Action::Observe(o_action) => o_action.execute_observer(env)?,
-      Action::Patch(patch) => patch.execute(env)?,
+      Action::Custom(cmd) => cmd.execute(&env)?,
+      Action::Test(test) => test.execute(&env)?,
+      Action::PreBuild(a) | Action::Build(a) | Action::PostBuild(a) => a.execute(&env)?,
+      Action::Pack(a) | Action::Deliver(a) | Action::Install(a) => a.execute(&env)?,
+      Action::ConfigureDeploy(a) | Action::Deploy(a) | Action::PostDeploy(a) => a.execute(&env)?,
+      Action::Observe(o_action) => o_action.execute_observer(&env)?,
+      Action::Patch(patch) => patch.execute(&env)?,
       Action::Interrupt => {
         println!();
         #[cfg(feature = "tui")]
         inquire::Confirm::new(i18n::INTERRUPT).with_default(true).prompt()?;
         #[cfg(not(feature = "tui"))]
-        {
-          let _ = std::io::read_to_string(std::io::stdin())?;
-        }
+        let _ = std::io::read_to_string(std::io::stdin())?;
         (true, vec![])
       }
       Action::UseFromStorage { content_info } => match use_from_storage(env.storage_dir, env.run_dir, content_info) {
@@ -662,11 +673,11 @@ pub fn execute_pipeline(
         Err(e) => (false, vec![e.to_string()]),
       },
       Action::AddToStorage(rules) => {
-        place_artifacts(config, env, false)?;
-        rules.execute(env)?
+        place_artifacts(config, &env, false)?;
+        rules.execute(&env)?
       }
       Action::SubPipeline(pipeline) => {
-        execute_pipeline(config, env, pipeline)?;
+        execute_pipeline(config, &env, pipeline)?;
         (true, vec![])
       }
     };
@@ -726,48 +737,6 @@ pub fn execute_pipeline(
   Ok(())
 }
 
-/// Cleans all project runs.
-///
-/// You can also specify `include_artifacts` option (`deployer clean -i`)
-/// to cleanup `artifacts` folder.
-pub fn clean_runs(
-  config: &DeployerProjectOptions,
-  runs: &mut Runs,
-  cache_dir: &Path,
-  args: &CleanArgs,
-) -> anyhow::Result<()> {
-  let mut path = PathBuf::new();
-  path.push(cache_dir);
-  path.push(CACHE_DIR);
-
-  let mut total: u64 = 0;
-
-  if let Some(project_builds) = runs
-    .projects
-    .iter_mut()
-    .find(|p| p.name.as_str().eq(config.project_name.as_str()))
-  {
-    for folder in project_builds.runs.iter().map(|b| b.folder.clone()) {
-      total += get_size(&folder)?;
-      let _ = std::fs::remove_dir_all(folder);
-    }
-    project_builds.runs.clear();
-  }
-
-  if args.include_artifacts {
-    let curr_dir = std::env::current_dir()?;
-    let artifacts_dir = curr_dir.join(ARTIFACTS_DIR);
-    if artifacts_dir.as_path().exists() {
-      total += get_size(&artifacts_dir)?;
-      let _ = std::fs::remove_dir_all(artifacts_dir);
-    }
-  }
-
-  println!("{}: {}", i18n::CLEANED, format_size(total));
-
-  Ok(())
-}
-
 fn check_args_on_conflicts(args: &RunArgs) -> anyhow::Result<()> {
   if args.link_cache && args.copy_cache {
     panic!(
@@ -816,22 +785,4 @@ fn check_args_on_conflicts(args: &RunArgs) -> anyhow::Result<()> {
   }
 
   Ok(())
-}
-
-/// Formats `u64` as file size (bytes).
-fn format_size(size: u64) -> String {
-  const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
-  let mut size = size as f64;
-  let mut unit_index = 0;
-
-  while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-    size /= 1024.0;
-    unit_index += 1;
-  }
-
-  if unit_index == 0 {
-    format!("{} {}", size as u64, UNITS[unit_index])
-  } else {
-    format!("{:.1} {}", size, UNITS[unit_index])
-  }
 }

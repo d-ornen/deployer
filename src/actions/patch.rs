@@ -26,11 +26,15 @@ use crate::i18n;
 pub struct PatchAction {
   /// Path to patch file.
   pub patch: PathBuf,
+
+  /// Flag to ignore patch fails.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub ignore_fails: Option<bool>,
 }
 
 impl Execute for PatchAction {
   /// Performs the patch in the run folder.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let patch_file = scoped_join(env.run_dir, &self.patch)?;
 
     let file = std::fs::File::open(patch_file)?;
@@ -39,7 +43,7 @@ impl Execute for PatchAction {
 
     match patches.patch(env.run_dir, env.run_dir) {
       Err(e) => Ok((false, vec![format!("{}: {}", i18n::PATCH_ERROR, e)])),
-      Ok(0) => Ok((false, vec![format!("{}", i18n::PATCH_DONE_ZERO_TIMES)])),
+      Ok(0) if self.ignore_fails.is_none_or(|v| !v) => Ok((false, vec![format!("{}", i18n::PATCH_DONE_ZERO_TIMES)])),
       Ok(num) => Ok((
         true,
         vec![format!(

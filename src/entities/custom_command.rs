@@ -76,6 +76,10 @@ pub struct CustomCommand {
   /// If is specified and isn't empty, command will be performed only on given remote hosts.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub remote_exec: Option<Vec<ShortName>>,
+
+  /// Flag to spawn process as controlled daemon.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub daemon: Option<bool>,
 }
 
 /// Replacement group.
@@ -107,7 +111,7 @@ pub struct Replacement {
 
 impl Execute for CustomCommand {
   /// Runs given command one time or more, replacing the placeholders with given values.
-  fn execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) {
       return self.remote_execute(env);
     }
@@ -158,6 +162,11 @@ impl Execute for CustomCommand {
         .spawn()
         .map_err(|e| anyhow::anyhow!("Can't execute command due to: {}", e))?;
 
+      if self.daemon.is_some_and(|v| v) {
+        self.start_daemon(env, child)?;
+        continue;
+      }
+
       let success = if env.no_pipe {
         let res = child
           .wait()
@@ -182,6 +191,10 @@ impl Execute for CustomCommand {
         command_output.status.success()
       };
 
+      if self.daemon.is_some_and(|v| v) {
+        return Ok((true, output));
+      }
+
       if !self.ignore_fails && !success {
         return Ok((false, output));
       }
@@ -191,7 +204,7 @@ impl Execute for CustomCommand {
   }
 
   /// Runs given command one time or more, replacing the placeholders with given values, and forcing `no_pipe` option.
-  fn execute_observer(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  fn execute_observer(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     if self.remote_exec.as_ref().is_some_and(|rs| !rs.is_empty()) {
       return self.remote_execute(env);
     }
@@ -270,7 +283,7 @@ impl Execute for CustomCommand {
 
 impl CustomCommand {
   /// Runs given command remotely on one or more remote hosts.
-  pub fn remote_execute(&self, env: RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
+  pub fn remote_execute(&self, env: &RunEnvironment) -> anyhow::Result<(bool, Vec<String>)> {
     let hosts = self.remote_exec.as_ref().unwrap();
     let mut output = vec![];
 
@@ -343,6 +356,11 @@ impl CustomCommand {
     }
 
     Ok((true, output))
+  }
+
+  pub fn start_daemon(&self, env: &RunEnvironment, child: std::process::Child) -> anyhow::Result<()> {
+    env.daemons.add_daemon(child);
+    Ok(())
   }
 }
 

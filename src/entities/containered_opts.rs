@@ -34,12 +34,32 @@ pub struct ContaineredOpts {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub deployer_build_cmds: Option<Vec<String>>,
 
+  /// Cache strategies to build & save stage cache.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub cache_strategies: Option<Vec<ContainerizedRunStrategy>>,
+
+  /// Use `containerd` image store for local cache.
+  ///
+  /// This allows you to cleanup build cache via `deployer clean`.
+  /// Make sure that `docker` containerd image store is enabled (`/etc/docker/daemon.json`):
+  ///
+  /// ```json
+  /// {
+  ///   "features": {
+  ///     "containerd-snapshotter": true
+  ///   }
+  /// }
+  /// ```
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub use_containerd_local_storage_cache: Option<bool>,
+
+  /// Prevent metadata loading on every startup.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub prevent_metadata_loading: Option<bool>,
 }
 
 impl ContaineredOpts {
-  pub fn sync_fake_content(&self, env: RunEnvironment) -> anyhow::Result<()> {
+  pub fn sync_fake_content(&self, env: &RunEnvironment) -> anyhow::Result<()> {
     if let Some(strategies) = &self.cache_strategies {
       for strategy in strategies {
         strategy.sync_fake_content(env)?;
@@ -50,11 +70,11 @@ impl ContaineredOpts {
     }
   }
 
-  pub fn concat_strategies(&self) -> Option<String> {
+  pub fn concat_strategies(&self, env: &RunEnvironment) -> Option<String> {
     if let Some(strategies) = &self.cache_strategies {
       let mut strs = vec![];
       for strategy in strategies {
-        strs.push(strategy.concat());
+        strs.push(strategy.concat(env));
       }
       Some(strs.join("\n"))
     } else {
@@ -78,14 +98,31 @@ pub struct ContainerizedRunStrategy {
 }
 
 impl ContainerizedRunStrategy {
-  fn sync_fake_content(&self, env: RunEnvironment) -> anyhow::Result<()> {
+  fn sync_fake_content(&self, env: &RunEnvironment) -> anyhow::Result<()> {
     if let Some(content_info) = &self.fake_content {
       use_from_storage(env.storage_dir, env.run_dir, content_info)?;
     }
     Ok(())
   }
 
-  fn concat(&self) -> String {
-    self.copy_cmds.join("\n") + "\n" + self.pre_cache_cmds.join("\n").as_str()
+  fn concat(&self, env: &RunEnvironment) -> String {
+    self.copy_cmds.join("\n")
+      + "\n"
+      + self
+        .pre_cache_cmds
+        .iter()
+        .map(|c| {
+          if c.as_str().eq("DEPL") {
+            format!(
+              "RUN /app/deployer run {} --current --containered --no-pipe",
+              env.master_pipeline
+            )
+          } else {
+            c.to_owned()
+          }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .as_str()
   }
 }

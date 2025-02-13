@@ -31,6 +31,7 @@ fn migrate_custom_v3_to_v4(prev_cmd: &CustomCommandV3) -> CustomCommand {
     show_bash_c: prev_cmd.show_bash_c,
     only_when_fresh: prev_cmd.only_when_fresh,
     remote_exec: prev_cmd.remote_exec.clone(),
+    daemon: None,
     replacements: if let Some(prev_repls) = &prev_cmd.replacements {
       let mut repl_grps = vec![];
       for i1 in prev_repls {

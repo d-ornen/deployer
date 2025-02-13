@@ -1177,6 +1177,7 @@ impl Edit for CustomCommand {
         i18n::CMD_CHANGE_VISIBILITY_AT_BUILD,
         i18n::CMD_CHANGE_VISIBILITY_ON_SUCC,
         i18n::CMD_CHANGE_ON_FRESH,
+        i18n::CMD_CHANGE_DAEMON,
       ],
     )
     .prompt_skippable()?
@@ -1216,6 +1217,13 @@ impl Edit for CustomCommand {
             .with_default(false)
             .prompt()?
           {
+            Some(true)
+          } else {
+            None
+          };
+        }
+        i18n::CMD_CHANGE_DAEMON => {
+          self.daemon = if inquire::Confirm::new(i18n::CMD_DAEMON).with_default(false).prompt()? {
             Some(true)
           } else {
             None

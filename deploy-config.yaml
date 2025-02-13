@@ -837,17 +837,19 @@ pipelines:
       - COPY .docker-fake-files/rust/lib.rs src/lib.rs
       - COPY .docker-fake-files/rust/main.rs src/main.rs
       - COPY Cargo.toml .
-      - COPY deploy-config.json .
+      - COPY deploy-config.yaml .
       pre_cache_cmds:
-      - RUN /app/deployer run containered --current --containered --no-pipe
+      - DEPL
     - copy_cmds:
       - COPY src/ src/
-      pre_cache_cmds:
       - COPY DOCS.en.md .
       - COPY DOCS.ru.md .
+      pre_cache_cmds:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
-      - RUN /app/deployer run containered --current --containered --no-pipe
+      - DEPL
+    use_containerd_local_storage_cache: true
+    prevent_metadata_loading: true
   exclusive_exec_tag: containered
 - title: ru-containered
   desc: Got from `Deployer Pipeline`.
@@ -911,18 +913,20 @@ pipelines:
       - COPY .docker-fake-files/rust/lib.rs src/lib.rs
       - COPY .docker-fake-files/rust/main.rs src/main.rs
       - COPY Cargo.toml .
-      - COPY deploy-config.json .
+      - COPY deploy-config.yaml .
       pre_cache_cmds:
-      - RUN /app/deployer run ru-containered --current --containered --no-pipe
+      - DEPL
     - copy_cmds:
       - COPY src/ src/
-      pre_cache_cmds:
       - COPY DOCS.en.md .
       - COPY DOCS.ru.md .
+      pre_cache_cmds:
       - RUN touch src/main.rs
       - RUN touch src/lib.rs
-      - RUN /app/deployer run ru-containered --current --containered --no-pipe
-  exclusive_exec_tag: containered
+      - DEPL
+    use_containerd_local_storage_cache: true
+    prevent_metadata_loading: true
+  exclusive_exec_tag: ru-containered
 artifacts:
 - target/release/deployer
 variables: []

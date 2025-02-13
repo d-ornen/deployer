@@ -6,11 +6,11 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use crate::entities::daemons::Daemons;
 use crate::entities::info::ShortName;
 use crate::entities::remote_host::RemoteHost;
 
 /// Run environment.
-#[derive(Clone, Copy)]
 pub struct RunEnvironment<'a> {
   /// Actual run folder. This is where Deployer runs all the Actions.
   pub run_dir: &'a Path,
@@ -37,4 +37,9 @@ pub struct RunEnvironment<'a> {
   /// Is environment containered?
   #[cfg(feature = "containered")]
   pub containered: bool,
+  /// Actual master Pipeline name.
+  #[cfg(feature = "containered")]
+  pub master_pipeline: &'a str,
+  /// Current running daemons.
+  pub daemons: Daemons,
 }
