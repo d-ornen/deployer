@@ -1,16 +1,16 @@
 # deployer
 
-Deployer is a relative simple, yet powerful localhost CI/CD instrument. It allows you to:
+Deployer is a relatively simple, yet powerful localhost CI/CD instrument. It allows you to:
 
 - have your own actions and pipelines repositories (`Actions Registry` and `Pipelines Registry`) in a single JSON file
 - create actions and pipelines from TUI or using JSON/YAML/TOML configuration files
 - configure actions for specific project
 - satisfy requirements for your system to run pipelines
 - check compatibility over actions and projects
-- run actions and pipelines at remote hosts (you need to setup your remote with SSH key and install `deployer`)
+- run actions and pipelines on remote hosts (you need to setup your remote access using SSH key, also you need to install `deployer` on remote host)
 - use variables for commands from `env`-files and HashiCorp Vault KV2-storage
 - run pipelines with different cache requirements in different build folders
-- run pipelines inside containered environments (Docker by default) with cache strategies
+- run pipelines inside containerized environments (Docker by default) with cache strategies
 - store common content in Deployer's storage, add and patch additional files for build on the fly
 - and share your project build/deploy settings very quickly and without any dependencies.
 
@@ -43,7 +43,7 @@ That's it! Now you have `/home/username/.cargo/bin/deployer` binary. Modify the 
 
 ## Usage
 
-All project configuration store in `deploy-config.json` or `.deploy-config.json` file.
+All project configuration is stored in `deploy-config.json` or `.deploy-config.json` file.
 
 First of all, let's create a simple action.
 
@@ -99,7 +99,7 @@ The full JSON is:
 }
 ```
 
-If you're interesting in UPX, consider to visit it [home page](https://upx.github.io/).
+If you're not familiar with UPX, consider visiting it's [home page](https://upx.github.io/).
 
 So, let's create a pipeline that will build the binary from the Rust code with preinstalled `cargo-rel@0.1` action and then compress this binary with `upx-compress@0.1.0`.
 
@@ -240,7 +240,7 @@ deployer init
 deployer with rust-default@0.1.0
 ```
 
-Deployer will consider you to specify some things (e.g., targets - for this project and `rust-default@0.1.0` Pipeline it will be `target/release/deployer`). After all you will get this `deploy-config.json`:
+Deployer will ask you to specify some things (e.g., targets - for this project and `rust-default@0.1.0` Pipeline it will be `target/release/deployer`). After all you will get this `deploy-config.json`:
 
 ```json
 {
